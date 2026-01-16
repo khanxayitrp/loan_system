@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node dist/server.js",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec ts-node src/server.ts",
+    "dev": "nodemon --watch src --exec tsx src/server.ts",
     "build": "tsc"
   },
   "keywords": [],
@@ -32,6 +32,7 @@
     "prettier": "^3.7.4",
     "sequelize-auto": "^0.8.8",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
