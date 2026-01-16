@@ -1,0 +1,44 @@
+[2026-01-13T08:20:31.109] [INFO] default - Connecting to Redis...
+[2026-01-13T08:20:31.153] [INFO] default - Redis connected successfully.
+[2026-01-13T08:20:31.157] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.59:15520[0m
+[2026-01-13T08:20:31.158] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-13T08:20:31.319] [INFO] default - Database connection has been established successfully.
+[2026-01-13T08:23:03.289] [INFO] default - Connecting to Redis...
+[2026-01-13T08:23:03.338] [INFO] default - Redis connected successfully.
+[2026-01-13T08:23:03.343] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.59:15520[0m
+[2026-01-13T08:23:03.344] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-13T08:23:03.365] [INFO] default - Database connection has been established successfully.
+[2026-01-13T08:38:11.608] [INFO] default - Connecting to Redis...
+[2026-01-13T08:38:11.646] [INFO] default - Redis connected successfully.
+[2026-01-13T08:38:11.652] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-13T08:38:11.652] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-13T08:38:21.715] [DEBUG] default - Executing (default): SELECT `id`, `username`, `password`, `full_name`, `role`, `staff_level`, `is_active`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `users` WHERE `users`.`username` = 'admin' AND `users`.`is_active` = 1;
+[2026-01-13T08:38:52.246] [DEBUG] default - Executing (default): SELECT 1+1 AS result
+[2026-01-13T08:42:42.491] [DEBUG] default - Executing (default): SELECT `id`, `username`, `password`, `full_name`, `role`, `staff_level`, `is_active`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `users` WHERE `users`.`username` = 'admin' AND `users`.`is_active` = 1;
+[2026-01-13T08:46:26.215] [DEBUG] default - Executing (default): SELECT `id`, `username`, `password`, `full_name`, `role`, `staff_level`, `is_active`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `users` WHERE `users`.`username` = 'admin' AND `users`.`is_active` = 1;
+[2026-01-13T08:46:28.306] [DEBUG] default - Executing (default): SELECT `id`, `username`, `password`, `full_name`, `role`, `staff_level`, `is_active`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `users` WHERE `users`.`username` = 'admin' AND `users`.`is_active` = 1;
+[2026-01-13T08:46:45.364] [INFO] default - Connecting to Redis...
+[2026-01-13T08:46:45.408] [INFO] default - Redis connected successfully.
+[2026-01-13T08:46:45.414] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-13T08:46:45.415] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-13T08:46:55.581] [DEBUG] default - Executing (default): SELECT `id`, `username`, `password`, `full_name`, `role`, `staff_level`, `is_active`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `users` WHERE `users`.`username` = 'admin' AND `users`.`is_active` = 1;
+[2026-01-13T08:47:36.848] [DEBUG] default - Executing (default): SELECT `id`, `username`, `password`, `full_name`, `role`, `staff_level`, `is_active`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `users` WHERE `users`.`username` = 'admin' AND `users`.`is_active` = 1;
+[2026-01-13T08:47:55.428] [DEBUG] default - Executing (default): SELECT 1+1 AS result
+[2026-01-13T08:54:06.423] [INFO] default - Connecting to Redis...
+[2026-01-13T08:54:06.452] [INFO] default - Redis connected successfully.
+[2026-01-13T08:54:06.457] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-13T08:54:06.458] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-13T09:34:38.291] [INFO] default - Connecting to Redis...
+[2026-01-13T09:34:38.325] [INFO] default - Redis connected successfully.
+[2026-01-13T09:34:38.329] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-13T09:34:38.330] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-13T09:35:20.167] [DEBUG] default - Executing (default): SELECT `id`, `username`, `password`, `full_name`, `role`, `staff_level`, `is_active`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `users` WHERE `users`.`username` = 'admin' AND `users`.`is_active` = 1;
+[2026-01-13T09:37:22.654] [INFO] default - Connecting to Redis...
+[2026-01-13T09:37:22.673] [INFO] default - Redis connected successfully.
+[2026-01-13T09:37:22.676] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-13T09:37:22.677] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-13T11:30:35.230] [INFO] default - Connecting to Redis...
+[2026-01-13T11:30:35.265] [INFO] default - Redis connected successfully.
+[2026-01-13T11:30:35.268] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-13T11:30:35.268] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-13T11:31:41.029] [DEBUG] default - Executing (default): SELECT `id`, `username`, `password`, `full_name`, `role`, `staff_level`, `is_active`, `created_at` AS `createdAt`, `updated_at` AS `updatedAt` FROM `users` AS `users` WHERE `users`.`username` = 'admin' AND `users`.`is_active` = 1;

@@ -1,0 +1,4 @@
+[2026-01-16T09:31:56.203] [INFO] default - Connecting to Redis...
+[2026-01-16T09:31:56.233] [INFO] default - Redis connected successfully.
+[2026-01-16T09:31:56.237] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15521[0m
+[2026-01-16T09:31:56.237] [INFO] default - 📊 Redis status: ✅ Connected

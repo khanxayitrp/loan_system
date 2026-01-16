@@ -1,0 +1,139 @@
+
+// ==========================================
+// src/routes/upload.routes.ts
+// ==========================================
+
+import { Router } from 'express';
+import uploadController from '../controllers/upload.controller';
+import {
+  uploadDocument,
+  uploadProductImage,
+  uploadShopLogo,
+  uploadPaymentProof
+} from '../middlewares/upload.middleware';
+import { verifyToken } from '../middlewares/auth.middleware';
+
+const router = Router();
+
+// ทุก route ต้อง authenticate ก่อน
+// router.use(verifyToken);
+
+// Application Documents
+router.post(
+  '/application/:application_id/document',
+  uploadDocument.single('file'),
+  uploadController.uploadApplicationDocument
+);
+
+router.post(
+  '/application/:application_id/documents',
+  uploadDocument.array('files', 10),
+  uploadController.uploadMultipleDocuments
+);
+
+router.get(
+  '/application/:application_id/documents',
+  uploadController.getApplicationDocuments
+);
+
+router.delete(
+  '/document/:document_id',
+  uploadController.deleteDocument
+);
+
+router.put(
+  '/document/:document_id',
+  uploadDocument.single('file'),
+  uploadController.replaceDocument
+);
+
+// Product Images
+router.post(
+  '/product/:product_id/image',
+  uploadProductImage.single('file'),
+  uploadController.uploadProductImage
+);
+
+router.post(
+  '/product/:product_id/gallery',
+  uploadProductImage.array('files', 5),
+  uploadController.uploadProductGallery
+);
+
+// Shop Logo
+router.post(
+  '/shop/:partner_id/logo',
+  uploadShopLogo.single('file'),
+  uploadController.uploadShopLogo
+);
+
+// Payment Proof
+router.post(
+  '/payment/:transaction_id/proof',
+  uploadPaymentProof.single('file'),
+  uploadController.uploadPaymentProof
+);
+
+export default router;
+
+
+
+
+// Route Production
+
+/* 
+import { Router } from 'express';
+import uploadController from '../controllers/upload.controller';
+import {
+    uploadDocument,
+    uploadProductImage,
+    uploadShopLogo,
+    uploadPaymentProof
+} from '../middlewares/upload.middleware';
+import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
+
+const router = Router();
+
+// 1. ใช้ verifyToken กับทุก Route ในไฟล์นี้
+router.use(verifyToken);
+
+// --- Application Documents (สำหรับระบบสินเชื่อ) ---
+router.post(
+    '/application/:application_id/document',
+    checkPermission('loan_document_upload'), // ต้องมีสิทธิ์อัปโหลดเอกสาร
+    uploadDocument.single('file'),
+    uploadController.uploadApplicationDocument
+);
+
+router.delete(
+    '/document/:document_id',
+    checkPermission('loan_document_delete'), // สิทธิ์ในการลบเอกสาร
+    uploadController.deleteDocument
+);
+
+// --- Product Images (สำหรับจัดการสินค้า) ---
+router.post(
+    '/product/:product_id/image',
+    checkPermission('product_management'), // ต้องมีสิทธิ์จัดการสินค้า
+    uploadProductImage.single('file'),
+    uploadController.uploadProductImage
+);
+
+// --- Shop Logo (สำหรับข้อมูลร้านค้า/Partner) ---
+router.post(
+    '/shop/:partner_id/logo',
+    checkPermission('shop_settings'), // สิทธิ์แก้ไขข้อมูลร้านค้า
+    uploadShopLogo.single('file'),
+    uploadController.uploadShopLogo
+);
+
+// --- Payment Proof (สำหรับฝ่ายการเงิน/ลูกค้า) ---
+router.post(
+    '/payment/:transaction_id/proof',
+    checkPermission('payment_upload'), 
+    uploadPaymentProof.single('file'),
+    uploadController.uploadPaymentProof
+);
+
+export default router;
+ */

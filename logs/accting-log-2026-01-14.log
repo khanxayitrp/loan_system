@@ -1,0 +1,12 @@
+[2026-01-14T10:17:42.500] [INFO] default - Connecting to Redis...
+[2026-01-14T10:17:42.543] [INFO] default - Redis connected successfully.
+[2026-01-14T10:17:42.546] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-14T10:17:42.546] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-14T17:03:02.924] [INFO] default - Connecting to Redis...
+[2026-01-14T17:03:02.987] [INFO] default - Redis connected successfully.
+[2026-01-14T17:03:02.991] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-14T17:03:02.992] [INFO] default - 📊 Redis status: ✅ Connected
+[2026-01-14T17:09:32.034] [INFO] default - Connecting to Redis...
+[2026-01-14T17:09:32.060] [INFO] default - Redis connected successfully.
+[2026-01-14T17:09:32.064] [INFO] default - 🚀 Server running on: ➜ [34mhttp://192.168.101.137:15520[0m
+[2026-01-14T17:09:32.065] [INFO] default - 📊 Redis status: ✅ Connected
