@@ -7,6 +7,8 @@ import { features as _features } from "./features";
 import type { featuresAttributes, featuresCreationAttributes } from "./features";
 import { loan_applications as _loan_applications } from "./loan_applications";
 import type { loan_applicationsAttributes, loan_applicationsCreationAttributes } from "./loan_applications";
+import { loan_payments as _loan_payments } from "./loan_payments";
+import type { loan_paymentsAttributes, loan_paymentsCreationAttributes } from "./loan_payments";
 import { partners as _partners } from "./partners";
 import type { partnersAttributes, partnersCreationAttributes } from "./partners";
 import { payment_transactions as _payment_transactions } from "./payment_transactions";
@@ -26,13 +28,14 @@ import type { user_refresh_tokensAttributes, user_refresh_tokensCreationAttribut
 import { users as _users } from "./users";
 import type { usersAttributes, usersCreationAttributes } from "./users";
 import connect from "../config/db.config";
-import {sequelize} from "../config/db.config";
+import { sequelize } from "../config/db.config";
 
 export {
   _application_documents as application_documents,
   _customers as customers,
   _features as features,
   _loan_applications as loan_applications,
+  _loan_payments as loan_payments,
   _partners as partners,
   _payment_transactions as payment_transactions,
   _product_types as product_types,
@@ -54,6 +57,8 @@ export type {
   featuresCreationAttributes,
   loan_applicationsAttributes,
   loan_applicationsCreationAttributes,
+  loan_paymentsAttributes,
+  loan_paymentsCreationAttributes,
   partnersAttributes,
   partnersCreationAttributes,
   payment_transactionsAttributes,
@@ -79,6 +84,7 @@ export function initModels(sequelize: Sequelize) {
   const customers = _customers.initModel(sequelize);
   const features = _features.initModel(sequelize);
   const loan_applications = _loan_applications.initModel(sequelize);
+  const loan_payments = _loan_payments.initModel(sequelize);
   const partners = _partners.initModel(sequelize);
   const payment_transactions = _payment_transactions.initModel(sequelize);
   const product_types = _product_types.initModel(sequelize);
@@ -97,10 +103,14 @@ export function initModels(sequelize: Sequelize) {
   features.hasMany(user_permissions, { as: "user_permissions", foreignKey: "feature_id"});
   application_documents.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(application_documents, { as: "application_documents", foreignKey: "application_id"});
+  loan_payments.belongsTo(loan_applications, { as: "loan_application", foreignKey: "loan_application_id"});
+  loan_applications.hasMany(loan_payments, { as: "loan_payments", foreignKey: "loan_application_id"});
   payment_transactions.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(payment_transactions, { as: "payment_transactions", foreignKey: "application_id"});
   repayments.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(repayments, { as: "repayments", foreignKey: "application_id"});
+  loan_payments.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
+  partners.hasMany(loan_payments, { as: "loan_payments", foreignKey: "partner_id"});
   product_types.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
   partners.hasMany(product_types, { as: "product_types", foreignKey: "partner_id"});
   products.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
@@ -134,6 +144,7 @@ export function initModels(sequelize: Sequelize) {
     customers: customers,
     features: features,
     loan_applications: loan_applications,
+    loan_payments: loan_payments,
     partners: partners,
     payment_transactions: payment_transactions,
     product_types: product_types,
@@ -145,5 +156,6 @@ export function initModels(sequelize: Sequelize) {
     users: users,
   };
 }
+
 
 export const db = initModels(connect);

@@ -2,6 +2,7 @@ import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
 import type { application_documents, application_documentsId } from './application_documents';
 import type { customers, customersId } from './customers';
+import type { loan_payments, loan_paymentsId } from './loan_payments';
 import type { payment_transactions, payment_transactionsId } from './payment_transactions';
 import type { products, productsId } from './products';
 import type { repayments, repaymentsId } from './repayments';
@@ -62,6 +63,18 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasApplication_document!: Sequelize.HasManyHasAssociationMixin<application_documents, application_documentsId>;
   hasApplication_documents!: Sequelize.HasManyHasAssociationsMixin<application_documents, application_documentsId>;
   countApplication_documents!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany loan_payments via loan_application_id
+  loan_payments!: loan_payments[];
+  getLoan_payments!: Sequelize.HasManyGetAssociationsMixin<loan_payments>;
+  setLoan_payments!: Sequelize.HasManySetAssociationsMixin<loan_payments, loan_paymentsId>;
+  addLoan_payment!: Sequelize.HasManyAddAssociationMixin<loan_payments, loan_paymentsId>;
+  addLoan_payments!: Sequelize.HasManyAddAssociationsMixin<loan_payments, loan_paymentsId>;
+  createLoan_payment!: Sequelize.HasManyCreateAssociationMixin<loan_payments>;
+  removeLoan_payment!: Sequelize.HasManyRemoveAssociationMixin<loan_payments, loan_paymentsId>;
+  removeLoan_payments!: Sequelize.HasManyRemoveAssociationsMixin<loan_payments, loan_paymentsId>;
+  hasLoan_payment!: Sequelize.HasManyHasAssociationMixin<loan_payments, loan_paymentsId>;
+  hasLoan_payments!: Sequelize.HasManyHasAssociationsMixin<loan_payments, loan_paymentsId>;
+  countLoan_payments!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasMany payment_transactions via application_id
   payment_transactions!: payment_transactions[];
   getPayment_transactions!: Sequelize.HasManyGetAssociationsMixin<payment_transactions>;

@@ -12,7 +12,7 @@ class RepaymentRepository {
             }
 
             // Check if loan application exists
-            const loanExist = await db.loan_applications.findByPk(data.application_id);
+            const loanExist = await db.loan_applications.findOne({ where: {id: data.application_id, status: "approved"} });
             if (!loanExist) {
                 throw new Error('Associated loan application does not exist');
             }

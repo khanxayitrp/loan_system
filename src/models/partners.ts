@@ -1,5 +1,6 @@
 import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
+import type { loan_payments, loan_paymentsId } from './loan_payments';
 import type { product_types, product_typesId } from './product_types';
 import type { products, productsId } from './products';
 import type { users, usersId } from './users';
@@ -26,6 +27,18 @@ export class partners extends Model<partnersAttributes, partnersCreationAttribut
   shop_logo_url?: string;
   address?: string;
 
+  // partners hasMany loan_payments via partner_id
+  loan_payments!: loan_payments[];
+  getLoan_payments!: Sequelize.HasManyGetAssociationsMixin<loan_payments>;
+  setLoan_payments!: Sequelize.HasManySetAssociationsMixin<loan_payments, loan_paymentsId>;
+  addLoan_payment!: Sequelize.HasManyAddAssociationMixin<loan_payments, loan_paymentsId>;
+  addLoan_payments!: Sequelize.HasManyAddAssociationsMixin<loan_payments, loan_paymentsId>;
+  createLoan_payment!: Sequelize.HasManyCreateAssociationMixin<loan_payments>;
+  removeLoan_payment!: Sequelize.HasManyRemoveAssociationMixin<loan_payments, loan_paymentsId>;
+  removeLoan_payments!: Sequelize.HasManyRemoveAssociationsMixin<loan_payments, loan_paymentsId>;
+  hasLoan_payment!: Sequelize.HasManyHasAssociationMixin<loan_payments, loan_paymentsId>;
+  hasLoan_payments!: Sequelize.HasManyHasAssociationsMixin<loan_payments, loan_paymentsId>;
+  countLoan_payments!: Sequelize.HasManyCountAssociationsMixin;
   // partners hasMany product_types via partner_id
   product_types!: product_types[];
   getProduct_types!: Sequelize.HasManyGetAssociationsMixin<product_types>;
