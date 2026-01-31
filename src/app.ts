@@ -10,6 +10,8 @@ import { sequelize } from './config/db.config';
 import helmet from 'helmet';
 import { limiter } from './middlewares/rateLimiter';
 import redisService from './services/redis.service';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 
 dotenv.config();
 
@@ -33,6 +35,30 @@ class App {
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
         allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
         credentials: true,
+    };
+    private swaggerOptions = {
+        definition: {
+            openapi: '3.0.0',
+            info: {
+                title: 'My Node App API',
+                version: '1.0.0',
+                description: 'API documentation for My Node App',
+            },
+            servers: [
+                {
+                    url: 'http://localhost:15520/api',
+                    description: 'Development server',
+                },
+            ],            components: {
+                securitySchemes: {
+                    bearerAuth: {
+                        type: 'http',
+                        scheme: 'bearer',
+                        bearerFormat: 'JWT',
+                    },
+                },
+            },        },
+        apis: ['./src/routes/*.ts'], // paths to files with annotations
     };
 
     constructor() {
@@ -164,6 +190,9 @@ class App {
 
         this.app.use('/api', indexRoutes);  
 
+        // Swagger UI
+        const specs = swaggerJsdoc(this.swaggerOptions);
+        this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
         
         // Default API route
         this.app.get('/api', (req: Request, res: Response) => {

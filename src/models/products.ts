@@ -7,9 +7,8 @@ import type { product_types, product_typesId } from './product_types';
 export interface productsAttributes {
   id: number;
   partner_id: number;
-  product_type_id?: number;
+  productType_id: number;
   product_name: string;
-  description?: string;
   price: number;
   interest_rate: number;
   image_url?: string;
@@ -21,15 +20,14 @@ export interface productsAttributes {
 
 export type productsPk = "id";
 export type productsId = products[productsPk];
-export type productsOptionalAttributes = "id" | "product_type_id" | "description" | "image_url" | "gallery" | "is_active" | "created_at" | "updated_at";
+export type productsOptionalAttributes = "id" | "image_url" | "gallery" | "is_active" | "created_at" | "updated_at";
 export type productsCreationAttributes = Optional<productsAttributes, productsOptionalAttributes>;
 
 export class products extends Model<productsAttributes, productsCreationAttributes> implements productsAttributes {
   id!: number;
   partner_id!: number;
-  product_type_id?: number;
+  productType_id!: number;
   product_name!: string;
-  description?: string;
   price!: number;
   interest_rate!: number;
   image_url?: string;
@@ -43,11 +41,11 @@ export class products extends Model<productsAttributes, productsCreationAttribut
   getPartner!: Sequelize.BelongsToGetAssociationMixin<partners>;
   setPartner!: Sequelize.BelongsToSetAssociationMixin<partners, partnersId>;
   createPartner!: Sequelize.BelongsToCreateAssociationMixin<partners>;
-  // products belongsTo product_types via product_type_id
-  product_type!: product_types;
-  getProduct_type!: Sequelize.BelongsToGetAssociationMixin<product_types>;
-  setProduct_type!: Sequelize.BelongsToSetAssociationMixin<product_types, product_typesId>;
-  createProduct_type!: Sequelize.BelongsToCreateAssociationMixin<product_types>;
+  // products belongsTo product_types via productType_id
+  productType!: product_types;
+  getProductType!: Sequelize.BelongsToGetAssociationMixin<product_types>;
+  setProductType!: Sequelize.BelongsToSetAssociationMixin<product_types, product_typesId>;
+  createProductType!: Sequelize.BelongsToCreateAssociationMixin<product_types>;
   // products hasMany loan_applications via product_id
   loan_applications!: loan_applications[];
   getLoan_applications!: Sequelize.HasManyGetAssociationsMixin<loan_applications>;
@@ -77,9 +75,9 @@ export class products extends Model<productsAttributes, productsCreationAttribut
         key: 'id'
       }
     },
-    product_type_id: {
+    productType_id: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      allowNull: false,
       references: {
         model: 'product_types',
         key: 'id'
@@ -88,10 +86,6 @@ export class products extends Model<productsAttributes, productsCreationAttribut
     product_name: {
       type: DataTypes.STRING(255),
       allowNull: false
-    },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true
     },
     price: {
       type: DataTypes.DECIMAL(15,2),
@@ -135,10 +129,10 @@ export class products extends Model<productsAttributes, productsCreationAttribut
         ]
       },
       {
-        name: "product_type_id",
+        name: "productType_id",
         using: "BTREE",
         fields: [
-          { name: "product_type_id" },
+          { name: "productType_id" },
         ]
       },
     ]

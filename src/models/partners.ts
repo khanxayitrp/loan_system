@@ -8,24 +8,32 @@ import type { users, usersId } from './users';
 export interface partnersAttributes {
   id: number;
   user_id: number;
+  shop_id: string;
   shop_name: string;
+  shop_owner?: string;
   contact_number?: string;
   shop_logo_url?: string;
   address?: string;
+  business_type: string;
+  is_active?: number;
 }
 
 export type partnersPk = "id";
 export type partnersId = partners[partnersPk];
-export type partnersOptionalAttributes = "id" | "contact_number" | "shop_logo_url" | "address";
+export type partnersOptionalAttributes = "id" | "shop_owner" | "contact_number" | "shop_logo_url" | "address" | "is_active";
 export type partnersCreationAttributes = Optional<partnersAttributes, partnersOptionalAttributes>;
 
 export class partners extends Model<partnersAttributes, partnersCreationAttributes> implements partnersAttributes {
   id!: number;
   user_id!: number;
+  shop_id!: string;
   shop_name!: string;
+  shop_owner?: string;
   contact_number?: string;
   shop_logo_url?: string;
   address?: string;
+  business_type!: string;
+  is_active?: number;
 
   // partners hasMany loan_payments via partner_id
   loan_payments!: loan_payments[];
@@ -85,9 +93,17 @@ export class partners extends Model<partnersAttributes, partnersCreationAttribut
         key: 'id'
       }
     },
+    shop_id: {
+      type: DataTypes.STRING(20),
+      allowNull: false
+    },
     shop_name: {
       type: DataTypes.STRING(255),
       allowNull: false
+    },
+    shop_owner: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     },
     contact_number: {
       type: DataTypes.STRING(20),
@@ -100,6 +116,15 @@ export class partners extends Model<partnersAttributes, partnersCreationAttribut
     address: {
       type: DataTypes.TEXT,
       allowNull: true
+    },
+    business_type: {
+      type: DataTypes.STRING(255),
+      allowNull: false
+    },
+    is_active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: 1
     }
   }, {
     sequelize,

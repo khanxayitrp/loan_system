@@ -13,11 +13,10 @@ export interface loan_applicationsAttributes {
   customer_id: number;
   product_id: number;
   total_amount: number;
-  interest_rate_at_apply: number;
   loan_period: number;
-  monthly_installment: number;
+  monthly_pay: number;
   is_confirmed?: number;
-  status?: 'pending' | 'verifying' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
+  status?: 'pending' | 'verifying' | 'approved' | 'rejected';
   requester_id?: number;
   approver_id?: number;
   applied_at?: Date;
@@ -35,11 +34,10 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   customer_id!: number;
   product_id!: number;
   total_amount!: number;
-  interest_rate_at_apply!: number;
   loan_period!: number;
-  monthly_installment!: number;
+  monthly_pay!: number;
   is_confirmed?: number;
-  status?: 'pending' | 'verifying' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
+  status?: 'pending' | 'verifying' | 'approved' | 'rejected';
   requester_id?: number;
   approver_id?: number;
   applied_at?: Date;
@@ -143,15 +141,11 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       type: DataTypes.DECIMAL(15,2),
       allowNull: false
     },
-    interest_rate_at_apply: {
-      type: DataTypes.DECIMAL(5,2),
-      allowNull: false
-    },
     loan_period: {
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    monthly_installment: {
+    monthly_pay: {
       type: DataTypes.DECIMAL(15,2),
       allowNull: false
     },
@@ -161,7 +155,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       defaultValue: 0
     },
     status: {
-      type: DataTypes.ENUM('pending','verifying','approved','rejected','cancelled','completed','closed_early'),
+      type: DataTypes.ENUM('pending','verifying','approved','rejected'),
       allowNull: true,
       defaultValue: "pending"
     },

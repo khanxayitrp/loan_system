@@ -1,10 +1,10 @@
 import { customers, customersAttributes, customersCreationAttributes } from '../models/customers';
 import { db } from '../models/init-models';
 import { logger } from '@/utils/logger';
-import { Op } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 
 class CustomerRepository {
-    async createCustomer(data: customersCreationAttributes): Promise<customers> {
+    async createCustomer(data: customersCreationAttributes, options: { transaction?: any } = {}): Promise<customers> {
         try {
             const cleanCustomer = { ...data };
             if (!cleanCustomer.first_name || cleanCustomer.first_name.trim() === '') {
@@ -29,7 +29,7 @@ class CustomerRepository {
                 throw new Error('Income per month is required');
             }
 
-            const existCustomer = await db.customers.findOne({ where: { identity_number: cleanCustomer.identity_number } });
+            const existCustomer = await db.customers.findOne({ where: { identity_number: cleanCustomer.identity_number },  transaction: options.transaction });
             if (existCustomer) {
                 logger.error(`Identity number already exists: ${cleanCustomer.identity_number}`);
                 throw new Error('Identity number already exists');
@@ -43,7 +43,7 @@ class CustomerRepository {
                 occupation: cleanCustomer.occupation,
                 income_per_month: cleanCustomer.income_per_month,
             };
-            const newCustomer = await db.customers.create(mapData);
+            const newCustomer = await db.customers.create(mapData, {transaction: options.transaction});
             logger.info(`Customer created with ID: ${newCustomer.id}`);
             return newCustomer;
 
@@ -52,24 +52,24 @@ class CustomerRepository {
             throw error;
         }
     }
-    async findCustomerById(customerId: number): Promise<customers | null> {
-        return await db.customers.findByPk(customerId);
+    async findCustomerById(customerId: number, options: { transaction?: any } = {}): Promise<customers | null> {
+        return await db.customers.findByPk(customerId, {transaction: options.transaction});
     }
     async findCustomerByIdentityNumber(identityNumber: string): Promise<customers | null> {
         return await db.customers.findOne({ where: { identity_number: identityNumber } });
     }
-    async findCustomersByName(name: string): Promise<customers[]> {
+    async findCustomersByName(name: string, options: { transaction?: any } = {}): Promise<customers[]> {
         return await db.customers.findAll({
             where: {
                 [Op.or]: [
                     { first_name: { [Op.like]: `%${name}%` } },
                     { last_name: { [Op.like]: `%${name}%` } }
                 ]
-            }
+            }, transaction: options.transaction
         });
     }
-    async findCustomersByPhone(phone: string): Promise<customers[]> {
-        return await db.customers.findAll({ where: { phone: { [Op.like]: `%${phone}%` } } });
+    async findCustomersByPhone(phone: string, options: { transaction?: any } = {}): Promise<customers | null> {
+        return await db.customers.findOne({ where: {phone}, transaction: options.transaction });
     }
     async findCustomersByIncomeRange(minIncome: number, maxIncome: number): Promise<customers[]> {
         return await db.customers.findAll({
@@ -81,9 +81,9 @@ class CustomerRepository {
         });
 
     }
-    async updateCustomer(customerId: number, data: Partial<customersAttributes>): Promise<customers | null> {
+    async updateCustomer(customerId: number, data: Partial<customersAttributes>,options: { transaction?: any } = {}): Promise<customers | null> {
         try {
-            const customer = await this.findCustomerById(customerId);
+            const customer = await this.findCustomerById(customerId, options);
         if (!customer) {
             logger.error(`Customer with ID: ${customerId} not found`);
              return null;
@@ -101,7 +101,7 @@ class CustomerRepository {
         const updateCustomer = await customer.update(mapData, {
             where: { id: customerId },
             returning: true
-        });
+        }, {transaction: options.transaction});
         logger.info(`Customer updated with ID: ${customerId}`);
         return customer;
         } catch (error) {

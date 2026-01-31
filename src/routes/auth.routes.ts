@@ -6,39 +6,136 @@ import { PERMISSIONS } from '@/types/permissions';
 const router = Router();
 
 /**
- * @Route   POST /api/auth/login
- * @Desc    เข้าสู่ระบบและรับ Cookies
- * @Access  Public
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: User's username
+ *               password:
+ *                 type: string
+ *                 description: User's password
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid credentials
  */
 router.post('/login', authController.login);
 
 /**
- * @Route   POST /api/auth/refresh
- * @Desc    ต่ออายุ Access Token ด้วย Refresh Token (Silent Refresh)
- * @Access  Public (ใช้ Refresh Token ใน Cookie)
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Token refreshed
+ *       401:
+ *         description: Invalid refresh token
  */
 router.post('/refresh', authController.refresh);
 
 /**
- * @Route   POST /api/auth/logout
- * @Desc    ออกจากระบบและล้าง Cookies
- * @Access  Private
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/logout', 
     verifyToken, 
     authController.logout);
 
-    /**
- * @Route   POST /api/auth/signup
- * @Desc    ลูกค้าสมัครสมาชิกด้วยตัวเอง (Public)
- * @Access  Public
+/**
+ * @swagger
+ * /auth/signup:
+ *   post:
+ *     summary: Customer signup
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *               - email
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Signup successful
+ *       400:
+ *         description: Invalid data
  */
 router.post('/signup', authController.signUp); // สร้าง function signUp ใหม่สำหรับลูกค้า
 
 /**
- * @Route   POST /api/auth/register
- * @Desc    Admin สร้าง User ใหม่ (Staff หรือ Partner)
- * @Access  Private (Admin Only)
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Register new user (Admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *               - role
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [admin, staff, partner]
+ *     responses:
+ *       201:
+ *         description: User registered
+ *       403:
+ *         description: Forbidden
  */
 router.post(
     '/register', 
@@ -48,9 +145,32 @@ router.post(
 );
 
 /**
- * @Route   POST /api/auth/change-password
- * @Desc    User เปลี่ยนรหัสผ่านของตัวเอง
- * @Access  Private (All Roles)
+ * @swagger
+ * /auth/change-password:
+ *   post:
+ *     summary: Change user password
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - oldPassword
+ *               - newPassword
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password changed
+ *       400:
+ *         description: Invalid data
  */
 router.post(
     '/change-password', 

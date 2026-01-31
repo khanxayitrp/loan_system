@@ -6,7 +6,7 @@ export interface application_documentsAttributes {
   id: number;
   application_id: number;
   file_url: string;
-  doc_type: 'id_card' | 'house_reg' | 'salary_slip' | 'other';
+  doc_type?: 'id_card' | 'house_reg' | 'salary_slip' | 'other';
   uploaded_at?: Date;
 }
 
@@ -19,7 +19,7 @@ export class application_documents extends Model<application_documentsAttributes
   id!: number;
   application_id!: number;
   file_url!: string;
-  doc_type!: 'id_card' | 'house_reg' | 'salary_slip' | 'other';
+  doc_type?: 'id_card' | 'house_reg' | 'salary_slip' | 'other';
   uploaded_at?: Date;
 
   // application_documents belongsTo loan_applications via application_id
@@ -50,7 +50,7 @@ export class application_documents extends Model<application_documentsAttributes
     },
     doc_type: {
       type: DataTypes.ENUM('id_card','house_reg','salary_slip','other'),
-      allowNull: false,
+      allowNull: true,
       defaultValue: "other"
     },
     uploaded_at: {

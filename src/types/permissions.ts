@@ -37,8 +37,17 @@ export const PERMISSIONS = {
     PROFILE: 'cust_profile_view',
     HISTORY: 'cust_loan_history',
     PAYMENT_UPLOAD: 'payment_proof_upload',
-  }
+  },
+
+  
+// กลุ่มการชำระเงิน (Payment)
+  PAYMENT: {
+    VIEW: 'payment_view',
+    CREATE: 'payment_create',
+    VERIFY: 'payment_verify',
+  } 
 } as const;
+
 
 /**
  * สกัด Type ออกมาจาก Object ด้านบน

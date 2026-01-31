@@ -8,13 +8,14 @@ export interface promotionsAttributes {
   description?: string;
   start_date?: string;
   end_date?: string;
+  image_url?: string;
   is_active?: number;
   created_by?: number;
 }
 
 export type promotionsPk = "id";
 export type promotionsId = promotions[promotionsPk];
-export type promotionsOptionalAttributes = "id" | "description" | "start_date" | "end_date" | "is_active" | "created_by";
+export type promotionsOptionalAttributes = "id" | "description" | "start_date" | "end_date" | "image_url" | "is_active" | "created_by";
 export type promotionsCreationAttributes = Optional<promotionsAttributes, promotionsOptionalAttributes>;
 
 export class promotions extends Model<promotionsAttributes, promotionsCreationAttributes> implements promotionsAttributes {
@@ -23,6 +24,7 @@ export class promotions extends Model<promotionsAttributes, promotionsCreationAt
   description?: string;
   start_date?: string;
   end_date?: string;
+  image_url?: string;
   is_active?: number;
   created_by?: number;
 
@@ -54,6 +56,10 @@ export class promotions extends Model<promotionsAttributes, promotionsCreationAt
     },
     end_date: {
       type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    image_url: {
+      type: DataTypes.STRING(255),
       allowNull: true
     },
     is_active: {

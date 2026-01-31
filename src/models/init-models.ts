@@ -115,8 +115,8 @@ export function initModels(sequelize: Sequelize) {
   partners.hasMany(product_types, { as: "product_types", foreignKey: "partner_id"});
   products.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
   partners.hasMany(products, { as: "products", foreignKey: "partner_id"});
-  products.belongsTo(product_types, { as: "product_type", foreignKey: "product_type_id"});
-  product_types.hasMany(products, { as: "products", foreignKey: "product_type_id"});
+  products.belongsTo(product_types, { as: "productType", foreignKey: "productType_id"});
+  product_types.hasMany(products, { as: "products", foreignKey: "productType_id"});
   loan_applications.belongsTo(products, { as: "product", foreignKey: "product_id"});
   products.hasMany(loan_applications, { as: "loan_applications", foreignKey: "product_id"});
   payment_transactions.belongsTo(repayments, { as: "schedule", foreignKey: "schedule_id"});

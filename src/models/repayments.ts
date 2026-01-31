@@ -6,7 +6,6 @@ import type { payment_transactions, payment_transactionsId } from './payment_tra
 export interface repaymentsAttributes {
   id: number;
   application_id: number;
-  installment_no: number;
   due_date: string;
   principal_amount: number;
   interest_amount: number;
@@ -14,7 +13,7 @@ export interface repaymentsAttributes {
   discounts?: number;
   penalty?: number;
   remaining_principal: number;
-  payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue' | 'waived';
+  payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
   paid_at?: Date;
 }
 
@@ -26,7 +25,6 @@ export type repaymentsCreationAttributes = Optional<repaymentsAttributes, repaym
 export class repayments extends Model<repaymentsAttributes, repaymentsCreationAttributes> implements repaymentsAttributes {
   id!: number;
   application_id!: number;
-  installment_no!: number;
   due_date!: string;
   principal_amount!: number;
   interest_amount!: number;
@@ -34,7 +32,7 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
   discounts?: number;
   penalty?: number;
   remaining_principal!: number;
-  payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue' | 'waived';
+  payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
   paid_at?: Date;
 
   // repayments belongsTo loan_applications via application_id
@@ -71,10 +69,6 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
         key: 'id'
       }
     },
-    installment_no: {
-      type: DataTypes.INTEGER,
-      allowNull: false
-    },
     due_date: {
       type: DataTypes.DATEONLY,
       allowNull: false
@@ -106,7 +100,7 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
       allowNull: false
     },
     payment_status: {
-      type: DataTypes.ENUM('unpaid','partial','paid','overdue','waived'),
+      type: DataTypes.ENUM('unpaid','partial','paid','overdue'),
       allowNull: true,
       defaultValue: "unpaid"
     },

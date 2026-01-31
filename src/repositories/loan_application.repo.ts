@@ -6,7 +6,7 @@ import { Op } from 'sequelize';
 export type status = "pending" | "verifying" | "approved" | "rejected" | "cancelled" | "completed" | "closed_early" | undefined;
 class LoanApplicationRepository {
     
-    async createLoanApplication(data: loan_applicationsCreationAttributes): Promise<loan_applications> {
+    async createLoanApplication(data: loan_applicationsCreationAttributes, options: {transaction?: any} = {}): Promise<loan_applications> {
         try {
             const cleanLoanApplication = { ...data };
 
@@ -44,7 +44,7 @@ class LoanApplicationRepository {
                 approver_id: cleanLoanApplication.approver_id || null,
                 remarks: cleanLoanApplication.remarks || null,
             };
-            const newLoanApplication = await db.loan_applications.create(mapData);
+            const newLoanApplication = await db.loan_applications.create(mapData, {transaction: options.transaction});
             logger.info(`Loan application created with ID: ${newLoanApplication.id}`);
             return newLoanApplication;
         } catch (error) {

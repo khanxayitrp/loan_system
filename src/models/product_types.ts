@@ -30,7 +30,7 @@ export class product_types extends Model<product_typesAttributes, product_typesC
   getPartner!: Sequelize.BelongsToGetAssociationMixin<partners>;
   setPartner!: Sequelize.BelongsToSetAssociationMixin<partners, partnersId>;
   createPartner!: Sequelize.BelongsToCreateAssociationMixin<partners>;
-  // product_types hasMany products via product_type_id
+  // product_types hasMany products via productType_id
   products!: products[];
   getProducts!: Sequelize.HasManyGetAssociationsMixin<products>;
   setProducts!: Sequelize.HasManySetAssociationsMixin<products, productsId>;

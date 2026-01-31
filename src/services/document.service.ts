@@ -3,7 +3,8 @@
 import { db } from '../models/init-models';
 import fileUploadService from './fileUpload.service';
 import { FILE_UPLOAD_CONFIG, DocumentType, UploadedFile } from '../types/file.types';
-import {logger} from '../utils/logger';
+import { logger } from '../utils/logger';
+import { NotFoundError, ForbiddenError } from '@/utils/errors';
 
 interface CreateDocumentData {
   application_id: number;
@@ -31,38 +32,61 @@ class DocumentService {
     let uploadedPath: string | null = null;
     try {
       // ตรวจสอบว่า application มีอยู่จริง
-      const application = await db.loan_applications.findByPk(data.application_id);
+      const application = await db.loan_applications.findByPk(data.application_id, {transaction});
       if (!application) {
-        throw new Error('Loan application not found');
+        throw new NotFoundError('Loan application not found');
       }
+
+      if (application.is_confirmed === 1) {
+  throw new ForbiddenError('ไม่สามารถอัปโหลดเอกสารเพิ่มได้หลังยื่นคำขอแล้ว');
+}
 
       // อัปโหลดไฟล์
       const uploadResult = await fileUploadService.uploadSingleFile(
         data.file,
         FILE_UPLOAD_CONFIG.DOCUMENTS,
-        `app_${data.application_id}_${data.doc_type}`
+        `app_${data.application_id}_${data.doc_type}_${Date.now()}` // เติม Date.now ป้องกันชื่อซ้ำ
       );
 
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || 'Failed to upload file');
       }
-
+      uploadedPath = uploadResult.fileUrl!; // เก็บ path ไว้เผื่อต้องลบทิ้งถ้า DB พัง
       // บันทึกข้อมูลลง database
       const document = await db.application_documents.create({
         application_id: data.application_id,
-        file_url: uploadResult.fileUrl!,
+        file_url: uploadedPath,
         doc_type: data.doc_type
-      });
+      }, { transaction });
 
-      logger.info(
-        `Document uploaded for application ${data.application_id}: ${uploadResult.fileName}`
-      );
+      // 4. ถ้าทุกอย่างเรียบร้อย สั่ง Commit
+      await transaction.commit();
 
-    //   return document.get({ plain: true });
-    // Since you just created it with a valid doc_type, it's safe to assert
-const plain = document.get({ plain: true }) as DocumentRecord;
-return plain;
+      logger.info(`Document saved: ${uploadedPath}`);
+      return document.get({ plain: true }) as DocumentRecord;
+
+      // logger.info(
+      //   `Document uploaded for application ${data.application_id}: ${uploadResult.fileName}`
+      // );
+
+      //   return document.get({ plain: true });
+      // Since you just created it with a valid doc_type, it's safe to assert
+
+
+      // const plain = document.get({ plain: true }) as DocumentRecord;
+      // return plain;
     } catch (error) {
+
+      // 5. ถ้าพัง ให้ Rollback Database
+      await transaction.rollback();
+
+      // 6. !!! สำคัญ: ถ้าอัปโหลดไฟล์ไปแล้วแต่ DB พัง ให้ลบไฟล์ทิ้งทันที
+      if (uploadedPath) {
+        const filePathToRemove = uploadedPath.replace(/^\//, '');
+        await fileUploadService.deleteFile(filePathToRemove).catch(err => 
+          logger.error(`Failed to cleanup orphaned file: ${filePathToRemove}`, err)
+        );
+      }
       logger.error('Error uploading application document:', error);
       throw error;
     }
@@ -140,25 +164,38 @@ return plain;
    * ลบเอกสาร
    */
   async deleteDocument(document_id: number): Promise<boolean> {
+    const transaction = await db.sequelize.transaction();
     try {
       const document = await db.application_documents.findByPk(document_id);
-      
+
       if (!document) {
         throw new Error('Document not found');
       }
 
-      const plainDoc = document.get({ plain: true });
+      // const plainDoc = document.get({ plain: true });
+
+      // // ลบไฟล์จาก storage
+      // const filePath = plainDoc.file_url.replace(/^\//, ''); // ลบ / ด้านหน้า
+      // await fileUploadService.deleteFile(filePath);
+
+      // // ลบจาก database
+      // await document.destroy();
+
+      // logger.info(`Document ${document_id} deleted successfully`);
+      // return true;
+      const fileUrl = document.file_url;
+
+      // ลบจาก database ก่อน
+      await document.destroy({ transaction });
 
       // ลบไฟล์จาก storage
-      const filePath = plainDoc.file_url.replace(/^\//, ''); // ลบ / ด้านหน้า
+      const filePath = fileUrl.replace(/^\//, '');
       await fileUploadService.deleteFile(filePath);
 
-      // ลบจาก database
-      await document.destroy();
-
-      logger.info(`Document ${document_id} deleted successfully`);
+      await transaction.commit();
       return true;
     } catch (error) {
+      await transaction.rollback();
       logger.error('Error deleting document:', error);
       throw error;
     }
@@ -173,7 +210,7 @@ return plain;
   ): Promise<DocumentRecord> {
     try {
       const document = await db.application_documents.findByPk(document_id);
-      
+
       if (!document) {
         throw new Error('Document not found');
       }
@@ -219,7 +256,7 @@ return plain;
     try {
       const requiredTypes: DocumentType[] = ['id_card', 'house_reg', 'salary_slip'];
       const documents = await this.getApplicationDocuments(application_id);
-      
+
       const existingTypes = documents.map(doc => doc.doc_type);
       const missingTypes = requiredTypes.filter(
         type => !existingTypes.includes(type)
@@ -243,7 +280,7 @@ return plain;
   ): Promise<boolean> {
     try {
       const documents = await this.getApplicationDocuments(application_id);
-      
+
       // ลบไฟล์ทั้งหมด
       const filePaths = documents.map(doc => doc.file_url.replace(/^\//, ''));
       await fileUploadService.deleteFiles(filePaths);

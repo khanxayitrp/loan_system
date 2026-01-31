@@ -13,6 +13,12 @@ import {
     FILE_UPLOAD_CONFIG
 } from '../types/file.types';
 import { logger } from '../utils/logger';
+import {
+    ValidationError,
+    ForbiddenError,
+    NotFoundError,
+    InternalServerError
+} from '../utils/errors'; // ← เพิ่ม import นี้
 
 class FileUploadService {
     /**
@@ -113,10 +119,7 @@ class FileUploadService {
             // Validate file
             const validation = this.validateFile(file, config);
             if (!validation.isValid) {
-                return {
-                    success: false,
-                    error: validation.error
-                };
+                throw new ValidationError(validation.error || 'ไฟล์ไม่ผ่านการตรวจสอบ');
             }
 
             // สร้างโฟลเดอร์ถ้ายังไม่มี
@@ -159,10 +162,12 @@ class FileUploadService {
             };
         } catch (error) {
             logger.error('Error uploading file:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Error uploading file'
-            };
+            // ถ้าเกิด error ระหว่างอัปโหลด ให้ throw custom error
+            if (error instanceof ValidationError) {
+                throw error;
+            }
+
+            throw new InternalServerError('เกิดข้อผิดพลาดในการอัปโหลดไฟล์');
         }
     }
 
@@ -177,8 +182,16 @@ class FileUploadService {
         const results: UploadResult[] = [];
 
         for (const file of files) {
-            const result = await this.uploadSingleFile(file, config, prefix);
-            results.push(result);
+            try {
+                const result = await this.uploadSingleFile(file, config, prefix);
+                results.push(result);
+            } catch (error) {
+                results.push({
+                    success: false,
+                    error: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์'
+                });
+            }
+
         }
 
         return results;
