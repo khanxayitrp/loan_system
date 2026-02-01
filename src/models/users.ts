@@ -14,7 +14,7 @@ export interface usersAttributes {
   username: string;
   password: string;
   full_name: string;
-  role: 'admin' | 'staff' | 'partner';
+  role: 'admin' | 'staff' | 'partner' | 'customer';
   staff_level?: 'requester' | 'approver' | 'none';
   is_active?: number;
   created_at?: Date;
@@ -31,7 +31,7 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   username!: string;
   password!: string;
   full_name!: string;
-  role!: 'admin' | 'staff' | 'partner';
+  role!: 'admin' | 'staff' | 'partner' | 'customer';
   staff_level?: 'requester' | 'approver' | 'none';
   is_active?: number;
   created_at?: Date;
@@ -168,7 +168,7 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
       allowNull: false
     },
     role: {
-      type: DataTypes.ENUM('admin','staff','partner'),
+      type: DataTypes.ENUM('admin','staff','partner', 'customer'),
       allowNull: false
     },
     staff_level: {

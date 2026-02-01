@@ -157,5 +157,4 @@ export function initModels(sequelize: Sequelize) {
   };
 }
 
-
 export const db = initModels(connect);

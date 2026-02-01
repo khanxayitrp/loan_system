@@ -21,12 +21,13 @@ export interface loan_applicationsAttributes {
   approver_id?: number;
   applied_at?: Date;
   approved_at?: Date;
+  credit_score?: number;
   remarks?: string;
 }
 
 export type loan_applicationsPk = "id";
 export type loan_applicationsId = loan_applications[loan_applicationsPk];
-export type loan_applicationsOptionalAttributes = "id" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "remarks";
+export type loan_applicationsOptionalAttributes = "id" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks";
 export type loan_applicationsCreationAttributes = Optional<loan_applicationsAttributes, loan_applicationsOptionalAttributes>;
 
 export class loan_applications extends Model<loan_applicationsAttributes, loan_applicationsCreationAttributes> implements loan_applicationsAttributes {
@@ -42,6 +43,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   approver_id?: number;
   applied_at?: Date;
   approved_at?: Date;
+  credit_score?: number;
   remarks?: string;
 
   // loan_applications belongsTo customers via customer_id
@@ -181,6 +183,10 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
     },
     approved_at: {
       type: DataTypes.DATE,
+      allowNull: true
+    },
+    credit_score: {
+      type: DataTypes.INTEGER,
       allowNull: true
     },
     remarks: {
