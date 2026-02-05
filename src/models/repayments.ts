@@ -6,6 +6,7 @@ import type { payment_transactions, payment_transactionsId } from './payment_tra
 export interface repaymentsAttributes {
   id: number;
   application_id: number;
+  installment_no: number;
   due_date: string;
   principal_amount: number;
   interest_amount: number;
@@ -25,6 +26,7 @@ export type repaymentsCreationAttributes = Optional<repaymentsAttributes, repaym
 export class repayments extends Model<repaymentsAttributes, repaymentsCreationAttributes> implements repaymentsAttributes {
   id!: number;
   application_id!: number;
+  installment_no!: number;
   due_date!: string;
   principal_amount!: number;
   interest_amount!: number;
@@ -68,6 +70,10 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
         model: 'loan_applications',
         key: 'id'
       }
+    },
+    installment_no: {
+      type: DataTypes.INTEGER,
+      allowNull: false
     },
     due_date: {
       type: DataTypes.DATEONLY,

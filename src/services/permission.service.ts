@@ -103,7 +103,95 @@ class PermissionService {
     // Implement logic เช่น check จาก users table ว่า user นี้ under admin's department
     return true; // Placeholder
   }
-}
 
+/**
+   * ✅ ดึงสิทธิ์ของผู้ใช้เฉพาะคน
+   */
+  async getUserPermissions(userId: number) {
+    const permissions = await db.user_permissions.findAll({
+      where: { user_id: userId },
+      include: [{
+        model: db.features,
+        attributes: ['id', 'feature_name', 'description']
+      }],
+      raw: true,
+      nest: true
+    });
+
+    return permissions.map((p: any) => ({
+      user_id: p.user_id,
+      feature_id: p.feature.id,
+      can_access: p.can_access,
+      feature: {
+        id: p.feature.id,
+        feature_name: p.feature.feature_name,
+        description: p.feature.description
+      }
+    }));
+  }
+
+  /**
+   * ✅ กำหนดสิทธิ์ให้ผู้ใช้เฉพาะคน (Overwrite mode)
+   */
+  async assignUserPermissions(userId: number, featureIds: number[]): Promise<boolean> {
+    const transaction = await db.sequelize.transaction();
+    try {
+      // Validate feature IDs exist
+      if (featureIds.length > 0) {
+        const existingFeatures = await db.features.count({
+          where: { id: featureIds }
+        });
+        if (existingFeatures !== featureIds.length) {
+          throw new Error('Some feature IDs do not exist');
+        }
+      }
+
+      // Delete old permissions
+      await db.user_permissions.destroy({
+        where: { user_id: userId },
+        transaction
+      });
+
+      // Insert new permissions
+      if (featureIds.length > 0) {
+        const data = featureIds.map(fId => ({
+          user_id: userId,
+          feature_id: fId,
+          can_access: 1
+        }));
+        await db.user_permissions.bulkCreate(data, { transaction });
+      }
+
+      logger.info(`Permissions assigned for user ${userId}: features=${featureIds.join(',')}`);
+      await transaction.commit();
+      return true;
+    } catch (error) {
+      await transaction.rollback();
+      logger.error('Assign User Permissions Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ ลบสิทธิ์ทั้งหมดของผู้ใช้เฉพาะคน
+   */
+  async deleteAllUserPermissions(userId: number): Promise<boolean> {
+    const transaction = await db.sequelize.transaction();
+    try {
+      await db.user_permissions.destroy({
+        where: { user_id: userId },
+        transaction
+      });
+      
+      logger.info(`All permissions deleted for user ${userId}`);
+      await transaction.commit();
+      return true;
+    } catch (error) {
+      await transaction.rollback();
+      logger.error('Delete All User Permissions Error:', error);
+      throw error;
+    }
+  }
+}
 
 export default new PermissionService();

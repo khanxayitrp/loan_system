@@ -4,9 +4,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export interface SmsConfig {
-  wsdlUrl: string;
-  userId: string;
-  privateKey: string;
+  wsdlUrl?: string;
+  userId?: string;
+  privateKey?: string;
   defaultSenderId?: string;
   timeoutMs?: number;
   otp: {
@@ -18,10 +18,10 @@ export interface SmsConfig {
 
 // Load from environment variables (BEST PRACTICE)
 export const smsConfig: SmsConfig = {
-  wsdlUrl: process.env.SMS_WSDL_URL || 'http://ltcservice.laotel.com:5577/Services.asmx?WSDL',
-  userId: process.env.LAOTEL_USERID || 'INSEELOAN',
-  privateKey: process.env.LAOTEL_PRIVATE_KEY || 'CTr1cmzVeD3j+qwcc2yQdUinjmQWeGtR15DlFayWQFI=',
-  defaultSenderId: process.env.SMS_SENDER_ID || 'TEST',
+  wsdlUrl: process.env.SMS_WSDL_URL,
+  userId: process.env.LAOTEL_USERID,
+  privateKey: process.env.LAOTEL_PRIVATE_KEY,
+  defaultSenderId: process.env.SMS_SENDER_ID,
   timeoutMs: parseInt(process.env.SMS_TIMEOUT_MS || '30000', 10),
   otp: {
     length: parseInt(process.env.OTP_LENGTH || '6', 10),

@@ -2,6 +2,7 @@ import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
 import type { application_documents, application_documentsId } from './application_documents';
 import type { customers, customersId } from './customers';
+import type { delivery_receipts, delivery_receiptsId } from './delivery_receipts';
 import type { loan_payments, loan_paymentsId } from './loan_payments';
 import type { payment_transactions, payment_transactionsId } from './payment_transactions';
 import type { products, productsId } from './products';
@@ -12,8 +13,10 @@ export interface loan_applicationsAttributes {
   id: number;
   customer_id: number;
   product_id: number;
+  loan_id: string;
   total_amount: number;
   loan_period: number;
+  interest_rate_at_apply: number;
   monthly_pay: number;
   is_confirmed?: number;
   status?: 'pending' | 'verifying' | 'approved' | 'rejected';
@@ -23,19 +26,23 @@ export interface loan_applicationsAttributes {
   approved_at?: Date;
   credit_score?: number;
   remarks?: string;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 export type loan_applicationsPk = "id";
 export type loan_applicationsId = loan_applications[loan_applicationsPk];
-export type loan_applicationsOptionalAttributes = "id" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks";
+export type loan_applicationsOptionalAttributes = "id" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at";
 export type loan_applicationsCreationAttributes = Optional<loan_applicationsAttributes, loan_applicationsOptionalAttributes>;
 
 export class loan_applications extends Model<loan_applicationsAttributes, loan_applicationsCreationAttributes> implements loan_applicationsAttributes {
   id!: number;
   customer_id!: number;
   product_id!: number;
+  loan_id!: string;
   total_amount!: number;
   loan_period!: number;
+  interest_rate_at_apply!: number;
   monthly_pay!: number;
   is_confirmed?: number;
   status?: 'pending' | 'verifying' | 'approved' | 'rejected';
@@ -45,6 +52,8 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   approved_at?: Date;
   credit_score?: number;
   remarks?: string;
+  created_at?: Date;
+  updated_at?: Date;
 
   // loan_applications belongsTo customers via customer_id
   customer!: customers;
@@ -63,6 +72,18 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasApplication_document!: Sequelize.HasManyHasAssociationMixin<application_documents, application_documentsId>;
   hasApplication_documents!: Sequelize.HasManyHasAssociationsMixin<application_documents, application_documentsId>;
   countApplication_documents!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany delivery_receipts via application_id
+  delivery_receipts!: delivery_receipts[];
+  getDelivery_receipts!: Sequelize.HasManyGetAssociationsMixin<delivery_receipts>;
+  setDelivery_receipts!: Sequelize.HasManySetAssociationsMixin<delivery_receipts, delivery_receiptsId>;
+  addDelivery_receipt!: Sequelize.HasManyAddAssociationMixin<delivery_receipts, delivery_receiptsId>;
+  addDelivery_receipts!: Sequelize.HasManyAddAssociationsMixin<delivery_receipts, delivery_receiptsId>;
+  createDelivery_receipt!: Sequelize.HasManyCreateAssociationMixin<delivery_receipts>;
+  removeDelivery_receipt!: Sequelize.HasManyRemoveAssociationMixin<delivery_receipts, delivery_receiptsId>;
+  removeDelivery_receipts!: Sequelize.HasManyRemoveAssociationsMixin<delivery_receipts, delivery_receiptsId>;
+  hasDelivery_receipt!: Sequelize.HasManyHasAssociationMixin<delivery_receipts, delivery_receiptsId>;
+  hasDelivery_receipts!: Sequelize.HasManyHasAssociationsMixin<delivery_receipts, delivery_receiptsId>;
+  countDelivery_receipts!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasMany loan_payments via loan_application_id
   loan_payments!: loan_payments[];
   getLoan_payments!: Sequelize.HasManyGetAssociationsMixin<loan_payments>;
@@ -139,12 +160,20 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
         key: 'id'
       }
     },
+    loan_id: {
+      type: DataTypes.STRING(20),
+      allowNull: false
+    },
     total_amount: {
       type: DataTypes.DECIMAL(15,2),
       allowNull: false
     },
     loan_period: {
       type: DataTypes.INTEGER,
+      allowNull: false
+    },
+    interest_rate_at_apply: {
+      type: DataTypes.DECIMAL(5,2),
       allowNull: false
     },
     monthly_pay: {
@@ -196,7 +225,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   }, {
     sequelize,
     tableName: 'loan_applications',
-    timestamps: false,
+    timestamps: true,
     indexes: [
       {
         name: "PRIMARY",

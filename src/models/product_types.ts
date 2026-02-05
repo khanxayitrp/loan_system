@@ -75,7 +75,7 @@ export class product_types extends Model<product_typesAttributes, product_typesC
   }, {
     sequelize,
     tableName: 'product_types',
-    timestamps: true,
+    timestamps: false,
     indexes: [
       {
         name: "PRIMARY",

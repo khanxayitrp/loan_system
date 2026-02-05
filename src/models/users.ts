@@ -1,6 +1,8 @@
 import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
+import type { application_documents, application_documentsId } from './application_documents';
 import type { customers, customersId } from './customers';
+import type { delivery_receipts, delivery_receiptsId } from './delivery_receipts';
 import type { features, featuresId } from './features';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
 import type { partners, partnersId } from './partners';
@@ -37,6 +39,18 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   created_at?: Date;
   updated_at?: Date;
 
+  // users hasMany application_documents via uploaded_by
+  application_documents!: application_documents[];
+  getApplication_documents!: Sequelize.HasManyGetAssociationsMixin<application_documents>;
+  setApplication_documents!: Sequelize.HasManySetAssociationsMixin<application_documents, application_documentsId>;
+  addApplication_document!: Sequelize.HasManyAddAssociationMixin<application_documents, application_documentsId>;
+  addApplication_documents!: Sequelize.HasManyAddAssociationsMixin<application_documents, application_documentsId>;
+  createApplication_document!: Sequelize.HasManyCreateAssociationMixin<application_documents>;
+  removeApplication_document!: Sequelize.HasManyRemoveAssociationMixin<application_documents, application_documentsId>;
+  removeApplication_documents!: Sequelize.HasManyRemoveAssociationsMixin<application_documents, application_documentsId>;
+  hasApplication_document!: Sequelize.HasManyHasAssociationMixin<application_documents, application_documentsId>;
+  hasApplication_documents!: Sequelize.HasManyHasAssociationsMixin<application_documents, application_documentsId>;
+  countApplication_documents!: Sequelize.HasManyCountAssociationsMixin;
   // users hasMany customers via user_id
   customers!: customers[];
   getCustomers!: Sequelize.HasManyGetAssociationsMixin<customers>;
@@ -49,6 +63,18 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   hasCustomer!: Sequelize.HasManyHasAssociationMixin<customers, customersId>;
   hasCustomers!: Sequelize.HasManyHasAssociationsMixin<customers, customersId>;
   countCustomers!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany delivery_receipts via approver_id
+  delivery_receipts!: delivery_receipts[];
+  getDelivery_receipts!: Sequelize.HasManyGetAssociationsMixin<delivery_receipts>;
+  setDelivery_receipts!: Sequelize.HasManySetAssociationsMixin<delivery_receipts, delivery_receiptsId>;
+  addDelivery_receipt!: Sequelize.HasManyAddAssociationMixin<delivery_receipts, delivery_receiptsId>;
+  addDelivery_receipts!: Sequelize.HasManyAddAssociationsMixin<delivery_receipts, delivery_receiptsId>;
+  createDelivery_receipt!: Sequelize.HasManyCreateAssociationMixin<delivery_receipts>;
+  removeDelivery_receipt!: Sequelize.HasManyRemoveAssociationMixin<delivery_receipts, delivery_receiptsId>;
+  removeDelivery_receipts!: Sequelize.HasManyRemoveAssociationsMixin<delivery_receipts, delivery_receiptsId>;
+  hasDelivery_receipt!: Sequelize.HasManyHasAssociationMixin<delivery_receipts, delivery_receiptsId>;
+  hasDelivery_receipts!: Sequelize.HasManyHasAssociationsMixin<delivery_receipts, delivery_receiptsId>;
+  countDelivery_receipts!: Sequelize.HasManyCountAssociationsMixin;
   // users belongsToMany features via user_id and feature_id
   feature_id_features!: features[];
   getFeature_id_features!: Sequelize.BelongsToManyGetAssociationsMixin<features>;
@@ -168,7 +194,7 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
       allowNull: false
     },
     role: {
-      type: DataTypes.ENUM('admin','staff','partner', 'customer'),
+      type: DataTypes.ENUM('admin','staff','partner','customer'),
       allowNull: false
     },
     staff_level: {

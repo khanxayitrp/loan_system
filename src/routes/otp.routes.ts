@@ -7,10 +7,32 @@ import { logger } from '../utils/logger';
 const router = Router();
 
 /**
- * @route   POST /api/otp/send
- * @desc    Send OTP to phone number
- * @body    { phoneNumber: string, message?: string }
- * @access  Public
+ * @swagger
+ * /otp/send:
+ *   post:
+ *     summary: Send OTP to phone number
+ *     tags: [OTP]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phoneNumber
+ *             properties:
+ *               phoneNumber:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *                 description: Optional message content
+ *     responses:
+ *       200:
+ *         description: OTP sent
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Internal server error
  */
 router.post('/send', async (req, res) => {
   try {
@@ -36,10 +58,32 @@ router.post('/send', async (req, res) => {
 });
 
 /**
- * @route   POST /api/otp/verify
- * @desc    Verify OTP code
- * @body    { phoneNumber: string, otp: string }
- * @access  Public
+ * @swagger
+ * /otp/verify:
+ *   post:
+ *     summary: Verify OTP code
+ *     tags: [OTP]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phoneNumber
+ *               - otp
+ *             properties:
+ *               phoneNumber:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP verified
+ *       400:
+ *         description: Invalid OTP or bad request
+ *       500:
+ *         description: Internal server error
  */
 router.post('/verify', async (req, res) => {
   try {
@@ -65,10 +109,29 @@ router.post('/verify', async (req, res) => {
 });
 
 /**
- * @route   POST /api/otp/resend
- * @desc    Resend OTP to phone number
- * @body    { phoneNumber: string }
- * @access  Public
+ * @swagger
+ * /otp/resend:
+ *   post:
+ *     summary: Resend OTP to phone number
+ *     tags: [OTP]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phoneNumber
+ *             properties:
+ *               phoneNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP resent
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Internal server error
  */
 router.post('/resend', async (req, res) => {
   try {
@@ -94,10 +157,26 @@ router.post('/resend', async (req, res) => {
 });
 
 /**
- * @route   GET /api/otp/status/:phoneNumber
- * @desc    Check OTP status
- * @param   phoneNumber
- * @access  Public
+ * @swagger
+ * /otp/status/{phoneNumber}:
+ *   get:
+ *     summary: Check OTP status
+ *     tags: [OTP]
+ *     parameters:
+ *       - in: path
+ *         name: phoneNumber
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Status found
+ *       400:
+ *         description: Bad request
+ *       404:
+ *         description: Not found
+ *       500:
+ *         description: Internal server error
  */
 router.get('/status/:phoneNumber', async (req, res) => {
   try {
@@ -123,9 +202,16 @@ router.get('/status/:phoneNumber', async (req, res) => {
 });
 
 /**
- * @route   GET /api/otp/stats
- * @desc    Get OTP service statistics
- * @access  Public
+ * @swagger
+ * /otp/stats:
+ *   get:
+ *     summary: Get OTP service statistics
+ *     tags: [OTP]
+ *     responses:
+ *       200:
+ *         description: Statistics retrieved
+ *       500:
+ *         description: Internal server error
  */
 router.get('/stats', async (req, res) => {
   try {

@@ -3,6 +3,8 @@ import { application_documents as _application_documents } from "./application_d
 import type { application_documentsAttributes, application_documentsCreationAttributes } from "./application_documents";
 import { customers as _customers } from "./customers";
 import type { customersAttributes, customersCreationAttributes } from "./customers";
+import { delivery_receipts as _delivery_receipts } from "./delivery_receipts";
+import type { delivery_receiptsAttributes, delivery_receiptsCreationAttributes } from "./delivery_receipts";
 import { features as _features } from "./features";
 import type { featuresAttributes, featuresCreationAttributes } from "./features";
 import { loan_applications as _loan_applications } from "./loan_applications";
@@ -33,6 +35,7 @@ import { sequelize } from "../config/db.config";
 export {
   _application_documents as application_documents,
   _customers as customers,
+  _delivery_receipts as delivery_receipts,
   _features as features,
   _loan_applications as loan_applications,
   _loan_payments as loan_payments,
@@ -53,6 +56,8 @@ export type {
   application_documentsCreationAttributes,
   customersAttributes,
   customersCreationAttributes,
+  delivery_receiptsAttributes,
+  delivery_receiptsCreationAttributes,
   featuresAttributes,
   featuresCreationAttributes,
   loan_applicationsAttributes,
@@ -82,6 +87,7 @@ export type {
 export function initModels(sequelize: Sequelize) {
   const application_documents = _application_documents.initModel(sequelize);
   const customers = _customers.initModel(sequelize);
+  const delivery_receipts = _delivery_receipts.initModel(sequelize);
   const features = _features.initModel(sequelize);
   const loan_applications = _loan_applications.initModel(sequelize);
   const loan_payments = _loan_payments.initModel(sequelize);
@@ -103,6 +109,8 @@ export function initModels(sequelize: Sequelize) {
   features.hasMany(user_permissions, { as: "user_permissions", foreignKey: "feature_id"});
   application_documents.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(application_documents, { as: "application_documents", foreignKey: "application_id"});
+  delivery_receipts.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
+  loan_applications.hasMany(delivery_receipts, { as: "delivery_receipts", foreignKey: "application_id"});
   loan_payments.belongsTo(loan_applications, { as: "loan_application", foreignKey: "loan_application_id"});
   loan_applications.hasMany(loan_payments, { as: "loan_payments", foreignKey: "loan_application_id"});
   payment_transactions.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
@@ -121,8 +129,12 @@ export function initModels(sequelize: Sequelize) {
   products.hasMany(loan_applications, { as: "loan_applications", foreignKey: "product_id"});
   payment_transactions.belongsTo(repayments, { as: "schedule", foreignKey: "schedule_id"});
   repayments.hasMany(payment_transactions, { as: "payment_transactions", foreignKey: "schedule_id"});
+  application_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by"});
+  users.hasMany(application_documents, { as: "application_documents", foreignKey: "uploaded_by"});
   customers.belongsTo(users, { as: "user", foreignKey: "user_id"});
   users.hasMany(customers, { as: "customers", foreignKey: "user_id"});
+  delivery_receipts.belongsTo(users, { as: "approver", foreignKey: "approver_id"});
+  users.hasMany(delivery_receipts, { as: "delivery_receipts", foreignKey: "approver_id"});
   loan_applications.belongsTo(users, { as: "requester", foreignKey: "requester_id"});
   users.hasMany(loan_applications, { as: "loan_applications", foreignKey: "requester_id"});
   loan_applications.belongsTo(users, { as: "approver", foreignKey: "approver_id"});
@@ -142,6 +154,7 @@ export function initModels(sequelize: Sequelize) {
     sequelize: sequelize,
     application_documents: application_documents,
     customers: customers,
+    delivery_receipts: delivery_receipts,
     features: features,
     loan_applications: loan_applications,
     loan_payments: loan_payments,

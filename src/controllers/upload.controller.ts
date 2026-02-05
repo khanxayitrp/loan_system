@@ -429,6 +429,9 @@ class UploadController {
       const document = await documentService.uploadApplicationDocument({
         application_id: parseInt(application_id),
         doc_type: doc_type as DocumentType,
+        original_filename: req.file.originalname,
+        file_size: req.file.size,
+        mime_type: req.file.mimetype,
         file: req.file as UploadedFile
       });
 
@@ -462,6 +465,9 @@ class UploadController {
 
       const documents = files.map((file, index) => ({
         file: file as UploadedFile,
+        original_filename: file.originalname,
+        file_size: file.size,
+        mime_type: file.mimetype,
         doc_type: doc_types[index] as DocumentType
       }));
 

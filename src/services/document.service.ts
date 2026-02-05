@@ -10,6 +10,9 @@ interface CreateDocumentData {
   application_id: number;
   doc_type: DocumentType;
   file: UploadedFile;
+  original_filename: string;
+  file_size: number;
+  mime_type: string;
 }
 
 interface DocumentRecord {
@@ -56,6 +59,9 @@ class DocumentService {
       const document = await db.application_documents.create({
         application_id: data.application_id,
         file_url: uploadedPath,
+        original_filename: data.file.originalname,
+        file_size: data.file.size,
+        mime_type: data.file.mimetype,
         doc_type: data.doc_type
       }, { transaction });
 
@@ -106,6 +112,9 @@ class DocumentService {
         const result = await this.uploadApplicationDocument({
           application_id,
           file: doc.file,
+          original_filename: doc.file.originalname,
+          file_size: doc.file.size,
+          mime_type: doc.file.mimetype,
           doc_type: doc.doc_type
         });
         results.push(result);
@@ -130,7 +139,11 @@ class DocumentService {
         order: [['uploaded_at', 'DESC']]
       });
 
-      return documents.map(doc => doc.get({ plain: true }));
+      // บอก TypeScript ว่า doc_type จะไม่เป็น undefined จริง ๆ
+    return documents.map(doc => ({
+      ...doc.get({ plain: true }),
+      doc_type: doc.doc_type!  as DocumentType
+    }));
     } catch (error) {
       logger.error('Error getting application documents:', error);
       throw error;
@@ -153,7 +166,11 @@ class DocumentService {
         order: [['uploaded_at', 'DESC']]
       });
 
-      return documents.map(doc => doc.get({ plain: true }));
+        // บอก TypeScript ว่า doc_type จะไม่เป็น undefined จริง ๆ
+    return documents.map(doc => ({
+      ...doc.get({ plain: true }),
+      doc_type: doc.doc_type!  as DocumentType
+    }));
     } catch (error) {
       logger.error('Error getting documents by type:', error);
       throw error;
@@ -239,8 +256,21 @@ class DocumentService {
 
       logger.info(`Document ${document_id} replaced successfully`);
 
-      const updatedDoc = await db.application_documents.findByPk(document_id);
-      return updatedDoc!.get({ plain: true });
+    // แก้ตรงนี้: cast type + ! สำหรับ doc_type
+    const updatedDoc = await db.application_documents.findByPk(document_id);
+    if (!updatedDoc) {
+      throw new Error('Updated document not found'); // safety
+    }
+
+    const plainUpdated = updatedDoc.get({ plain: true }) as DocumentRecord;
+
+    // ถ้าอยากชัวร์ 100% สามารถเพิ่ม runtime check
+    if (!plainUpdated.doc_type) {
+      logger.warn('doc_type is undefined after update', { document_id });
+      plainUpdated.doc_type = 'other'; // fallback
+    }
+
+    return plainUpdated;
     } catch (error) {
       logger.error('Error replacing document:', error);
       throw error;

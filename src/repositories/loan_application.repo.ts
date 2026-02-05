@@ -1,6 +1,6 @@
-import { loan_applications, loan_applicationsAttributes, loan_applicationsCreationAttributes } from "@/models/loan_applications";
+import { loan_applications, loan_applicationsAttributes, loan_applicationsCreationAttributes } from "../models/loan_applications";
 import { db } from '../models/init-models';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger';
 import { Op } from 'sequelize';
 
 export type status = "pending" | "verifying" | "approved" | "rejected" | "cancelled" | "completed" | "closed_early" | undefined;
@@ -30,18 +30,36 @@ class LoanApplicationRepository {
             if (cleanLoanApplication.customer_id && typeof cleanLoanApplication.customer_id === 'object') {
                 cleanLoanApplication.customer_id = (cleanLoanApplication.customer_id as any).id || (cleanLoanApplication.customer_id as any).customer_id;
             }
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+
+            const last_loan_id = await db.loan_applications.findOne({
+                where: { customer_id: cleanLoanApplication.customer_id },
+                order: [['created_at', 'DESC']],
+                attributes: ['loan_id'],
+            })
+            if (last_loan_id && last_loan_id.loan_id) {
+                const lastLoanNumber = parseInt(last_loan_id.loan_id.split('-')[3], 10);
+                const newLoanNumber = lastLoanNumber + 1;
+                cleanLoanApplication.loan_id = `LN-${cleanLoanApplication.customer_id}-${currentYear}-${newLoanNumber.toString().padStart(6, '0')}`;
+            } else {
+                cleanLoanApplication.loan_id = `LN-${cleanLoanApplication.customer_id}-${currentYear}-000001`;
+            }
+
 
             const mapData: any = {
                 customer_id: cleanLoanApplication.customer_id,
                 product_id: cleanLoanApplication.product_id,
+                loan_id: cleanLoanApplication.loan_id,
                 total_amount: cleanLoanApplication.total_amount,
                 interest_rate_at_apply: cleanLoanApplication.interest_rate_at_apply,
                 loan_period: cleanLoanApplication.loan_period,
-                monthly_installment: cleanLoanApplication.monthly_installment,
+                monthly_installment: cleanLoanApplication.monthly_pay,
                 is_confirmed: cleanLoanApplication.is_confirmed || 0,
                 status: cleanLoanApplication.status || 'pending',
                 requester_id: cleanLoanApplication.requester_id || null,
                 approver_id: cleanLoanApplication.approver_id || null,
+                credit_score: cleanLoanApplication.credit_score || null,
                 remarks: cleanLoanApplication.remarks || null,
             };
             const newLoanApplication = await db.loan_applications.create(mapData, {transaction: options.transaction});
@@ -53,6 +71,9 @@ class LoanApplicationRepository {
         }
     }
 
+    async findLoanApplicationByLoanId(loanId: string): Promise<loan_applications | null> {
+        return await db.loan_applications.findOne({where: {loan_id: loanId}});
+    }
     async findLoanApplicationById(loanApplicationId: number): Promise<loan_applications | null> {
         return await db.loan_applications.findByPk(loanApplicationId);
     }
@@ -102,7 +123,7 @@ class LoanApplicationRepository {
                 data.customer_id = (data.customer_id as any).id || (data.customer_id as any).customer_id;
             }
             let loan_status = 'pending';
-            let loan_monthly_installment = loanApplication.monthly_installment;
+            let loan_monthly_installment = loanApplication.monthly_pay;
 
 
             if (loanApplication.is_confirmed === 0) {

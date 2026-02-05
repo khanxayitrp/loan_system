@@ -42,19 +42,31 @@ const router = Router();
  */
 router.post('/login', authController.login);
 
-/**
- * @swagger
- * /auth/refresh:
- *   post:
- *     summary: Refresh access token
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Token refreshed
- *       401:
- *         description: Invalid refresh token
- */
-router.post('/refresh', authController.refresh);
+// /**
+//  * @swagger
+//  * /auth/refresh:
+//  *   post:
+//  *     summary: Refresh access token
+//  *     tags: [Auth]
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - refreshToken
+//  *             properties:
+//  *               refreshToken:
+//  *                 type: string
+//  *                 description: User refresh token
+//  *     responses:
+//  *       200:
+//  *         description: Token refreshed
+//  *       401:
+//  *         description: Invalid refresh token
+//  */
+// router.post('/refresh', authController.refresh);
 
 /**
  * @swagger
@@ -122,11 +134,14 @@ router.post('/signup', authController.signUp); // สร้าง function signU
  *             required:
  *               - username
  *               - password
+ *               - full_name
  *               - role
  *             properties:
  *               username:
  *                 type: string
  *               password:
+ *                 type: string
+ *               full_name:
  *                 type: string
  *               role:
  *                 type: string
@@ -140,7 +155,6 @@ router.post('/signup', authController.signUp); // สร้าง function signU
 router.post(
     '/register', 
     verifyToken, 
-    checkPermission(PERMISSIONS.USER.CREATE), // ใช้สิทธิ์จากตาราง features
     authController.register
 );
 
@@ -177,5 +191,34 @@ router.post(
     verifyToken, 
     authController.changePassword
 );
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current authenticated user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 username:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/me', verifyToken, authController.getCurrentUser);
 
 export default router;

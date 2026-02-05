@@ -53,7 +53,7 @@ export class user_refresh_tokens extends Model<user_refresh_tokensAttributes, us
       }
     },
     token: {
-      type: DataTypes.STRING(255),
+      type: DataTypes.TEXT,
       allowNull: false
     },
     device_info: {

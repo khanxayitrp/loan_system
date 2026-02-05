@@ -19,7 +19,7 @@ class TokenService {
       Date.now() + config.jwtExpiration! * 60 * 1000
     );
     const refreshTokenExpires = new Date(
-      Date.now() + config.jwtRefreshExpiration! * 24 * 60 * 60 * 1000
+      Date.now() + config.jwtRefreshExpiration! * 60 * 1000
     );
 
     const accessToken = this.generateToken(
@@ -37,7 +37,7 @@ class TokenService {
       user.staff_level,
       user.permissions,  
       config.refresh!,
-      config.jwtRefreshExpiration! * 24 * 60 * 60
+      config.jwtRefreshExpiration! * 60
     );
 
     await refresh_token.create({

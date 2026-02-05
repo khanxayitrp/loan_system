@@ -1,10 +1,11 @@
 
 import bcrypt from 'bcryptjs';
 import { users, usersCreationAttributes } from '../models/users';
+import {user_permissions} from '../models/user_permissions';
+import { features } from '../models/features';
 import tokenService from './token.service'; // เรียกใช้ TokenService ที่คุณทำไว้
 import { Tokens } from '../interfaces/token.interface';
 import { db } from '../models/init-models';
-
 
 class AuthService {
   // 1. ลงทะเบียนผู้ใช้งาน (Sign Up)
@@ -16,6 +17,69 @@ class AuthService {
   //   });
   //   return newUser;
   // }
+
+private async createDefaultPermissions(userId: number, role: string): Promise<void> {
+  try {
+    const defaultPermissionsByRole: Record<string, string[]> = {
+      admin: [
+        'user_view',
+        'user_create',
+        'user_manage',
+        'permission_manage',
+        'loan_view_all',
+        'loan_view_assigned',
+        'loan_create',
+        'loan_approve',
+      ],
+      staff:[
+        'loan_view_all',
+        'loan_view_assigned',
+        'loan_create',
+        'loan_approve',
+      ],
+      partner:[
+        'partner_manage',
+        'shop_view_report',
+      ],
+      customer:[
+        'view_profile',
+        'loan_request',
+        'view_own_loans',
+      ]
+    };
+
+    const permissionCodes = defaultPermissionsByRole[role] || [];
+
+    if (permissionCodes.length === 0) {
+      console.log(`[Auth SERVICE] No default permissions for role: ${role}`);
+      return;
+    }
+
+    const featuresList = await db.features.findAll({
+      where: {
+        feature_name: permissionCodes
+      }
+    });
+
+    if (featuresList.length === 0) {
+        console.log('[AUTH SERVICE] No features found for permission codes:', permissionCodes);
+        return;
+      }
+
+      // สร้าง user_permissions records
+      const userPermissions = featuresList.map(feature => ({
+        user_id: userId,
+        feature_id: feature.id,
+        can_access: 1
+      }));
+
+      await db.user_permissions.bulkCreate(userPermissions);
+      console.log(`[AUTH SERVICE] Created ${userPermissions.length} default permissions for user ${userId}`);
+    } catch (error) {
+      console.error('[AUTH SERVICE] Error creating default permissions:', error);
+      throw error;
+    }
+}
 
   /**
    * สำหรับลูกค้าสมัครสมาชิกเองผ่านหน้าเว็บ/แอป
@@ -112,6 +176,10 @@ class AuthService {
     return { user, tokens };
   }
 
+  public async getUserById(userId: number): Promise<users | null> {
+    return await users.findByPk(userId);
+  }
+
   // 3. ออกจากระบบ (Sign Out)
   public async signOut(refreshToken: string): Promise<void> {
     // สั่ง Revoke Token ในตาราง user_refresh_tokens
@@ -153,6 +221,7 @@ class AuthService {
       if (existingUser) {
         throw new Error('ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
       }
+      console.log('Creating user with data:', userData);
 
       // 2. Hash รหัสผ่านก่อนบันทึก
       const hashedPassword = await bcrypt.hash(userData.password, 10);
@@ -164,6 +233,9 @@ class AuthService {
         is_active: 1, // เปิดใช้งานทันทีเมื่อ Admin สร้าง
         // staff_level: userData.staff_level || 'none', // กำหนดค่าเริ่มต้นถ้าไม่ได้ส่งมา
       });
+
+      // ✅ 4. สร้าง default permissions
+    await this.createDefaultPermissions(newUser.id, userData.role);
 
       return newUser;
     } catch (error: any) {

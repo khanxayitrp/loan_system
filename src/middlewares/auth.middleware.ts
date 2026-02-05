@@ -4,6 +4,7 @@ import { users } from '../models/users';
 import config from '../config/auth.config';
 import { TokenPayload } from '../interfaces/token.interface';
 import { isTokenBlacklisted } from '../services/tokenBlacklist.service';
+import tokenService from '../services/token.service';
 
 // Extend Express Request type to include the user object
 declare global {
@@ -17,11 +18,12 @@ declare global {
 
 export const verifyToken = async (req: Request, res: Response, next: NextFunction) => {
   const token = req.cookies.accessToken || req.headers.authorization?.split(' ')[1];
-
+  const refreshToken = req.cookies.refreshToken;
   // ถ้าอยู่ในโหมดพัฒนา และมีการส่ง Header พิเศษมา ให้ผ่านได้เลย
   // if (process.env.NODE_ENV === 'development' && req.headers['x-test-bypass'] === 'secret-key') {
   //   return next();
   // }
+  
 
   if (!token) {
     return res.status(401).json({ message: 'Access denied. No token provided.' });
@@ -44,9 +46,49 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
     req.userPayload = decoded;
     next();
   } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
+    if (error instanceof jwt.TokenExpiredError && refreshToken) {
+      try {
+        const isValid = await tokenService.isRefreshTokenValid(refreshToken);
+        if (isValid) {
+          return res.status(401).json({ message: 'Refresh token expired. Please login again.' });
+        }
 
-      return res.status(401).json({ message: 'Token expired.' });
+        const decoded =tokenService.verifyToken(refreshToken, config.refresh!);
+
+        const newTokens = await tokenService.generateAuthTokens({
+          user_id: decoded.userId,
+          role: decoded.role,
+          staff_level: decoded.staff_level,
+          permissions: decoded.permissions
+        });
+        
+        // ส่ง Cookies ใหม่
+        const isProd = process.env.NODE_ENV === 'production';
+        res.cookie('accessToken', newTokens.access.token, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: 'strict',
+          maxAge: config.jwtExpiration! * 1000,
+        });
+        res.cookie('refreshToken', newTokens.refresh.token, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: 'strict',
+          maxAge: config.jwtRefreshExpiration! * 60 * 1000,
+        });
+
+        await tokenService.revokeRefreshToken(refreshToken);
+
+        req.userPayload = decoded;
+        return next();  
+      } catch (refreshError) {
+        return res.status(401).json({ message: 'Session expired. Please login again.' });
+      }
+
+    }
+    // Error อื่นๆ
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ message: 'Token expired. Please login again.' });
     }
     return res.status(401).json({ message: 'Invalid token.' });
   }

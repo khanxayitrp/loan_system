@@ -5,6 +5,8 @@ import permissionRouter from './permission.routes';
 import customerRouter from './customer.routes';
 import loanAppRouter from './loan-application.routes';
 import otpRouter from './otp.routes';
+import userRouter from './user.routes';
+import productTypeRouter from './product_type.routes'
 
 const router = express.Router();
 
@@ -20,6 +22,10 @@ router.use('/customer', customerRouter);
 router.use('/loan-application', loanAppRouter);
 
 router.use('/otp', otpRouter);
+
+router.use('/users', userRouter);
+
+router.use('/productTypes',productTypeRouter);
 
 
 // router.use(User);

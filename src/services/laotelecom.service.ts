@@ -61,16 +61,16 @@ export class LaoTelecomService {
 
         try {
             logger.info('Initializing Lao Telecom SOAP client...', {
-                wsdlUrl: smsConfig.wsdlUrl,
-                userId: smsConfig.userId,
+                wsdlUrl: smsConfig.wsdlUrl!,
+                userId: smsConfig.userId!,
                 encryptionSolution: ENCRYPTION_SOLUTION,
             });
 
             // Create SOAP client with timeout
             // Create SOAP client WITHOUT timeout in options
             // Create SOAP client WITHOUT timeout option
-            this.client = await soap.createClientAsync(smsConfig.wsdlUrl, {
-                endpoint: smsConfig.wsdlUrl.replace('?WSDL', ''),
+            this.client = await soap.createClientAsync(smsConfig.wsdlUrl!, {
+                endpoint: smsConfig.wsdlUrl?.replace('?WSDL', ''),
             });
 
 
@@ -89,7 +89,7 @@ export class LaoTelecomService {
             logger.error('Failed to initialize Lao Telecom SOAP client', {
                 error: error.message,
                 stack: error.stack,
-                wsdlUrl: smsConfig.wsdlUrl,
+                wsdlUrl: smsConfig.wsdlUrl!,
             });
             throw new Error(`Failed to connect to Lao Telecom service: ${error.message}`);
         } finally {
@@ -206,8 +206,8 @@ export class LaoTelecomService {
 
             // Build request parameters
             const params: SMSRequestParams = {
-                userId: smsConfig.userId,
-                privateKey: smsConfig.privateKey,
+                userId: smsConfig.userId!,
+                privateKey: smsConfig.privateKey!,
                 msisdn: phoneNumber,
                 message: message,
                 headerSMS: smsConfig.defaultSenderId,
@@ -313,13 +313,13 @@ export class LaoTelecomService {
 
             // Use Solution 1 for balance check (no MSISDN)
             const encryptedKey = await generateSolution1Key(
-                smsConfig.userId,
+                smsConfig.userId!,
                 transactionId,
-                smsConfig.privateKey
+                smsConfig.privateKey!
             );
 
             const header: LaoTelecomSOAPHeader = {
-                userid: smsConfig.userId,
+                userid: smsConfig.userId!,
                 key: encryptedKey,
                 trans_id: transactionId,
                 version: '',

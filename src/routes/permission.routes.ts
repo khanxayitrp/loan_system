@@ -88,6 +88,10 @@ router.post(
   permissionController.saveBulkPermissions
 );
 
+router.get('/user/:userId',verifyToken, permissionController.getUserPermissions); // ดึงสิทธิ์ของผู้ใช้เฉพาะคน
+router.post('/user/:userId',verifyToken, permissionController.assignUserPermissions);
+router.delete('/user/:userId',verifyToken, permissionController.deleteAllUserPermissions);
+
 
 
 export default router;
