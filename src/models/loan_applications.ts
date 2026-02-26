@@ -3,6 +3,7 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import type { application_documents, application_documentsId } from './application_documents';
 import type { customers, customersId } from './customers';
 import type { delivery_receipts, delivery_receiptsId } from './delivery_receipts';
+import type { loan_guarantors, loan_guarantorsId } from './loan_guarantors';
 import type { loan_payments, loan_paymentsId } from './loan_payments';
 import type { payment_transactions, payment_transactionsId } from './payment_transactions';
 import type { products, productsId } from './products';
@@ -19,7 +20,7 @@ export interface loan_applicationsAttributes {
   interest_rate_at_apply: number;
   monthly_pay: number;
   is_confirmed?: number;
-  status?: 'pending' | 'verifying' | 'approved' | 'rejected';
+  status?: 'pending' | 'verifying' | 'approved' | 'rejected' | 'completed' | 'closed_early';
   requester_id?: number;
   approver_id?: number;
   applied_at?: Date;
@@ -28,11 +29,18 @@ export interface loan_applicationsAttributes {
   remarks?: string;
   created_at?: Date;
   updated_at?: Date;
+  down_payment?: number;
+  fee?: number;
+  first_installment_amount?: number;
+  payment_day?: number;
+  borrower_signature_date?: Date;
+  guarantor_signature_date?: Date;
+  staff_signature_date?: Date;
 }
 
 export type loan_applicationsPk = "id";
 export type loan_applicationsId = loan_applications[loan_applicationsPk];
-export type loan_applicationsOptionalAttributes = "id" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at";
+export type loan_applicationsOptionalAttributes = "id" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at" | "down_payment" | "fee" | "first_installment_amount" | "payment_day" | "borrower_signature_date" | "guarantor_signature_date" | "staff_signature_date";
 export type loan_applicationsCreationAttributes = Optional<loan_applicationsAttributes, loan_applicationsOptionalAttributes>;
 
 export class loan_applications extends Model<loan_applicationsAttributes, loan_applicationsCreationAttributes> implements loan_applicationsAttributes {
@@ -45,7 +53,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   interest_rate_at_apply!: number;
   monthly_pay!: number;
   is_confirmed?: number;
-  status?: 'pending' | 'verifying' | 'approved' | 'rejected';
+  status?: 'pending' | 'verifying' | 'approved' | 'rejected' | 'completed' | 'closed_early';
   requester_id?: number;
   approver_id?: number;
   applied_at?: Date;
@@ -54,6 +62,13 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   remarks?: string;
   created_at?: Date;
   updated_at?: Date;
+  down_payment?: number;
+  fee?: number;
+  first_installment_amount?: number;
+  payment_day?: number;
+  borrower_signature_date?: Date;
+  guarantor_signature_date?: Date;
+  staff_signature_date?: Date;
 
   // loan_applications belongsTo customers via customer_id
   customer!: customers;
@@ -84,6 +99,18 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasDelivery_receipt!: Sequelize.HasManyHasAssociationMixin<delivery_receipts, delivery_receiptsId>;
   hasDelivery_receipts!: Sequelize.HasManyHasAssociationsMixin<delivery_receipts, delivery_receiptsId>;
   countDelivery_receipts!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany loan_guarantors via application_id
+  loan_guarantors!: loan_guarantors[];
+  getLoan_guarantors!: Sequelize.HasManyGetAssociationsMixin<loan_guarantors>;
+  setLoan_guarantors!: Sequelize.HasManySetAssociationsMixin<loan_guarantors, loan_guarantorsId>;
+  addLoan_guarantor!: Sequelize.HasManyAddAssociationMixin<loan_guarantors, loan_guarantorsId>;
+  addLoan_guarantors!: Sequelize.HasManyAddAssociationsMixin<loan_guarantors, loan_guarantorsId>;
+  createLoan_guarantor!: Sequelize.HasManyCreateAssociationMixin<loan_guarantors>;
+  removeLoan_guarantor!: Sequelize.HasManyRemoveAssociationMixin<loan_guarantors, loan_guarantorsId>;
+  removeLoan_guarantors!: Sequelize.HasManyRemoveAssociationsMixin<loan_guarantors, loan_guarantorsId>;
+  hasLoan_guarantor!: Sequelize.HasManyHasAssociationMixin<loan_guarantors, loan_guarantorsId>;
+  hasLoan_guarantors!: Sequelize.HasManyHasAssociationsMixin<loan_guarantors, loan_guarantorsId>;
+  countLoan_guarantors!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasMany loan_payments via loan_application_id
   loan_payments!: loan_payments[];
   getLoan_payments!: Sequelize.HasManyGetAssociationsMixin<loan_payments>;
@@ -186,7 +213,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       defaultValue: 0
     },
     status: {
-      type: DataTypes.ENUM('pending','verifying','approved','rejected'),
+      type: DataTypes.ENUM('pending','verifying','approved','rejected','completed','closed_early'),
       allowNull: true,
       defaultValue: "pending"
     },
@@ -220,6 +247,38 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
     },
     remarks: {
       type: DataTypes.TEXT,
+      allowNull: true
+    },
+    down_payment: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    fee: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    first_installment_amount: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    payment_day: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 1
+    },
+    borrower_signature_date: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    guarantor_signature_date: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    staff_signature_date: {
+      type: DataTypes.DATE,
       allowNull: true
     }
   }, {

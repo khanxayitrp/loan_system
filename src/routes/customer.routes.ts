@@ -94,7 +94,11 @@ router.post('/create', verifyToken, customerCtrl.createCustomer); // อาจ�
  *       404:
  *         description: Customer not found
  */
-router.get('/:id', verifyToken, customerCtrl.getCustomerById);
+
+
+ router.get('/search', verifyToken, customerCtrl.getCustomerBySearch);
+
+ router.get('/:id', verifyToken, customerCtrl.getCustomerById);
 
 // เพิ่ม route อื่นๆ...
 

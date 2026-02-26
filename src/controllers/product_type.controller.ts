@@ -25,12 +25,31 @@ class ProductTypeController {
     }
     public async createProductType(req: Request, res: Response) {
         try {
+
+            if (!req.userPayload) {
+                console.log('[CONTROLLER] No userPayload found - unauthenticated request');
+                return res.status(401).json({
+                    error: 'Authentication required',
+                    message: 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນດຳເນີນການຕໍ່'
+                });
+            }
+            const userId = req.userPayload?.userId
+
+            if (!userId) {
+                return res.status(401).json({ message: 'ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ' });
+            }
             const data = req.body;
-            const newProductType = await ProductTypeRepo.createProductType(data);
-            return res.status(201).json({ message: 'สร้างประเภทสินค้าเรียบร้อย', productType: newProductType });
+            const mapData = {
+                partner_id: userId,
+                type_name: data.type_name,
+                description: data.description || null,
+                is_active: data.is_active
+            }
+            const newProductType = await ProductTypeRepo.createProductType(mapData);
+            return res.status(201).json({ message: 'ສ້າງປະເພດສິນຄ້າສຳເລັດ', data: newProductType });
         } catch (error: any) {
             logger.error('Error in createProductType controller', { error: error.message });
-            return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการสร้างประเภทสินค้า', error: error.message });
+            return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດໃນການສ້າງປະເພດສິນຄ້າ', error: error.message });
         }
     }
     public async getAllProducttypes(req: Request, res: Response) {
@@ -58,29 +77,10 @@ class ProductTypeController {
             return res.status(200).json({ productTypes: productType });  
         } catch (error: any) {
             logger.error('Error in getAllProducttypes controller', { error: error.message });
-            return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลประเภทสินค้า', error: error.message });
+            return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງປະເພດສິນຄ້າ', error: error.message });
         }
     }
-    // /**
-    //      * Validate query parameters
-    //      */
-    // private validateQueryParams(query: any): string[] {
-    //     const errors: string[] = [];
-
-    //     if (query.limit && (isNaN(Number(query.limit)) || Number(query.limit) < 1)) {
-    //         errors.push('Limit must be a positive number');
-    //     }
-
-    //     if (query.page && (isNaN(Number(query.page)) || Number(query.page) < 1)) {
-    //         errors.push('Page must be a positive number');
-    //     }
-
-    //     if (query.getAllData && !['true', 'false'].includes(query.getAllData)) {
-    //         errors.push('getAllData must be true or false');
-    //     }
-
-    //     return errors;
-    // }
+   
     public async getProductTypeById(req: Request, res: Response) {
         try {
             const productTypeId = parseInt(req.params.id, 10);
@@ -88,7 +88,7 @@ class ProductTypeController {
             return res.status(200).json({ productTypes: productType });
         } catch (error: any) {
             logger.error('Error in getProductTypeById controller', { error: error.message });
-            return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการดึงข้อมูลประเภทสินค้า', error: error.message });
+            return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງປະເພດສິນຄ້າ', error: error.message });
         }
     }
     public async updateProductType(req: Request, res: Response) {
@@ -99,7 +99,7 @@ class ProductTypeController {
             const data = req.body;
             
             const updatedProductType = await ProductTypeRepo.updateProductType(productTypeId, partnerId, data);
-            return res.status(200).json({ message: 'อัปเดตประเภทสินค้าเรียบร้อย', productType: updatedProductType });
+            return res.status(200).json({ message: 'อัปเดตประเภทสินค้าเรียบร้อย', data: updatedProductType });
         } catch (error: any) {
             logger.error('Error in updateProductType controller', { error: error.message });
             return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปเดตประเภทสินค้า', error: error.message });
@@ -108,6 +108,7 @@ class ProductTypeController {
     public async deActivatedProductType(req: Request, res: Response) {
         try {
             const productTypeId = parseInt(req.params.id, 10);
+            console.log('productTypeId is :', productTypeId)
             const partnerId = req.userPayload?.userId as number;
             const updatedProductType = await ProductTypeRepo.deleteProductType(productTypeId, partnerId);
             return res.status(200).json({ message: 'ปิดใช้งานประเภทสินค้าเรียบร้อย', productType: updatedProductType });

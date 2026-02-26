@@ -93,6 +93,20 @@ export class user_refresh_tokens extends Model<user_refresh_tokensAttributes, us
           { name: "user_id" },
         ]
       },
+      {
+        name: "idx_expires_at",
+        using: "BTREE",
+        fields: [
+          { name: "expires_at" },
+        ]
+      },
+      {
+        name: "idx_revoked",
+        using: "BTREE",
+        fields: [
+          { name: "revoked" },
+        ]
+      },
     ]
   });
   }

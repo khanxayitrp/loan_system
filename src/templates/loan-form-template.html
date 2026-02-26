@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="lo">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ໃບສະເໜີຂໍກູ້ຢືມ</title>
+    <style>
+        @font-face {
+            font-family: 'Phetsarath OT';
+            src: url('{{fontPath}}') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'Noto Sans Lao';
+            src: url('https://fonts.gstatic.com/s/notosanslao/v20/NoATjA4kPjFf-vfZ5v5X.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            padding: 15mm;
+            background: #ffffff;
+            color: #000000;
+        }
+
+        /* ✅ Header - โลโก้ซ้าย ข้อความกึ่งกลาง */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .header .emblem {
+            width: 35mm;
+            height: 35mm;
+            flex-shrink: 0;
+            object-fit: contain;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .header-text {
+            flex: 1;
+            text-align: center;
+            padding: 0 40mm;
+            /* เว้นพื้นที่สำหรับโลโก้ */
+        }
+
+        /* ✅ ทั้งสองบรรทัดขนาดเท่ากัน ระยะห่างเท่ากัน */
+        .header-text h2,
+        .header-text p {
+            font-size: 12pt;
+            font-weight: bold;
+            margin: 0;
+            padding: 3px 0;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .header-text p {
+            font-weight: normal;
+        }
+
+        /* ✅ Form Title - ระยะห่างเท่ากับ header */
+        .form-title {
+            font-size: 12pt;
+            font-weight: bold;
+            text-align: center;
+            text-decoration: underline;
+            margin: 10px 0 3px;
+            /* เหมือนระยะห่างใน header */
+            padding: 0;
+            line-height: 1.3;
+        }
+
+        .form-subtitle {
+            font-size: 11pt;
+            text-align: center;
+            margin: 3px 0 10px;
+            /* เหมือนระยะห่างใน header */
+            padding: 0;
+            line-height: 1.3;
+        }
+
+        .checkbox-inline {
+            display: inline-block;
+            margin: 0 10px;
+        }
+
+        /* ก่อน */
+        .recipient {
+            text-align: left;
+            /* ⬅️ ชิดซ้าย */
+        }
+
+        /* หลัง */
+        .recipient {
+            text-align: center;
+            /* ✅ กึ่งกลาง */
+        }
+
+        .recipient p {
+            text-align: center;
+            /* ✅ กึ่งกลาง */
+        }
+
+        /* Sections */
+        .section {
+            border: 1px solid #000;
+            padding: 10px;
+            margin-bottom: 10px;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            font-size: 11pt;
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+
+        .section-content {
+            font-size: 10pt;
+        }
+
+        /* Info Lines */
+        .info-line {
+            margin: 3px 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 3px;
+        }
+
+        .info-line.indent {
+            margin-left: 15px;
+        }
+
+        .info-label {
+            white-space: nowrap;
+        }
+
+        .info-value {
+            border-bottom: 1px dotted #000;
+            min-width: 80px;
+            padding: 0 3px;
+            flex: 1;
+            display: inline-block;
+        }
+
+        .info-value.long {
+            min-width: 150px;
+        }
+
+        .info-value.full {
+            min-width: 300px;
+            flex: 2;
+        }
+
+        /* Product Table */
+        .product-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 5px 0;
+        }
+
+        .product-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            font-size: 10pt;
+            vertical-align: top;
+        }
+
+        .product-table .label {
+            font-weight: bold;
+            width: 16%;
+            white-space: nowrap;
+        }
+
+        .product-table .value {
+            width: 17.33%;
+        }
+
+        .product-table .full-width {
+            width: 100%;
+        }
+
+        /* Checkbox */
+        .checkbox {
+            font-weight: bold;
+        }
+
+        .checkbox.checked::before {
+            content: '☑';
+        }
+
+        .checkbox:not(.checked)::before {
+            content: '☐';
+        }
+
+        /* Subsection */
+        .subsection {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #000;
+        }
+
+        /* Consent */
+        .consent {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-left: 3px solid #000;
+            font-size: 10pt;
+        }
+
+        /* Conclusion */
+        .conclusion {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            font-size: 11pt;
+        }
+
+        /* Signatures */
+        .signatures {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            page-break-inside: avoid;
+        }
+
+        .signature-box {
+            text-align: center;
+        }
+
+        .signature-title {
+            font-weight: bold;
+            margin-bottom: 30px;
+            font-size: 10pt;
+        }
+
+        .signature-line {
+            border-bottom: 1px solid #000;
+            margin-bottom: 8px;
+            height: 25px;
+        }
+
+        .signature-date {
+            font-size: 9pt;
+        }
+
+        /* ✅ Footer - พื้นหลังสีแดง ตัวหนังสือสีขาว */
+        .footer {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #9d1d22;
+            color: #ffffff;
+            text-align: center;
+            font-size: 9pt;
+            line-height: 1.3;
+            page-break-inside: avoid;
+        }
+
+        .footer p {
+            margin: 0;
+            color: #ffffff;
+        }
+
+        .footer strong {
+            color: #ffffff;
+        }
+
+        /* Print */
+        @page {
+            size: A4;
+            margin: 10mm;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ✅ Header - โลโก้ซ้าย ข้อความกลาง -->
+    <div class="header">
+        <img src="{{logoPath}}" alt="ສັນຍາລັກ" class="emblem" />
+        <div class="header-text">
+            <!-- ✅ ทั้งสองบรรทัดขนาดเท่ากัน ระยะห่างน้อย -->
+            <h2>ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</h2>
+            <p>ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</p>
+        </div>
+    </div>
+
+    <!-- Form Title -->
+    <h1 class="form-title">ໃບສະເໜີຂໍກູ້ຢືມ ປະເພດສິນເຊື່ອ ເພື່ອການ ຊົມໃຊ້</h1>
+    <h3 class="form-subtitle">
+        <span class="checkbox {{onlineChecked}} checkbox-inline"></span> ອອນລາຍ &nbsp;&nbsp;
+        <span class="checkbox {{offlineChecked}} checkbox-inline"></span> ອ໋ອບລາຍ
+    </h3>
+
+    <!-- Recipient -->
+    <div class="recipient">
+        <p><strong>ຮຽນ:</strong> ທ່ານຄະນະອຳນວຍການ ສະຖາບັນການເງິນຈຸລະພາກ ທີ່ ບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ</p>
+        <p>
+            <strong>ເລື່ອງ:</strong> ຂໍກູ້ຢືມປະເພດສິນເຊື່ອຊົມໃຊ້ ປະເພດ : &nbsp;&nbsp;
+            <span class="checkbox {{goldChecked}}"></span> ສິນຄ້າຄຳ &nbsp;&nbsp;
+            <span class="checkbox {{generalChecked}}"></span> ສິນຄ້າທົ່ວໄປ &nbsp;&nbsp;
+            <span class="checkbox {{motorcycleChecked}}"></span> ສິນຄ້າລົດຈັກ
+        </p>
+    </div>
+
+    <!-- Section I: Customer -->
+    <section class="section">
+        <h3 class="section-title">I. ຂໍ້ມູນລູກຄ້າ:</h3>
+        <div class="section-content">
+            <p class="info-line">
+                <span class="info-label">ຂ້າພະເຈົ້າຊື່ ທ້າວ/ນາງ:</span>
+                <span class="info-value full">{{customer.fullname}}</span>
+                <span class="info-label">ວັນເດືອນປີເກີດ:</span>
+                <span class="info-value">{{customer.dob}}</span>
+                <span class="info-label">ອາຍຸ:</span>
+                <span class="info-value" style="min-width: 40px;">{{customer.age}}</span>
+                <span class="info-label">ປີ</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ອາຊີບ:</span>
+                <span class="info-value">{{customer.occupation}}</span>
+                <span class="info-label">ເບີໂທ:</span>
+                <span class="info-value">{{customer.phone}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ທີ່ຢູ່ປັດຈຸບັນ:</span>
+            </p>
+            <p class="info-line indent">
+                <span class="info-label">ບ້ານ:</span>
+                <span class="info-value">{{customer.address.village}}</span>
+                <span class="info-label">ເມືອງ:</span>
+                <span class="info-value">{{customer.address.district}}</span>
+                <span class="info-label">ແຂວງ:</span>
+                <span class="info-value">{{customer.address.province}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ເລກບັດປະຈຳຕົວ:</span>
+                <span class="info-value long">{{customer.idCard}}</span>
+                <span class="info-label">ເລກທີ່ສຳມະໂນຄົວ:</span>
+                <span class="info-value">{{customer.censusNo}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ໜ່ວຍ:</span>
+                <span class="info-value" style="min-width: 50px;">{{customer.unit}}</span>
+                <span class="info-label">ສະຖານທີ່ອອກ:</span>
+                <span class="info-value">{{customer.issuePlace}}</span>
+                <span class="info-label">ວັນທີ່ອອກ:</span>
+                <span class="info-value">{{customer.issueDate}}</span>
+            </p>
+        </div>
+    </section>
+
+    <!-- Section II: Work -->
+    <section class="section">
+        <h3 class="section-title">II. ຂໍ້ມູນບ່ອນເຮັດວຽກ:</h3>
+        <div class="section-content">
+            <p class="info-line">
+                <span class="info-label">ຊື່ບໍລິສັດ/ຮ້ານ:</span>
+                <span class="info-value full">{{work.companyName}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ທີ່ຢູ່ຫ້ອງການ:</span>
+            </p>
+            <p class="info-line indent">
+                <span class="info-label">ບ້ານ:</span>
+                <span class="info-value">{{work.address.village}}</span>
+                <span class="info-label">ເມືອງ:</span>
+                <span class="info-value">{{work.address.district}}</span>
+                <span class="info-label">ແຂວງ:</span>
+                <span class="info-value">{{work.address.province}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ເບີໂທ:</span>
+                <span class="info-value">{{work.phone}}</span>
+                <span class="info-label">ປະເພດຂອງທຸລະກິດ:</span>
+                <span class="info-value">{{work.businessType}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ລາຍລະອຽດທຸລະກິດ:</span>
+                <span class="info-value full">{{work.businessDetail}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ໄລຍະການເຮັດວຽກ:</span>
+                <span class="info-value" style="min-width: 40px;">{{work.durationMonths}}</span>
+                <span class="info-label">ເດືອນ</span>
+                <span class="info-value" style="min-width: 40px;">{{work.durationYears}}</span>
+                <span class="info-label">ປີ</span>
+                <span class="info-label">ພະແນກ:</span>
+                <span class="info-value">{{work.department}}</span>
+                <span class="info-label">ຕຳແໜ່ງ:</span>
+                <span class="info-value">{{work.position}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ເງິນເດືອນ:</span>
+                <span class="info-value">{{work.salary}}</span>
+            </p>
+        </div>
+    </section>
+
+    <!-- Section III: Product -->
+    <section class="section">
+        <h3 class="section-title">III. ລາຍລະອຽດສິນຄ້າ:</h3>
+        <table class="product-table">
+            <tbody>
+                <tr>
+                    <td class="label">1. ປະເພດສິນຄ້າ:</td>
+                    <td class="value">{{product.type}}</td>
+                    <td class="label">7. ຍີ່ຫໍ້:</td>
+                    <td class="value">{{product.brand}}</td>
+                    <td class="label">12. ລຸ້ນສິນຄ້າ:</td>
+                    <td class="value">{{product.model}}</td>
+                </tr>
+                <tr>
+                    <td class="label">2. ລາຄາສິນຄ້າ:</td>
+                    <td class="value">{{product.price}}</td>
+                    <td class="label">8. ວາງດາວ:</td>
+                    <td class="value">{{product.downPayment}}</td>
+                    <td class="label">13. ວົງເງິນອະນຸມັດ:</td>
+                    <td class="value">{{product.approvedAmount}}</td>
+                </tr>
+                <tr>
+                    <td class="label">3. ໄລຍະເວລາກູ້:</td>
+                    <td class="value">{{product.loanTerm}} ເດືອນ</td>
+                    <td class="label">9. ອັດຕາດອກເບ້ຍ:</td>
+                    <td class="value">{{product.interestRate}} %</td>
+                    <td class="label">14. ຈຳນວນດອກເບ້ຍທັງໝົດ:</td>
+                    <td class="value">{{product.totalInterest}}</td>
+                </tr>
+                <tr>
+                    <td class="label">4. ຄ່າທຳນຽມ (CIB):</td>
+                    <td class="value">{{product.fee}}</td>
+                    <td class="label" colspan="3">10. ຄ່າງວດເດືອນທຳອິດ:</td>
+                    <td class="value">{{product.firstInstallment}}</td>
+                </tr>
+                <tr>
+                    <td class="label">5. ຄ່າງວດລາຍເດືອນ:</td>
+                    <td class="value">{{product.monthlyPayment}}</td>
+                    <td class="label" colspan="3">11. ການຊຳລະຄ່າງວດທຸກໆວັນທີ່:</td>
+                    <td class="value">{{product.paymentDay}} ຂອງແຕ່ລະເດືອນ</td>
+                </tr>
+                <tr>
+                    <td class="label" colspan="6">6. ຮ້ານຄ້າທີ່ເລືອກ:</td>
+                </tr>
+                <tr>
+                    <td class="value full-width" colspan="6">{{product.store}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- Section IV: Guarantor -->
+    <section class="section">
+        <h3 class="section-title">
+            IV. ຂໍ້ມູນສ່ວນຕົວຂອງ &nbsp;
+            <span class="checkbox {{guarantorChecked}}"></span> ຜູ້ຄ້ຳປະກັນ &nbsp;/&nbsp;
+            <span class="checkbox {{referenceChecked}}"></span> ຜູ້ອ້າງອີງ &nbsp;
+            (ຖ້າມີ) ເຊິ່ງມີລາຍລະອຽດດັ່ງລຸ່ມນີ້:
+        </h3>
+        {{#if hasGuarantor}}
+        <div class="section-content">
+            <p class="info-line">
+                <span class="info-label">ຂ້າພະເຈົ້າຊື່ ທ້າວ/ນາງ:</span>
+                <span class="info-value full">{{guarantor.name}}</span>
+                <span class="info-label">ວັນເດືອນປີເກີດ:</span>
+                <span class="info-value">{{guarantor.dob}}</span>
+                <span class="info-label">ອາຍຸ:</span>
+                <span class="info-value" style="min-width: 40px;">{{guarantor.age}}</span>
+                <span class="info-label">ປີ</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ອາຊີບ:</span>
+                <span class="info-value">{{guarantor.occupation}}</span>
+                <span class="info-label">ເບີໂທ:</span>
+                <span class="info-value">{{guarantor.phone}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ທີ່ຢູ່ປະຈຸບັນ:</span>
+            </p>
+            <p class="info-line indent">
+                <span class="info-label">ບ້ານ:</span>
+                <span class="info-value">{{guarantor.address.village}}</span>
+                <span class="info-label">ເມືອງ:</span>
+                <span class="info-value">{{guarantor.address.district}}</span>
+                <span class="info-label">ແຂວງ:</span>
+                <span class="info-value">{{guarantor.address.province}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ເລກບັດປະຈຳຕົວ:</span>
+                <span class="info-value long">{{guarantor.idCard}}</span>
+            </p>
+            <p class="info-line">
+                <span class="info-label">ຄວາມສຳພັນ:</span>
+                <span class="checkbox {{guarantor.parentChecked}}"></span> ພໍ່ແມ່ &nbsp;
+                <span class="checkbox {{guarantor.spouseChecked}}"></span> ຄູ່ສົມລົດ &nbsp;
+                <span class="checkbox {{guarantor.otherChecked}}"></span> ອື່ນໆ &nbsp;
+                <span class="info-value" style="min-width: 100px;">{{guarantor.relationshipOther}}</span>
+            </p>
+
+            <div class="subsection">
+                <p class="info-line"><strong>ສະຖານທີ່ເຮັດວຽກ (ຜູ້ຄ້ຳປະກັນ):</strong></p>
+                <p class="info-line">
+                    <span class="info-label">ຊື່ບໍລິສັດ/ຮ້ານ:</span>
+                    <span class="info-value full">{{guarantor.work.companyName}}</span>
+                </p>
+                <p class="info-line indent">
+                    <span class="info-label">ບ້ານ:</span>
+                    <span class="info-value">{{guarantor.work.address.village}}</span>
+                    <span class="info-label">ເມືອງ:</span>
+                    <span class="info-value">{{guarantor.work.address.district}}</span>
+                    <span class="info-label">ແຂວງ:</span>
+                    <span class="info-value">{{guarantor.work.address.province}}</span>
+                </p>
+                <p class="info-line">
+                    <span class="info-label">ຕຳແໜ່ງ:</span>
+                    <span class="info-value">{{guarantor.work.position}}</span>
+                    <span class="info-label">ໂທລະສັບ:</span>
+                    <span class="info-value">{{guarantor.work.phone}}</span>
+                    <span class="info-label">ເງິນເດືອນ:</span>
+                    <span class="info-value">{{guarantor.work.salary}}</span>
+                </p>
+            </div>
+        </div>
+        {{else}}
+        <div class="section-content">
+            <p class="info-line">ບໍ່ມີຜູ້ຄ້ຳປະກັນ</p>
+        </div>
+        {{/if}}
+    </section>
+
+    <!-- Consent -->
+    <div class="consent">
+        <p>
+            <strong>ໝາຍເຫດ:</strong> ຂ້າພະເຈົ້າ, ຜູ້ກູ້ ແລະ/ຫລື ຜູ້ຄ້ຳປະກັນ (ຖ້າມີ),
+            ເຫັນດີ ແລະ ຍິນຍອມໃຫ້ ສກຈບ ອິນຊີ ກວດສອບປະຫວັດໃນບົດລາຍງານ CIB
+            ຕາມຂໍ້ມູນທີ່ໄດ້ສະແດງ ຂ້າງເທິງ.
+        </p>
+    </div>
+
+    <!-- Conclusion -->
+    <p class="conclusion">ດັ່ງນັ້ນ, ຈື່ງສະເໜີມາຍັງທ່ານພິຈາລະນາຕາມທາງຄວນດ້ວຍ</p>
+
+    <!-- Signatures -->
+    <div class="signatures">
+        <div class="signature-box">
+            <p class="signature-title">ເຊັນຜູ້ຂໍກູ້ (ລູກຄ້າ):</p>
+            <div class="signature-line"></div>
+            <p class="signature-date">ວັນທີ່: {{signatures.borrowerDate}}</p>
+        </div>
+        <div class="signature-box">
+            <p class="signature-title">ເຊັນຜູ້ຄ້ຳປະກັນ (ຖ້າມີ):</p>
+            <div class="signature-line"></div>
+            <p class="signature-date">ວັນທີ່: {{signatures.guarantorDate}}</p>
+        </div>
+        <div class="signature-box">
+            <p class="signature-title">ພະນັກງານ (ອິນຊີ):</p>
+            <div class="signature-line"></div>
+            <p class="signature-date">ວັນທີ່: {{signatures.staffDate}}</p>
+        </div>
+    </div>
+
+    <!-- ✅ Footer - พื้นหลังสีแดง ตัวหนังสือสีขาว -->
+    <div class="footer">
+        <p>
+            <strong>ສະຖາບັນການເງິນ ຈຸລະພາກບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ</strong><br />
+            ສຳນັກງານໃຫຍ່ຕັ້ງຢູ່ ຖະໜົນ 23 ສິງຫາ, ບ້ານ ໜອງບອນ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ<br />
+            INSEE Microfinance, 23 Singha Rd, Nongbone Village, Saysatha District, VTE.<br />
+            ໂທລະສັບ / Tel: 021 417775, 021 417776 (856-20) 99164243
+        </p>
+    </div>
+</body>
+
+</html>

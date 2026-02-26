@@ -47,7 +47,7 @@ export const FILE_UPLOAD_CONFIG = {
     ],
     uploadDir: 'uploads/documents'
   },
-  
+
   // Product images
   PRODUCT_IMAGES: {
     maxFileSize: 3 * 1024 * 1024, // 3MB
@@ -55,11 +55,12 @@ export const FILE_UPLOAD_CONFIG = {
       'image/jpeg',
       'image/jpg',
       'image/png',
-      'image/webp'
+      'image/webp',
+      'image/gif'
     ],
     uploadDir: 'uploads/products'
   },
-  
+
   // Shop logos
   SHOP_LOGOS: {
     maxFileSize: 2 * 1024 * 1024, // 2MB
@@ -71,7 +72,7 @@ export const FILE_UPLOAD_CONFIG = {
     ],
     uploadDir: 'uploads/shops'
   },
-  
+
   // Payment proofs
   PAYMENT_PROOFS: {
     maxFileSize: 5 * 1024 * 1024, // 5MB

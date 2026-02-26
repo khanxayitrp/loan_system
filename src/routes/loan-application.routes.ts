@@ -6,6 +6,13 @@ import { PERMISSIONS } from '../types/permissions'
 
 const router = Router();
 
+
+router.get('/', verifyToken, loanCtrl.getAllLoan);
+
+router.get('/:id', verifyToken, loanCtrl.getLoanById);
+
+router.get('/loanID/:LoanId', verifyToken, loanCtrl.getLoanByLoanID);
+
 /**
  * @swagger
  * /loan-application:
@@ -44,7 +51,9 @@ const router = Router();
  *       201:
  *         description: Application created
  */
-router.post('/', verifyToken, checkPermission(PERMISSIONS.LOAN.CREATE), loanCtrl.createLoanApplication);
+router.post('/', verifyToken, loanCtrl.createLoanApplication);
+
+router.put('/draft/:id', verifyToken, loanCtrl.updateDraftLoanApplication);
 
 /**
  * @swagger
@@ -70,7 +79,7 @@ router.post('/', verifyToken, checkPermission(PERMISSIONS.LOAN.CREATE), loanCtrl
  *       200:
  *         description: Application updated
  */
-router.put('/:id', verifyToken, checkPermission(PERMISSIONS.LOAN.EDIT), loanCtrl.updateLoanApplication);
+router.put('/:id', verifyToken, loanCtrl.updateLoanApplication);
 
 /**
  * @swagger
@@ -102,7 +111,9 @@ router.put('/:id', verifyToken, checkPermission(PERMISSIONS.LOAN.EDIT), loanCtrl
  *       200:
  *         description: Status changed
  */
-router.patch('/:id/status', verifyToken, checkPermission(PERMISSIONS.LOAN.EDIT), loanCtrl.changeStatus);
+router.patch('/:id/status', verifyToken, loanCtrl.changeStatus);
+
+router.patch('/:id/apply', verifyToken, loanCtrl.sentApplyDraft);
 
 /**
  * @swagger
@@ -122,6 +133,6 @@ router.patch('/:id/status', verifyToken, checkPermission(PERMISSIONS.LOAN.EDIT),
  *       201:
  *         description: Application and customer created
  */
-router.post('/create-with-customer', verifyToken , checkPermission(PERMISSIONS.LOAN.CREATE), loanCtrl.createWithCustomer)
+router.post('/create-with-customer', verifyToken , loanCtrl.createWithCustomer)
 
 export default router;

@@ -59,7 +59,7 @@ export class OTPService {
       const otp = generateOTP();
 
       // Create message
-      const smsMessage = message || createOTPMessage(otp);
+      const smsMessage = createOTPMessage(otp);
 
       // Send SMS via Lao Telecom
       const smsResult = await laoTelecomService.sendSMS(formattedPhone, smsMessage);

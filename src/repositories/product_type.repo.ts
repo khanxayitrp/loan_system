@@ -15,7 +15,11 @@ class ProductTypeRepository {
                 logger.error(`Product type name already exists: ${cleanProductType.type_name}`);
                 throw new Error('Product type name already exists');
             }
+
+            const partner = await db.partners.findOne({where: {user_id: cleanProductType.partner_id}})
+            console.log('partner is ', partner)
             const mapData: any = {
+                partner_id: partner!.dataValues.id,
                 type_name: cleanProductType.type_name,
                 description: cleanProductType.description || null,
                 is_active: 1,
@@ -52,7 +56,7 @@ class ProductTypeRepository {
 
         // ถ้ามี searchText → ค้นหาในชื่อ (หรือ field อื่นที่ต้องการ)
         if (searchText && searchText.trim()) {
-            whereClause.name = {
+            whereClause.type_name = {
                 [Op.like]: `%${searchText.trim()}%`,
             };
             // ถ้าต้องการค้นหาหลาย field เช่น code หรือ description
@@ -100,13 +104,15 @@ class ProductTypeRepository {
                 return null;
             }
 
-            if (productType.partner_id !== partnerId) {
+            const partner = await db.partners.findOne({where: {user_id: partnerId}})
+            
+             if (productType.partner_id !== partner?.dataValues.id) {
                 logger.error(`Product type with ID: ${productTypeId} does not belong to partner ID: ${partnerId}`);
-                throw new Error('Unauthorized to update this product type');
+                throw new Error('Unauthorized to delete this product type');
             }
 
             const updatedProductType = await productType.update(data, {
-                where: { id: productTypeId, partner_id: partnerId },
+                where: { id: productTypeId, partner_id: partner!.dataValues.id },
                 returning: true
             });
             logger.info(`Product type updated with ID: ${productTypeId}`);
@@ -123,11 +129,14 @@ class ProductTypeRepository {
                 logger.error(`Product type with ID: ${productTypeId} not found`);
                 return false;
             }
-            if (productType.partner_id !== partnerId) {
+           
+            const partner = await db.partners.findOne({where: {user_id: partnerId}})
+
+             if (productType.partner_id !== partner?.dataValues.id) {
                 logger.error(`Product type with ID: ${productTypeId} does not belong to partner ID: ${partnerId}`);
                 throw new Error('Unauthorized to delete this product type');
             }
-            const deleteCount = await productType.update({ is_active: 0 }, { where: { id: productTypeId, partner_id: partnerId } });
+            const deleteCount = await productType.update({ is_active: 0 }, { where: { id: productTypeId, partner_id: partner!.dataValues.id } });
             logger.info(`Product type deleted with ID: ${productTypeId}`);
             return true;
 

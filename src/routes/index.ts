@@ -6,7 +6,13 @@ import customerRouter from './customer.routes';
 import loanAppRouter from './loan-application.routes';
 import otpRouter from './otp.routes';
 import userRouter from './user.routes';
-import productTypeRouter from './product_type.routes'
+import productTypeRouter from './product_type.routes';
+import partnerRouter from './partner.routes';
+import productRouter from './product.routes';
+import imageGalleryRotuer from './product_gallery.routes'
+import custLocationRotuer from './customerLocation.routes'
+import proposalRouter from './proposal.routes'
+import pdfRouter from './pdf.routes'
 
 const router = express.Router();
 
@@ -27,17 +33,18 @@ router.use('/users', userRouter);
 
 router.use('/productTypes',productTypeRouter);
 
+router.use('/shops', partnerRouter);
 
-// router.use(User);
-// // router.use('/employees', Employee);
-// router.use(Employee);
-// router.use(Position);
-// router.use(Department);
-// router.use(LeaveType);
-// router.use(LeaveApplication);
-// router.use(LeaveApprover);
-// router.use(checkIn);
-// router.use(AttendanceConfig);
+router.use('/products', productRouter);
+
+router.use('/images', imageGalleryRotuer);
+
+router.use('/customer-locations', custLocationRotuer);
+
+router.use('/proposal', proposalRouter)
+
+router.use('/pdf', pdfRouter)
+
 
 
 export default router;

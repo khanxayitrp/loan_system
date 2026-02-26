@@ -49,7 +49,7 @@ class App {
                     url: 'http://localhost:15520/api',
                     description: 'Development server',
                 },
-            ],            components: {
+            ], components: {
                 securitySchemes: {
                     bearerAuth: {
                         type: 'http',
@@ -57,7 +57,8 @@ class App {
                         bearerFormat: 'JWT',
                     },
                 },
-            },        },
+            },
+        },
         apis: ['./src/routes/*.ts'], // paths to files with annotations
     };
 
@@ -70,6 +71,16 @@ class App {
     private middleware(): void {
         this.app.set('trust proxy', 1); // ✅ Fix express-rate-limit warning
 
+        // ✅ ເພີ່ມ timeout middleware ກ່ອນ routes
+        this.app.use((req, res, next) => {
+            // ບໍ່ໃຊ້ timeout ສຳລັບ PDF generation
+            if (req.path.includes('/pdf') || req.path.includes('/generate')) {
+                req.socket.setTimeout(120000); // 120 ວິນາທີ
+            } else {
+                req.socket.setTimeout(30000); // 30 ວິນາທີ ສຳລັບ request ທົ່ວໄປ
+            }
+            next();
+        });
         // ✅ Serve uploaded files publicly (e.g., /uploads/documents/xyz.pdf)
         this.app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -84,7 +95,17 @@ class App {
             crossOriginEmbedderPolicy: false,
             crossOriginResourcePolicy: false,
         }));
-        this.app.use(limiter);
+
+          // ✅ ປັບ rate limiter ບໍ່ໃຫ້ block PDF requests
+    this.app.use((req, res, next) => {
+        if (req.path.includes('/pdf') || req.path.includes('/generate')) {
+            // ຂ້າມ rate limiter ສຳລັບ PDF generation
+            next();
+        } else {
+            limiter(req, res, next);
+        }
+    });
+        // this.app.use(limiter);
     }
 
     private requestLogger(req: Request, res: Response, next: NextFunction): void {
@@ -188,12 +209,12 @@ class App {
         //     }
         // });
 
-        this.app.use('/api', indexRoutes);  
+        this.app.use('/api', indexRoutes);
 
         // Swagger UI
         const specs = swaggerJsdoc(this.swaggerOptions);
         this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
-        
+
         // Default API route
         this.app.get('/api', (req: Request, res: Response) => {
             res.json({

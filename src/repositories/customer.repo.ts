@@ -1,7 +1,7 @@
 import { customers, customersAttributes, customersCreationAttributes } from '../models/customers';
 import { db } from '../models/init-models';
 import { logger } from '@/utils/logger';
-import { Op, Transaction } from 'sequelize';
+import { Op, Sequelize, Transaction } from 'sequelize';
 
 class CustomerRepository {
     async createCustomer(data: customersCreationAttributes, options: { transaction?: any } = {}): Promise<customers> {
@@ -29,7 +29,7 @@ class CustomerRepository {
                 throw new Error('Income per month is required');
             }
 
-            const existCustomer = await db.customers.findOne({ where: { identity_number: cleanCustomer.identity_number },  transaction: options.transaction });
+            const existCustomer = await db.customers.findOne({ where: { identity_number: cleanCustomer.identity_number }, transaction: options.transaction });
             if (existCustomer) {
                 logger.error(`Identity number already exists: ${cleanCustomer.identity_number}`);
                 throw new Error('Identity number already exists');
@@ -43,7 +43,7 @@ class CustomerRepository {
                 occupation: cleanCustomer.occupation,
                 income_per_month: cleanCustomer.income_per_month,
             };
-            const newCustomer = await db.customers.create(mapData, {transaction: options.transaction});
+            const newCustomer = await db.customers.create(mapData, { transaction: options.transaction });
             logger.info(`Customer created with ID: ${newCustomer.id}`);
             return newCustomer;
 
@@ -53,23 +53,25 @@ class CustomerRepository {
         }
     }
     async findCustomerById(customerId: number, options: { transaction?: any } = {}): Promise<customers | null> {
-        return await db.customers.findByPk(customerId, {transaction: options.transaction});
+        return await db.customers.findByPk(customerId, { transaction: options.transaction });
     }
     async findCustomerByIdentityNumber(identityNumber: string): Promise<customers | null> {
         return await db.customers.findOne({ where: { identity_number: identityNumber } });
     }
-    async findCustomersByName(name: string, options: { transaction?: any } = {}): Promise<customers[]> {
-        return await db.customers.findAll({
-            where: {
-                [Op.or]: [
-                    { first_name: { [Op.like]: `%${name}%` } },
-                    { last_name: { [Op.like]: `%${name}%` } }
-                ]
-            }, transaction: options.transaction
+    async findCustomersByName(name: string, options: { transaction?: any } = {}): Promise<customers | null> {
+        return await db.customers.findOne({
+            where: Sequelize.where(
+                Sequelize.fn('CONCAT', Sequelize.col('first_name'), ' ', Sequelize.col('last_name')),
+                {
+                    [Op.like]: `%${name}%`
+                }
+            ),
+            transaction: options.transaction
         });
+
     }
     async findCustomersByPhone(phone: string, options: { transaction?: any } = {}): Promise<customers | null> {
-        return await db.customers.findOne({ where: {phone}, transaction: options.transaction });
+        return await db.customers.findOne({ where: { phone }, transaction: options.transaction });
     }
     async findCustomersByIncomeRange(minIncome: number, maxIncome: number): Promise<customers[]> {
         return await db.customers.findAll({
@@ -81,34 +83,34 @@ class CustomerRepository {
         });
 
     }
-    async updateCustomer(customerId: number, data: Partial<customersAttributes>,options: { transaction?: any } = {}): Promise<customers | null> {
+    async updateCustomer(customerId: number, data: Partial<customersAttributes>, options: { transaction?: any } = {}): Promise<customers | null> {
         try {
             const customer = await this.findCustomerById(customerId, options);
-        if (!customer) {
-            logger.error(`Customer with ID: ${customerId} not found`);
-             return null;
-        }
-        const mapData: any = {
-            identity_number: data.identity_number || customer.identity_number,
-            first_name: data.first_name || customer.first_name,
-            last_name: data.last_name || customer.last_name,
-            phone: data.phone || customer.phone,
-            address: data.address || customer.address,
-            occupation: data.occupation || customer.occupation,
-            income_per_month: data.income_per_month || customer.income_per_month,
-        }
+            if (!customer) {
+                logger.error(`Customer with ID: ${customerId} not found`);
+                return null;
+            }
+            const mapData: any = {
+                identity_number: data.identity_number || customer.identity_number,
+                first_name: data.first_name || customer.first_name,
+                last_name: data.last_name || customer.last_name,
+                phone: data.phone || customer.phone,
+                address: data.address || customer.address,
+                occupation: data.occupation || customer.occupation,
+                income_per_month: data.income_per_month || customer.income_per_month,
+            }
 
-        const updateCustomer = await customer.update(mapData, {
-            where: { id: customerId },
-            returning: true
-        }, {transaction: options.transaction});
-        logger.info(`Customer updated with ID: ${customerId}`);
-        return customer;
+            const updateCustomer = await customer.update(mapData, {
+                where: { id: customerId },
+                returning: true
+            }, { transaction: options.transaction });
+            logger.info(`Customer updated with ID: ${customerId}`);
+            return customer;
         } catch (error) {
             logger.error(`Error updating customer: ${(error as Error).message}`);
             throw error;
         }
-    
+
     }
 
 

@@ -394,7 +394,7 @@ class UploadController {
     });
   }
 
-  private validateRequiredFields(req: Request, required: string[]): void {
+  public static validateRequiredFields(req: Request, required: string[]): void {
     for (const field of required) {
       if (!req.body[field] && !req.params[field]) {
         throw new ValidationError(`Missing required field: ${field}`);
@@ -411,7 +411,7 @@ class UploadController {
 
   async uploadApplicationDocument(req: Request, res: Response): Promise<void> {
     try {
-      this.validateRequiredFields(req, ['application_id', 'doc_type']);
+      UploadController.validateRequiredFields(req, ['application_id', 'doc_type']);
 
       const { application_id } = req.params;
       const { doc_type } = req.body;
@@ -449,7 +449,7 @@ class UploadController {
 
   async uploadMultipleDocuments(req: Request, res: Response): Promise<void> {
     try {
-      this.validateRequiredFields(req, ['application_id']);
+      UploadController.validateRequiredFields(req, ['application_id']);
 
       const { application_id } = req.params;
       const files = req.files as Express.Multer.File[];
@@ -546,7 +546,7 @@ class UploadController {
 
   async uploadProductImage(req: Request, res: Response): Promise<void> {
     try {
-      this.validateRequiredFields(req, ['product_id']);
+      UploadController.validateRequiredFields(req, ['product_id']);
 
       if (!req.file) {
         throw new ValidationError('No file uploaded');
@@ -588,6 +588,34 @@ class UploadController {
         throw new ValidationError('No files uploaded');
       }
 
+      // ✅ 2. Log ข้อมูลไฟล์สำหรับ debug
+    logger.info('Uploading files:', {
+      productId: product_id,
+      fileCount: files.length,
+      files: files.map(f => ({
+        originalName: f.originalname,
+        mimetype: f.mimetype,
+        size: f.size,
+        hasBuffer: !!f.buffer,
+        bufferSize: f.buffer?.length,
+        bufferPreview: f.buffer?.slice(0, 20).toString('hex')
+      }))
+    });
+
+    // // ✅ 3. ตรวจสอบว่า buffer เป็น HTML หรือไม่
+    // for (const file of files) {
+    //   if (file.buffer && file.buffer.length > 0) {
+    //     const bufferPreview = file.buffer.slice(0, 20).toString('utf-8');
+    //     if (bufferPreview.includes('<!DOCTYPE') || bufferPreview.includes('<html')) {
+    //       logger.error('File is HTML, not image:', {
+    //         fileName: file.originalname,
+    //         bufferPreview
+    //       });
+    //       throw new ValidationError(`ไฟล์ ${file.originalname} เป็น HTML ไม่ใช่รูปภาพ`);
+    //     }
+    //   }
+    // }
+
       const results = await fileUploadService.uploadMultipleFiles(
         files as UploadedFile[],
         FILE_UPLOAD_CONFIG.PRODUCT_IMAGES,
@@ -605,7 +633,10 @@ class UploadController {
             file_url: r.fileUrl,
             file_name: r.fileName
           })),
-          failed: failed.map(r => r.error)
+          failed: failed.map(r => ({
+          error: r.error,
+          fileName: files[failed.indexOf(r)]?.originalname
+        }))
         }
       });
     } catch (error) {
@@ -618,13 +649,26 @@ class UploadController {
 
   async uploadShopLogo(req: Request, res: Response): Promise<void> {
     try {
-      this.validateRequiredFields(req, ['partner_id']);
+      // this.validateRequiredFields(req, ['partner_id']);
+       console.log('[UploadController] uploadShopLogo called');
+      console.log('[UploadController] Params:', req.params);
+      console.log('[UploadController] File:', req.file ? {
+        originalname: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      } : 'No file');
 
+
+      const { partner_id } = req.params;
+
+      if (!partner_id) {
+        throw new ValidationError('partner_id is required');
+      }
       if (!req.file) {
         throw new ValidationError('No file uploaded');
       }
 
-      const { partner_id } = req.params;
+      console.log('[UploadController] Uploading logo for shop:', partner_id);
 
       const result = await fileUploadService.uploadSingleFile(
         req.file as UploadedFile,
@@ -654,7 +698,7 @@ class UploadController {
 
   async uploadPaymentProof(req: Request, res: Response): Promise<void> {
     try {
-      this.validateRequiredFields(req, ['transaction_id']);
+      UploadController.validateRequiredFields(req, ['transaction_id']);
 
       if (!req.file) {
         throw new ValidationError('No file uploaded');
