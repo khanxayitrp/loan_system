@@ -645,6 +645,56 @@ class UploadController {
     }
   }
 
+  async uploadLocationImage(req: Request, res: Response): Promise<void> {
+    try {
+      const { customer_id } = req.params;
+      const files = req.files as Express.Multer.File[];
+      
+      if (!files?.length) {
+        throw new ValidationError('No files uploaded');
+      }
+      logger.info('Uploading location images:', {
+        customerId: customer_id,
+        fileCount: files.length,
+        files: files.map(f => ({
+          originalName: f.originalname,
+          mimetype: f.mimetype,
+          size: f.size,
+          hasBuffer: !!f.buffer,
+          bufferSize: f.buffer?.length,
+          bufferPreview: f.buffer?.slice(0, 20).toString('hex')
+        }))
+      });
+
+      const results = await fileUploadService.uploadMultipleFiles(
+        files as UploadedFile[],
+        FILE_UPLOAD_CONFIG.LOCATION_IMAGES,
+        `customer_${customer_id}_location`
+      );
+
+      const successful = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
+
+      res.status(201).json({
+        success: successful.length > 0,
+        message: `${successful.length} of ${files.length} location images uploaded successfully`,
+        data: {
+          uploaded: successful.map(r => ({
+            file_url: r.fileUrl,
+            file_name: r.fileName
+          })),
+          failed: failed.map(r => ({
+            error: r.error,
+            fileName: files[failed.indexOf(r)]?.originalname
+          }))
+        }
+      });
+    } catch (error: any) {
+      const errResp = handleErrorResponse(error);
+      res.status(errResp.status).json(errResp);
+    }
+  }
+
   // ── Shop Logo ──────────────────────────────────────────────────
 
   async uploadShopLogo(req: Request, res: Response): Promise<void> {

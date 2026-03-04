@@ -22,7 +22,7 @@ export interface productsAttributes {
 
 export type productsPk = "id";
 export type productsId = products[productsPk];
-export type productsOptionalAttributes = "id" | "image_url" | "is_active" | "created_at" | "updated_at";
+export type productsOptionalAttributes = "id" | "brand" | "model" | "image_url" | "is_active" | "created_at" | "updated_at";
 export type productsCreationAttributes = Optional<productsAttributes, productsOptionalAttributes>;
 
 export class products extends Model<productsAttributes, productsCreationAttributes> implements productsAttributes {

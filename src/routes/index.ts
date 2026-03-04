@@ -13,6 +13,8 @@ import imageGalleryRotuer from './product_gallery.routes'
 import custLocationRotuer from './customerLocation.routes'
 import proposalRouter from './proposal.routes'
 import pdfRouter from './pdf.routes'
+import loanContractRouter from './loan_contract.routes'
+import checklistRouter from './checklist.routes';
 
 const router = express.Router();
 
@@ -44,6 +46,10 @@ router.use('/customer-locations', custLocationRotuer);
 router.use('/proposal', proposalRouter)
 
 router.use('/pdf', pdfRouter)
+
+router.use('/loan-contract', loanContractRouter)
+
+router.use('/checklist', checklistRouter);
 
 
 

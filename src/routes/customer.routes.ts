@@ -96,6 +96,24 @@ router.post('/create', verifyToken, customerCtrl.createCustomer); // อาจ�
  */
 
 
+/**
+ * @swagger
+ * /customer/search:
+ *   get:
+ *     summary: Search for customers
+ *     tags: [Customer]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: term
+ *         schema:
+ *           type: string
+ *         description: Search term for customer name, phone, or identity number
+ *     responses:
+ *       200:
+ *         description: A list of customers matching the search criteria
+ */
  router.get('/search', verifyToken, customerCtrl.getCustomerBySearch);
 
  router.get('/:id', verifyToken, customerCtrl.getCustomerById);

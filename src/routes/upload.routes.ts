@@ -9,7 +9,8 @@ import {
   uploadDocument,
   uploadProductImage,
   uploadShopLogo,
-  uploadPaymentProof
+  uploadPaymentProof,
+  uploadLocationImage
 } from '../middlewares/upload.middleware';
 import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
 import { PERMISSIONS } from '@/types/permissions';
@@ -239,6 +240,12 @@ router.post(
   '/product/:product_id/gallery',
   uploadProductImage.array('files', 5),
   uploadController.uploadProductGallery
+);
+
+router.post(
+  '/location/:customer_id/image',
+  uploadLocationImage.array('files', 2),
+  uploadController.uploadLocationImage
 );
 
 /**

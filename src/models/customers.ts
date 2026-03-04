@@ -1,5 +1,6 @@
 import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
+import type { cus_requestform, cus_requestformId } from './cus_requestform';
 import type { customer_locations, customer_locationsId } from './customer_locations';
 import type { customer_work_info, customer_work_infoId } from './customer_work_info';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
@@ -49,6 +50,18 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   issue_place?: string;
   issue_date?: string;
 
+  // customers hasMany cus_requestform via customer_id
+  cus_requestforms!: cus_requestform[];
+  getCus_requestforms!: Sequelize.HasManyGetAssociationsMixin<cus_requestform>;
+  setCus_requestforms!: Sequelize.HasManySetAssociationsMixin<cus_requestform, cus_requestformId>;
+  addCus_requestform!: Sequelize.HasManyAddAssociationMixin<cus_requestform, cus_requestformId>;
+  addCus_requestforms!: Sequelize.HasManyAddAssociationsMixin<cus_requestform, cus_requestformId>;
+  createCus_requestform!: Sequelize.HasManyCreateAssociationMixin<cus_requestform>;
+  removeCus_requestform!: Sequelize.HasManyRemoveAssociationMixin<cus_requestform, cus_requestformId>;
+  removeCus_requestforms!: Sequelize.HasManyRemoveAssociationsMixin<cus_requestform, cus_requestformId>;
+  hasCus_requestform!: Sequelize.HasManyHasAssociationMixin<cus_requestform, cus_requestformId>;
+  hasCus_requestforms!: Sequelize.HasManyHasAssociationsMixin<cus_requestform, cus_requestformId>;
+  countCus_requestforms!: Sequelize.HasManyCountAssociationsMixin;
   // customers hasMany customer_locations via customer_id
   customer_locations!: customer_locations[];
   getCustomer_locations!: Sequelize.HasManyGetAssociationsMixin<customer_locations>;

@@ -1,5 +1,6 @@
 import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
+import type { loan_contract, loan_contractId } from './loan_contract';
 import type { loan_payments, loan_paymentsId } from './loan_payments';
 import type { product_types, product_typesId } from './product_types';
 import type { products, productsId } from './products';
@@ -35,6 +36,18 @@ export class partners extends Model<partnersAttributes, partnersCreationAttribut
   business_type!: string;
   is_active?: number;
 
+  // partners hasMany loan_contract via partner_id
+  loan_contracts!: loan_contract[];
+  getLoan_contracts!: Sequelize.HasManyGetAssociationsMixin<loan_contract>;
+  setLoan_contracts!: Sequelize.HasManySetAssociationsMixin<loan_contract, loan_contractId>;
+  addLoan_contract!: Sequelize.HasManyAddAssociationMixin<loan_contract, loan_contractId>;
+  addLoan_contracts!: Sequelize.HasManyAddAssociationsMixin<loan_contract, loan_contractId>;
+  createLoan_contract!: Sequelize.HasManyCreateAssociationMixin<loan_contract>;
+  removeLoan_contract!: Sequelize.HasManyRemoveAssociationMixin<loan_contract, loan_contractId>;
+  removeLoan_contracts!: Sequelize.HasManyRemoveAssociationsMixin<loan_contract, loan_contractId>;
+  hasLoan_contract!: Sequelize.HasManyHasAssociationMixin<loan_contract, loan_contractId>;
+  hasLoan_contracts!: Sequelize.HasManyHasAssociationsMixin<loan_contract, loan_contractId>;
+  countLoan_contracts!: Sequelize.HasManyCountAssociationsMixin;
   // partners hasMany loan_payments via partner_id
   loan_payments!: loan_payments[];
   getLoan_payments!: Sequelize.HasManyGetAssociationsMixin<loan_payments>;

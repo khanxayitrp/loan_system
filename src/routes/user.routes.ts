@@ -69,8 +69,73 @@ router.get('/profile', verifyToken, userController.getProfile);
  */
 router.get('/', verifyToken, checkPermission(PERMISSIONS.USER.VIEW), userController.getAllUsers);
 
+/**
+ * @swagger
+ * /users/{id}:
+ *   put:
+ *     summary: Update user by ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: User updated
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ */
 router.put('/:id', verifyToken, checkPermission(PERMISSIONS.USER.MANAGE), userController.updateUser);
 
+/**
+ * @swagger
+ * /users/{id}:
+ *   patch:
+ *     summary: Change user status by ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *     responses:
+ *       200:
+ *         description: User status changed
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ */
 router.patch('/:id', verifyToken, checkPermission(PERMISSIONS.USER.MANAGE), userController.changeStatus);
 
 export default router;

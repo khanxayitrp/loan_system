@@ -88,10 +88,76 @@ router.post(
   permissionController.saveBulkPermissions
 );
 
+/**
+ * @swagger
+ * /permissions/user/{userId}:
+ *   get:
+ *     summary: Get a user's permissions
+ *     tags: [Permissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: A list of the user's permissions
+ */
 router.get('/user/:userId',verifyToken, permissionController.getUserPermissions); // ดึงสิทธิ์ของผู้ใช้เฉพาะคน
-router.post('/user/:userId',verifyToken, permissionController.assignUserPermissions);
-router.delete('/user/:userId',verifyToken, permissionController.deleteAllUserPermissions);
 
+/**
+ * @swagger
+ * /permissions/user/{userId}:
+ *   post:
+ *     summary: Assign permissions to a user
+ *     tags: [Permissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               featureIds:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *     responses:
+ *       200:
+ *         description: Permissions assigned
+ */
+router.post('/user/:userId',verifyToken, permissionController.assignUserPermissions);
+
+/**
+ * @swagger
+ * /permissions/user/{userId}:
+ *   delete:
+ *     summary: Delete all permissions for a user
+ *     tags: [Permissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: All permissions for the user have been deleted
+ */
+router.delete('/user/:userId',verifyToken, permissionController.deleteAllUserPermissions);
 
 
 export default router;

@@ -11,6 +11,7 @@ import { FILE_UPLOAD_CONFIG } from '../types/file.types';
 export async function createUploadDirectories(): Promise<void> {
   const uploadDirs = [
     FILE_UPLOAD_CONFIG.DOCUMENTS.uploadDir,
+    FILE_UPLOAD_CONFIG.LOCATION_IMAGES.uploadDir,
     FILE_UPLOAD_CONFIG.PRODUCT_IMAGES.uploadDir,
     FILE_UPLOAD_CONFIG.SHOP_LOGOS.uploadDir,
     FILE_UPLOAD_CONFIG.PAYMENT_PROOFS.uploadDir

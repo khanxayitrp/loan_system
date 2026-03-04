@@ -46,83 +46,83 @@ export class customer_work_info extends Model<customer_work_infoAttributes, cust
 
   static initModel(sequelize: Sequelize.Sequelize): typeof customer_work_info {
     return customer_work_info.init({
-      id: {
-        autoIncrement: true,
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        primaryKey: true
-      },
-      customer_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'customers',
-          key: 'id'
-        }
-      },
-      company_name: {
-        type: DataTypes.STRING(255),
-        allowNull: true
-      },
-      address: {
-        type: DataTypes.TEXT,
-        allowNull: true
-      },
-      phone: {
-        type: DataTypes.STRING(20),
-        allowNull: true
-      },
-      business_type: {
-        type: DataTypes.STRING(100),
-        allowNull: true
-      },
-      business_detail: {
-        type: DataTypes.TEXT,
-        allowNull: true
-      },
-      duration_years: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-      },
-      duration_months: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-      },
-      department: {
-        type: DataTypes.STRING(100),
-        allowNull: true
-      },
-      position: {
-        type: DataTypes.STRING(100),
-        allowNull: true
-      },
-      salary: {
-        type: DataTypes.DECIMAL(15, 2),
-        allowNull: true
+    id: {
+      autoIncrement: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      primaryKey: true
+    },
+    customer_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'customers',
+        key: 'id'
       }
-    }, {
-      sequelize,
+    },
+    company_name: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    address: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    phone: {
+      type: DataTypes.STRING(20),
+      allowNull: true
+    },
+    business_type: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    business_detail: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    duration_years: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    duration_months: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    department: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    position: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    salary: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true
+    }
+  }, {
+    sequelize,
       tableName: 'customer_work_info',
       timestamps: true,
       createdAt: 'created_at',  // Maps to your column name
       updatedAt: false,
-      indexes: [
-        {
-          name: "PRIMARY",
-          unique: true,
-          using: "BTREE",
-          fields: [
-            { name: "id" },
-          ]
-        },
-        {
-          name: "customer_id",
-          using: "BTREE",
-          fields: [
-            { name: "customer_id" },
-          ]
-        },
-      ]
-    });
+    indexes: [
+      {
+        name: "PRIMARY",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "id" },
+        ]
+      },
+      {
+        name: "customer_id",
+        using: "BTREE",
+        fields: [
+          { name: "customer_id" },
+        ]
+      },
+    ]
+  });
   }
 }

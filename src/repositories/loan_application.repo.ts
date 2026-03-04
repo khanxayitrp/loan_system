@@ -84,7 +84,7 @@ class LoanApplicationRepository {
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number',  'address', 'age', 'occupation', 'income_per_month'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'unit', 'issue_place', 'issue_date'],
                     include: [
                         {
                             model: db.customer_work_info,
@@ -96,7 +96,14 @@ class LoanApplicationRepository {
                 {
                     model: db.products,
                     as: 'product',
-                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate']
+                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate'],
+                    include: [
+                        {
+                            model: db.partners,
+                            as: 'partner',  // Assuming the association alias; adjust if different
+                            attributes: ['id', 'shop_id', 'shop_name', 'shop_owner', 'contact_number', 'shop_logo_url', 'address', 'business_type', 'is_active'],
+                        }
+                    ]
                 },
                 {
                     model: db.users,
@@ -120,7 +127,7 @@ class LoanApplicationRepository {
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number',  'address', 'age', 'occupation', 'income_per_month'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'unit', 'issue_place', 'issue_date'],
                     include: [
                         {
                             model: db.customer_work_info,
@@ -132,7 +139,14 @@ class LoanApplicationRepository {
                 {
                     model: db.products,
                     as: 'product',
-                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate']
+                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate'],
+                    include: [
+                        {
+                            model: db.partners,
+                            as: 'partner',  // Assuming the association alias; adjust if different
+                            attributes: ['id', 'shop_id', 'shop_name', 'shop_owner', 'contact_number', 'shop_logo_url', 'address', 'business_type', 'is_active'],
+                        }
+                    ]
                 },
                 {
                     model: db.users,
@@ -149,8 +163,8 @@ class LoanApplicationRepository {
     }
 
     // loan.repository.ts
-    async findLoanApplications(filters: any): Promise<loan_applications[]> {
-        const { customerId, requesterId, productId, status, min, max, is_confirmed } = filters;
+    async findLoanApplications(filters: any): Promise<{ rows: loan_applications[]; count: number }> {
+        const { customerId, requesterId, productId, status, min, max, is_confirmed, page, limit } = filters;
         const whereClause: any = {};
 
         if (customerId) whereClause.customer_id = customerId;
@@ -166,13 +180,27 @@ class LoanApplicationRepository {
             if (max !== undefined) whereClause.total_amount[Op.lte] = max; // น้อยกว่าหรือเท่ากับ
         }
         console.log('🔍 Generated Where Clause:', whereClause);
-        return await db.loan_applications.findAll({
+
+        // Pagination calculation
+        let pageNum = 1;
+        let limitNum = 10;
+        
+        if (page) {
+            pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
+        }
+        if (limit) {
+            limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
+        }
+        
+        const offset = (pageNum - 1) * limitNum;
+
+        return await db.loan_applications.findAndCountAll({
             where: whereClause,
             include: [
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number',  'address', 'age', 'occupation', 'income_per_month'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'unit', 'issue_place', 'issue_date'],
                     include: [
                         {
                             model: db.customer_work_info,
@@ -184,7 +212,14 @@ class LoanApplicationRepository {
                 {
                     model: db.products,
                     as: 'product',
-                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate']
+                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate'],
+                    include: [
+                        {
+                            model: db.partners,
+                            as: 'partner',  // Assuming the association alias; adjust if different
+                            attributes: ['id', 'shop_id', 'shop_name', 'shop_owner', 'contact_number', 'shop_logo_url', 'address', 'business_type', 'is_active'],
+                        }
+                    ]
                 },
                 {
                     model: db.users,
@@ -197,43 +232,15 @@ class LoanApplicationRepository {
                     attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary']
                 }
             ],
-        
-            order: [['created_at', 'DESC']] // เรียงลำดับตามความเหมาะสม
+
+            order: [['created_at', 'DESC']], // เรียงลำดับตามความเหมาะสม
+            limit: limitNum,
+            offset: offset,
+            distinct: true // Ensure count is correct with includes
         });
     }
 
-    // async findLoanApplicationsByCustomerId(customerId: number): Promise<loan_applications[]> {
-    //     return await db.loan_applications.findAll({ where: { customer_id: customerId } });
-    // }
-
-    // async findLoanApplicationsByStatus(status: string): Promise<loan_applications[]> {
-    //     return await db.loan_applications.findAll({ where: { status: status } });
-    // }
-
-    // async findLoanApplicationsByRequesterId(requesterId: number): Promise<loan_applications[]> {
-    //     return await db.loan_applications.findAll({ where: { requester_id: requesterId } });
-    // }
-
-    // async findLoanApplicationsByProductId(productId: number): Promise<loan_applications[]> {
-    //     return await db.loan_applications.findAll({ where: { product_id: productId } });
-    // }
-
-    // async findLoanApplicationsInAmountRange(minAmount: number, maxAmount: number): Promise<loan_applications[]> {
-    //     return await db.loan_applications.findAll({
-    //         where: {
-    //             total_amount: {
-    //                 [Op.between]: [minAmount, maxAmount]
-    //             }
-    //         }
-    //     });
-    // }
-    // async findLoanApplicationByCustomerAndStatus(customerId: number, status: string): Promise<loan_applications[]> {
-    //     return await db.loan_applications.findAll({ where: { customer_id: customerId, status: status } });
-    // }
-
-    // async findLoanApplicationsByRequesterAndStatus(requesterId: number, status: string): Promise<loan_applications[]> {
-    //     return await db.loan_applications.findAll({ where: { requester_id: requesterId, status: status } });
-    // }
+   
 
     async updateDraftLoanApplication(loanApplicationId: number, data: any): Promise<loan_applications | null> {
         const transaction = await db.sequelize.transaction();

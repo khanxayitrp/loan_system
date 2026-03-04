@@ -113,23 +113,35 @@ export const getLoanById = async (req: Request, res: Response) => {
 
 export const getAllLoan = async (req: Request, res: Response) => {
   try {
-    const { CustomerId, requesterId, productId, status, min, max, is_confirmed } = req.query
+    const { CustomerId, requesterId, productId, status, min, max, is_confirmed, page, limit } = req.query
     // Log เพื่อ debug
     console.log('Request query:', req.query);
-    const loans = await loanAppRepo.findLoanApplications({
+
+    const pageNum = page ? parseInt(page as string, 10) : 1;
+    const limitNum = limit ? parseInt(limit as string, 10) : 10;
+
+    const { rows, count } = await loanAppRepo.findLoanApplications({
       customerId: CustomerId ? Number(CustomerId) : undefined,
       requesterId: requesterId ? Number(requesterId) : undefined,
       productId: productId ? Number(productId) : undefined,
       status,
       min: min ? Number(min) : undefined,
       max: max ? Number(max) : undefined,
-    is_confirmed: is_confirmed ? Number(is_confirmed as string) : undefined  // ✅ เพิ่มถ้าต้องการ
+      is_confirmed: is_confirmed ? Number(is_confirmed as string) : undefined,  // ✅ เพิ่มถ้าต้องการ
+      page: pageNum,
+      limit: limitNum
     });
 
     return res.status(200).json({
       success: true,
       message: 'get all Loan Data',
-      data: loans
+      data: rows,
+      pagination: {
+        total: count,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(count / limitNum)
+      }
     });
 
   } catch (error: any) {

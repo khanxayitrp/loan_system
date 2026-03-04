@@ -1,9 +1,17 @@
 import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
 import type { application_documents, application_documentsId } from './application_documents';
+import type { cus_requestform, cus_requestformId } from './cus_requestform';
 import type { customers, customersId } from './customers';
 import type { delivery_receipts, delivery_receiptsId } from './delivery_receipts';
+import type { loan_approval_logs, loan_approval_logsId } from './loan_approval_logs';
+import type { loan_basic_verifications, loan_basic_verificationsId } from './loan_basic_verifications';
+import type { loan_call_verifications, loan_call_verificationsId } from './loan_call_verifications';
+import type { loan_cib_checks, loan_cib_checksCreationAttributes, loan_cib_checksId } from './loan_cib_checks';
+import type { loan_contract, loan_contractId } from './loan_contract';
+import type { loan_field_visits, loan_field_visitsId } from './loan_field_visits';
 import type { loan_guarantors, loan_guarantorsId } from './loan_guarantors';
+import type { loan_income_assessments, loan_income_assessmentsCreationAttributes, loan_income_assessmentsId } from './loan_income_assessments';
 import type { loan_payments, loan_paymentsId } from './loan_payments';
 import type { payment_transactions, payment_transactionsId } from './payment_transactions';
 import type { products, productsId } from './products';
@@ -87,6 +95,18 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasApplication_document!: Sequelize.HasManyHasAssociationMixin<application_documents, application_documentsId>;
   hasApplication_documents!: Sequelize.HasManyHasAssociationsMixin<application_documents, application_documentsId>;
   countApplication_documents!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany cus_requestform via application_id
+  cus_requestforms!: cus_requestform[];
+  getCus_requestforms!: Sequelize.HasManyGetAssociationsMixin<cus_requestform>;
+  setCus_requestforms!: Sequelize.HasManySetAssociationsMixin<cus_requestform, cus_requestformId>;
+  addCus_requestform!: Sequelize.HasManyAddAssociationMixin<cus_requestform, cus_requestformId>;
+  addCus_requestforms!: Sequelize.HasManyAddAssociationsMixin<cus_requestform, cus_requestformId>;
+  createCus_requestform!: Sequelize.HasManyCreateAssociationMixin<cus_requestform>;
+  removeCus_requestform!: Sequelize.HasManyRemoveAssociationMixin<cus_requestform, cus_requestformId>;
+  removeCus_requestforms!: Sequelize.HasManyRemoveAssociationsMixin<cus_requestform, cus_requestformId>;
+  hasCus_requestform!: Sequelize.HasManyHasAssociationMixin<cus_requestform, cus_requestformId>;
+  hasCus_requestforms!: Sequelize.HasManyHasAssociationsMixin<cus_requestform, cus_requestformId>;
+  countCus_requestforms!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasMany delivery_receipts via application_id
   delivery_receipts!: delivery_receipts[];
   getDelivery_receipts!: Sequelize.HasManyGetAssociationsMixin<delivery_receipts>;
@@ -99,6 +119,71 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasDelivery_receipt!: Sequelize.HasManyHasAssociationMixin<delivery_receipts, delivery_receiptsId>;
   hasDelivery_receipts!: Sequelize.HasManyHasAssociationsMixin<delivery_receipts, delivery_receiptsId>;
   countDelivery_receipts!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany loan_approval_logs via application_id
+  loan_approval_logs!: loan_approval_logs[];
+  getLoan_approval_logs!: Sequelize.HasManyGetAssociationsMixin<loan_approval_logs>;
+  setLoan_approval_logs!: Sequelize.HasManySetAssociationsMixin<loan_approval_logs, loan_approval_logsId>;
+  addLoan_approval_log!: Sequelize.HasManyAddAssociationMixin<loan_approval_logs, loan_approval_logsId>;
+  addLoan_approval_logs!: Sequelize.HasManyAddAssociationsMixin<loan_approval_logs, loan_approval_logsId>;
+  createLoan_approval_log!: Sequelize.HasManyCreateAssociationMixin<loan_approval_logs>;
+  removeLoan_approval_log!: Sequelize.HasManyRemoveAssociationMixin<loan_approval_logs, loan_approval_logsId>;
+  removeLoan_approval_logs!: Sequelize.HasManyRemoveAssociationsMixin<loan_approval_logs, loan_approval_logsId>;
+  hasLoan_approval_log!: Sequelize.HasManyHasAssociationMixin<loan_approval_logs, loan_approval_logsId>;
+  hasLoan_approval_logs!: Sequelize.HasManyHasAssociationsMixin<loan_approval_logs, loan_approval_logsId>;
+  countLoan_approval_logs!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany loan_basic_verifications via application_id
+  loan_basic_verifications!: loan_basic_verifications[];
+  getLoan_basic_verifications!: Sequelize.HasManyGetAssociationsMixin<loan_basic_verifications>;
+  setLoan_basic_verifications!: Sequelize.HasManySetAssociationsMixin<loan_basic_verifications, loan_basic_verificationsId>;
+  addLoan_basic_verification!: Sequelize.HasManyAddAssociationMixin<loan_basic_verifications, loan_basic_verificationsId>;
+  addLoan_basic_verifications!: Sequelize.HasManyAddAssociationsMixin<loan_basic_verifications, loan_basic_verificationsId>;
+  createLoan_basic_verification!: Sequelize.HasManyCreateAssociationMixin<loan_basic_verifications>;
+  removeLoan_basic_verification!: Sequelize.HasManyRemoveAssociationMixin<loan_basic_verifications, loan_basic_verificationsId>;
+  removeLoan_basic_verifications!: Sequelize.HasManyRemoveAssociationsMixin<loan_basic_verifications, loan_basic_verificationsId>;
+  hasLoan_basic_verification!: Sequelize.HasManyHasAssociationMixin<loan_basic_verifications, loan_basic_verificationsId>;
+  hasLoan_basic_verifications!: Sequelize.HasManyHasAssociationsMixin<loan_basic_verifications, loan_basic_verificationsId>;
+  countLoan_basic_verifications!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany loan_call_verifications via application_id
+  loan_call_verifications!: loan_call_verifications[];
+  getLoan_call_verifications!: Sequelize.HasManyGetAssociationsMixin<loan_call_verifications>;
+  setLoan_call_verifications!: Sequelize.HasManySetAssociationsMixin<loan_call_verifications, loan_call_verificationsId>;
+  addLoan_call_verification!: Sequelize.HasManyAddAssociationMixin<loan_call_verifications, loan_call_verificationsId>;
+  addLoan_call_verifications!: Sequelize.HasManyAddAssociationsMixin<loan_call_verifications, loan_call_verificationsId>;
+  createLoan_call_verification!: Sequelize.HasManyCreateAssociationMixin<loan_call_verifications>;
+  removeLoan_call_verification!: Sequelize.HasManyRemoveAssociationMixin<loan_call_verifications, loan_call_verificationsId>;
+  removeLoan_call_verifications!: Sequelize.HasManyRemoveAssociationsMixin<loan_call_verifications, loan_call_verificationsId>;
+  hasLoan_call_verification!: Sequelize.HasManyHasAssociationMixin<loan_call_verifications, loan_call_verificationsId>;
+  hasLoan_call_verifications!: Sequelize.HasManyHasAssociationsMixin<loan_call_verifications, loan_call_verificationsId>;
+  countLoan_call_verifications!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasOne loan_cib_checks via application_id
+  loan_cib_check!: loan_cib_checks;
+  getLoan_cib_check!: Sequelize.HasOneGetAssociationMixin<loan_cib_checks>;
+  setLoan_cib_check!: Sequelize.HasOneSetAssociationMixin<loan_cib_checks, loan_cib_checksId>;
+  createLoan_cib_check!: Sequelize.HasOneCreateAssociationMixin<loan_cib_checks>;
+  // loan_applications hasMany loan_contract via loan_id
+  loan_contracts!: loan_contract[];
+  getLoan_contracts!: Sequelize.HasManyGetAssociationsMixin<loan_contract>;
+  setLoan_contracts!: Sequelize.HasManySetAssociationsMixin<loan_contract, loan_contractId>;
+  addLoan_contract!: Sequelize.HasManyAddAssociationMixin<loan_contract, loan_contractId>;
+  addLoan_contracts!: Sequelize.HasManyAddAssociationsMixin<loan_contract, loan_contractId>;
+  createLoan_contract!: Sequelize.HasManyCreateAssociationMixin<loan_contract>;
+  removeLoan_contract!: Sequelize.HasManyRemoveAssociationMixin<loan_contract, loan_contractId>;
+  removeLoan_contracts!: Sequelize.HasManyRemoveAssociationsMixin<loan_contract, loan_contractId>;
+  hasLoan_contract!: Sequelize.HasManyHasAssociationMixin<loan_contract, loan_contractId>;
+  hasLoan_contracts!: Sequelize.HasManyHasAssociationsMixin<loan_contract, loan_contractId>;
+  countLoan_contracts!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany loan_field_visits via application_id
+  loan_field_visits!: loan_field_visits[];
+  getLoan_field_visits!: Sequelize.HasManyGetAssociationsMixin<loan_field_visits>;
+  setLoan_field_visits!: Sequelize.HasManySetAssociationsMixin<loan_field_visits, loan_field_visitsId>;
+  addLoan_field_visit!: Sequelize.HasManyAddAssociationMixin<loan_field_visits, loan_field_visitsId>;
+  addLoan_field_visits!: Sequelize.HasManyAddAssociationsMixin<loan_field_visits, loan_field_visitsId>;
+  createLoan_field_visit!: Sequelize.HasManyCreateAssociationMixin<loan_field_visits>;
+  removeLoan_field_visit!: Sequelize.HasManyRemoveAssociationMixin<loan_field_visits, loan_field_visitsId>;
+  removeLoan_field_visits!: Sequelize.HasManyRemoveAssociationsMixin<loan_field_visits, loan_field_visitsId>;
+  hasLoan_field_visit!: Sequelize.HasManyHasAssociationMixin<loan_field_visits, loan_field_visitsId>;
+  hasLoan_field_visits!: Sequelize.HasManyHasAssociationsMixin<loan_field_visits, loan_field_visitsId>;
+  countLoan_field_visits!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasMany loan_guarantors via application_id
   loan_guarantors!: loan_guarantors[];
   getLoan_guarantors!: Sequelize.HasManyGetAssociationsMixin<loan_guarantors>;
@@ -111,6 +196,11 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasLoan_guarantor!: Sequelize.HasManyHasAssociationMixin<loan_guarantors, loan_guarantorsId>;
   hasLoan_guarantors!: Sequelize.HasManyHasAssociationsMixin<loan_guarantors, loan_guarantorsId>;
   countLoan_guarantors!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasOne loan_income_assessments via application_id
+  loan_income_assessment!: loan_income_assessments;
+  getLoan_income_assessment!: Sequelize.HasOneGetAssociationMixin<loan_income_assessments>;
+  setLoan_income_assessment!: Sequelize.HasOneSetAssociationMixin<loan_income_assessments, loan_income_assessmentsId>;
+  createLoan_income_assessment!: Sequelize.HasOneCreateAssociationMixin<loan_income_assessments>;
   // loan_applications hasMany loan_payments via loan_application_id
   loan_payments!: loan_payments[];
   getLoan_payments!: Sequelize.HasManyGetAssociationsMixin<loan_payments>;

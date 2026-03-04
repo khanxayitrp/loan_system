@@ -1,7 +1,6 @@
 import { db, loan_guarantors } from "../models/init-models";
 import { Transaction } from "sequelize";
 import { logger } from "../utils/logger";
-import { formatPhoneNumber } from "@/utils/otp";
 
 class ProposalService {
     async CreateProposal(data: any) {
@@ -102,6 +101,18 @@ class ProposalService {
                 guarantor = null;
             }
 
+            if (work_info && guarantor) {
+                const customer_form = await db.cus_requestform.findOne({ where: { application_id: data.loan_id}, transaction: t });
+                if (customer_form) {
+                    throw new Error('customer_form ມີຢູ່ແລ້ວ');
+                } else {
+                    await db.cus_requestform.create({
+                        application_id: data.loan_id,
+                        customer_id: data.customer_id,
+                    }, { transaction: t });
+                }
+            }
+
             await t.commit();
 
             console.log('✅ Proposal created successfully');
@@ -152,7 +163,7 @@ class ProposalService {
 
                 name: data.name,
                 identity_number: data.identity_number || null,
-                formatPhoneNumber: data.Guarantorphone || null,
+                phone: data.Guarantorphone || null,
                 address: data.Guarantoraddress || null,
                 occupation: data.occupation || null,
                 relationship: data.relationship,

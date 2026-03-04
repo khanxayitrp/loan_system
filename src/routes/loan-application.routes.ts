@@ -7,10 +7,62 @@ import { PERMISSIONS } from '../types/permissions'
 const router = Router();
 
 
+/**
+ * @swagger
+ * /loan-application:
+ *   get:
+ *     summary: Get all loan applications
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: A list of loan applications
+ */
 router.get('/', verifyToken, loanCtrl.getAllLoan);
 
+/**
+ * @swagger
+ * /loan-application/{id}:
+ *   get:
+ *     summary: Get loan application by ID
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Loan application data
+ *       404:
+ *         description: Loan application not found
+ */
 router.get('/:id', verifyToken, loanCtrl.getLoanById);
 
+/**
+ * @swagger
+ * /loan-application/loanID/{LoanId}:
+ *   get:
+ *     summary: Get loan application by Loan ID string
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: LoanId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Loan application data
+ *       404:
+ *         description: Loan application not found
+ */
 router.get('/loanID/:LoanId', verifyToken, loanCtrl.getLoanByLoanID);
 
 /**
@@ -53,6 +105,30 @@ router.get('/loanID/:LoanId', verifyToken, loanCtrl.getLoanByLoanID);
  */
 router.post('/', verifyToken, loanCtrl.createLoanApplication);
 
+/**
+ * @swagger
+ * /loan-application/draft/{id}:
+ *   put:
+ *     summary: Update a draft loan application
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Draft application updated
+ */
 router.put('/draft/:id', verifyToken, loanCtrl.updateDraftLoanApplication);
 
 /**
@@ -113,6 +189,24 @@ router.put('/:id', verifyToken, loanCtrl.updateLoanApplication);
  */
 router.patch('/:id/status', verifyToken, loanCtrl.changeStatus);
 
+/**
+ * @swagger
+ * /loan-application/{id}/apply:
+ *   patch:
+ *     summary: Submit a draft application
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Draft application submitted
+ */
 router.patch('/:id/apply', verifyToken, loanCtrl.sentApplyDraft);
 
 /**

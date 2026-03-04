@@ -1,7 +1,6 @@
 import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
-import { AllowNull } from 'sequelize-typescript';
 
 export interface loan_guarantorsAttributes {
   id: number;
@@ -23,7 +22,7 @@ export interface loan_guarantorsAttributes {
 
 export type loan_guarantorsPk = "id";
 export type loan_guarantorsId = loan_guarantors[loan_guarantorsPk];
-export type loan_guarantorsOptionalAttributes = "id" | "identity_number" | "phone" | "address" | "occupation" | "relationship" | "work_company_name" | "work_position" | "work_salary";
+export type loan_guarantorsOptionalAttributes = "id" | "identity_number" | "date_of_birth" | "age" | "phone" | "address" | "occupation" | "relationship" | "work_company_name" | "work_phone" | "work_location" | "work_position" | "work_salary";
 export type loan_guarantorsCreationAttributes = Optional<loan_guarantorsAttributes, loan_guarantorsOptionalAttributes>;
 
 export class loan_guarantors extends Model<loan_guarantorsAttributes, loan_guarantorsCreationAttributes> implements loan_guarantorsAttributes {
@@ -74,12 +73,13 @@ export class loan_guarantors extends Model<loan_guarantorsAttributes, loan_guara
       allowNull: true
     },
     date_of_birth: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: true
     },
     age: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 0
     },
     phone: {
       type: DataTypes.STRING(20),
