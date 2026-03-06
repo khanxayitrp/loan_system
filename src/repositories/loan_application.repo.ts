@@ -200,37 +200,21 @@ class LoanApplicationRepository {
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'unit', 'issue_place', 'issue_date'],
-                    include: [
-                        {
-                            model: db.customer_work_info,
-                            as: 'customer_work_infos',  // Assuming the association alias; adjust if different
-                            attributes: ['id', 'company_name', 'address', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
-                        }
-                    ]
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone'],
+                    
                 },
                 {
                     model: db.products,
                     as: 'product',
-                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate'],
-                    include: [
-                        {
-                            model: db.partners,
-                            as: 'partner',  // Assuming the association alias; adjust if different
-                            attributes: ['id', 'shop_id', 'shop_name', 'shop_owner', 'contact_number', 'shop_logo_url', 'address', 'business_type', 'is_active'],
-                        }
-                    ]
+                    attributes: ['id', 'partner_id', 'productType_id', 'product_name'],
+                    
                 },
                 {
                     model: db.users,
                     as: 'requester',
                     attributes: ['id', 'username', 'full_name']
                 },
-                {
-                    model: db.loan_guarantors,
-                    as: 'loan_guarantors',  // Assuming the association alias; adjust if different
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary']
-                }
+                
             ],
 
             order: [['created_at', 'DESC']], // เรียงลำดับตามความเหมาะสม

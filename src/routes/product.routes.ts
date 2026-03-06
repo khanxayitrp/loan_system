@@ -92,6 +92,13 @@ router.get('/:id', productController.getProductById);
  */
 router.put('/:id', verifyToken, productController.updateProduct);
 
+// ຕົວຢ່າງ routes/product.routes.ts
+router.patch(
+    '/bulk-status', 
+    verifyToken, // Middleware ກວດສອບ Token ຂອງທ່ານ
+    productController.updateMultipleProductStatus
+);
+
 /**
  * @swagger
  * /products/{id}:
@@ -125,5 +132,7 @@ router.patch('/:id', verifyToken, productController.deActivatedOneProduct);
  *         description: All products for the partner are deactivated
  */
 router.delete('/all', verifyToken, productController.deActivatedAllProductByPartnerId)
+
+
 
 export default router;

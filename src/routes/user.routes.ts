@@ -67,7 +67,7 @@ router.get('/profile', verifyToken, userController.getProfile);
  *       403:
  *         description: Forbidden - insufficient permissions
  */
-router.get('/', verifyToken, checkPermission(PERMISSIONS.USER.VIEW), userController.getAllUsers);
+router.get('/', verifyToken, userController.getAllUsers);
 
 /**
  * @swagger
@@ -102,7 +102,7 @@ router.get('/', verifyToken, checkPermission(PERMISSIONS.USER.VIEW), userControl
  *       404:
  *         description: User not found
  */
-router.put('/:id', verifyToken, checkPermission(PERMISSIONS.USER.MANAGE), userController.updateUser);
+router.put('/:id', verifyToken, userController.updateUser);
 
 /**
  * @swagger
@@ -136,6 +136,6 @@ router.put('/:id', verifyToken, checkPermission(PERMISSIONS.USER.MANAGE), userCo
  *       404:
  *         description: User not found
  */
-router.patch('/:id', verifyToken, checkPermission(PERMISSIONS.USER.MANAGE), userController.changeStatus);
+router.patch('/:id', verifyToken, userController.changeStatus);
 
 export default router;

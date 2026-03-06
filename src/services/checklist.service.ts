@@ -27,7 +27,7 @@ class CheckListService {
                 throw new Error('Loan application not found');
             }
             const existingCustomer = await db.customers.findByPk(checkLoanApp.customer_id, { transaction: t });
-            
+
 
             const existingBasicVerification = await db.loan_basic_verifications.findOne({
                 where: { application_id: loan_id },
@@ -277,26 +277,28 @@ class CheckListService {
     async CreateFieldVisits(data: any) {
         const t = await db.sequelize.transaction();
         try {
+            // 1. ดึง loan_id
             const loan_id = data.loan_id || data.application_id;
             if (!loan_id) {
                 throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
             }
 
+            // 2. แปลงข้อมูล visits ให้เป็น Array
             let field_visit = [];
             if (data.visits && Array.isArray(data.visits)) {
                 field_visit = data.visits;
             } else if (Array.isArray(data)) {
                 field_visit = data;
             } else {
-                field_visit = [data]; // ຖ້າສົ່ງມາເປັນ Object ດຽວ ໃຫ້ຈັບໃສ່ Array
+                field_visit = [data]; // ถ้ารับมาเป็น Object เดียว ให้จับใส่ Array
             }
 
             const processedFieldVisits = [];
-            const incomingIds = []; // ເກັບ ID ທີ່ສົ່ງມາເພື່ອເອົາໄປທຽບລຶບອັນທີ່ຖືກລຶບອອກ
+            const incomingIds = []; // เก็บ ID ที่ส่งมา เพื่อเอาไปทียบลบแถวที่หายไป
 
-            // 3. Loop ບັນທຶກ ຫຼື ອັບເດດຂໍ້ມູນແຕ່ລະແຖວ
+            // 3. Loop บันทึก หรือ อัปเดตข้อมูลทีละแถว
             for (const field of field_visit) {
-                // Map ຂໍ້ມູນໃຫ້ກົງກັບ Database (ຮອງຮັບທັງ camelCase ແລະ snake_case ຈາກ Frontend)
+                // Map ข้อมูลให้ตรงกับ Database
                 const payload = {
                     application_id: loan_id,
                     visit_type: field.visit_type || field.visitType,
@@ -307,46 +309,59 @@ class CheckListService {
                     is_address_correct: field.is_address_correct || field.isAddressCorrect || null,
                     photo_url_1: field.photo_url_1 || field.photoUrl1 || null,
                     photo_url_2: field.photo_url_2 || field.photoUrl2 || null,
-                    remarks: field.remarks || field.remarks || null,
-                    visited_by: data.visited_by || field.visited_by || data.visitedBy // ໄອດີພະນັກງານທີ່ກົດບັນທຶກ
+                    remarks: field.remarks || null,
+                    visited_by: data.visited_by || field.visited_by || data.visitedBy
                 };
 
+                // 🟢 ค้นหาข้อมูลเดิมใน Database ก่อน
+                let existingRecord = null;
+
                 if (field.id) {
-                    // ✅ CASE: UPDATE (ມີ ID ຢູ່ແລ້ວ)
-                    await db.loan_field_visits.update(payload, {
-                        where: { id: field.id },
+                    // กรณี 1: มี ID ส่งมาจาก Frontend (กด Edit แถวเดิมที่มีอยู่แล้ว)
+                    existingRecord = await db.loan_field_visits.findByPk(field.id, { transaction: t });
+                } else {
+                    // กรณี 2: ไม่มี ID ส่งมา ให้ค้นหาจาก application_id + visit_type 
+                    // เพื่อเช็คว่าเคยมีข้อมูลประเภทนี้ใน Loan นี้หรือยัง ป้องกันข้อมูลซ้ำ
+                    existingRecord = await db.loan_field_visits.findOne({
+                        where: {
+                            application_id: loan_id,
+                            visit_type: payload.visit_type
+                        },
                         transaction: t
                     });
-                    incomingIds.push(field.id); // ເກັບ ID ໄວ້
+                }
 
-                    const updatedFieldVisit = await db.loan_field_visits.findByPk(field.id, { transaction: t });
-                    processedFieldVisits.push(updatedFieldVisit);
+                if (existingRecord) {
+                    // ✅ ข้อมูลมีอยู่แล้ว -> อัปเดต (UPDATE)
+                    await existingRecord.update(payload, { transaction: t });
+                    incomingIds.push(existingRecord.id); // เก็บ ID ไว้ไม่ให้ถูกลบ
+                    processedFieldVisits.push(existingRecord);
                 } else {
-                    // ✅ CASE: CREATE (ຍັງບໍ່ມີ ID ໝາຍຄວາມວ່າພະນັກງານກົດເພີ່ມແຖວໃໝ່)
+                    // ✅ ไม่มีข้อมูล -> สร้างใหม่ (INSERT)
                     const newFieldVisit = await db.loan_field_visits.create(payload, { transaction: t });
-                    incomingIds.push(newFieldVisit.id); // ເກັບ ID ໃໝ່ໄວ້
+                    incomingIds.push(newFieldVisit.id); // เก็บ ID ใหม่ที่เพิ่งสร้าง
                     processedFieldVisits.push(newFieldVisit);
                 }
             }
 
-            // 4. ລຶບຂໍ້ມູນເກົ່າທີ່ບໍ່ໄດ້ສົ່ງມາໃນ Array ແລ້ວ (ພະນັກງານກົດລຶບແຖວຖິ້ມໃນ Frontend)
+            // 4. ลบข้อมูลเก่าใน Database ที่ผู้ใช้กดลบออกจากหน้าจอ Frontend
             if (incomingIds.length > 0) {
                 await db.loan_field_visits.destroy({
                     where: {
                         application_id: loan_id,
-                        id: { [Op.notIn]: incomingIds } // ລຶບ ID ທີ່ບໍ່ຢູ່ໃນລາຍການທີ່ສົ່ງມາ
+                        id: { [Op.notIn]: incomingIds } // ลบแถวที่ id ไม่ได้ส่งมารอบนี้
                     },
                     transaction: t
                 });
             } else {
-                // ຖ້າສົ່ງ Array ວ່າງໆມາ ແປວ່າລຶບອອກໝົດທຸກແຖວ
+                // ถ้าส่ง Array ว่างเปล่ามา แปลว่าต้องการลบออกทั้งหมด
                 await db.loan_field_visits.destroy({
                     where: { application_id: loan_id },
                     transaction: t
                 });
             }
 
-            // 5. ຈົບ Transaction
+            // 5. จบ Transaction
             await t.commit();
             console.log('✅ Field visits saved successfully! Total records:', processedFieldVisits.length);
 
@@ -360,7 +375,7 @@ class CheckListService {
             console.error('❌ Error saving Field Visit:', error);
             return {
                 success: false,
-                message: 'Error saving Field Visit',
+                message: error.message || 'Error saving Field Visit',
                 data: null
             }
         }
@@ -427,7 +442,7 @@ class CheckListService {
             const income_assessment = await db.loan_income_assessments.findOne({
                 where: { application_id: loan_id },
                 raw: true
-            }); 
+            });
             return {
                 success: true,
                 message: 'Income assessment retrieved successfully',

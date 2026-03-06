@@ -93,7 +93,10 @@ class UserRepository {
                 logger.error(`User with ID: ${userId} not found`);
                 return null;
             }
-
+            if (data.password) {
+                const hashedPassword = await bcrypt.hash(data.password, 10);
+                data.password = hashedPassword;
+            }   
             const updatedUser = await user.update(data, {
                 where: { id: userId },
                 returning: true

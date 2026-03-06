@@ -98,73 +98,186 @@ class ProductRepository {
             throw error;
         }
     }
-    async findAllActiveProducts(options: {
-        searchText?: string,
-        limit?: number,
-        page?: number,
-        getAllData?: boolean,
-        shop_id?: number
-    }) {
-        const { searchText, limit, page, getAllData = false, shop_id } = options;
-        const parsedLimit = limit && limit > 0 ? Math.min(limit, 100) : 10;
-        const parsedPage = parseInt(String(page), 10) || 1;
-        // ถ้า getAllData = true → ดึงทั้งหมด ไม่แบ่งหน้า
-        const offset = getAllData ? undefined : (parsedPage - 1) * parsedLimit;
-        const queryLimit = getAllData ? undefined : parsedLimit;
 
-        // สร้างเงื่อนไข where
-        const whereClause: any = {
-            //  partner_id: partner?.dataValues.id,
-        };
 
-        // ✅ กรอง shop_id ถ้ามี
-        if (shop_id) {
-            whereClause.partner_id = shop_id; // หรือ shop_id ขึ้นอยู่กับชื่อ column
+    async updateMultipleProductStatus(productIds: number[], partnerId: number, status: number): Promise<number> {
+    try {
+        // 1. ຫາ partner_id ຕົວຈິງຈາກ user_id
+        const partner = await db.partners.findOne({ where: { user_id: partnerId } });
+        if (!partner) {
+            logger.error(`Partner not found for user ID: ${partnerId}`);
+            throw new Error('Unauthorized');
         }
 
-        // ถ้ามี searchText → ค้นหาในชื่อ (หรือ field อื่นที่ต้องการ)
-        if (searchText && searchText.trim()) {
-            whereClause.product_name = {
-                [Op.like]: `%${searchText.trim()}%`,
-            };
-            // ถ้าต้องการค้นหาหลาย field เช่น code หรือ description
-            // whereClause[Op.or] = [
-            //   { name: { [Op.like]: `%${searchText.trim()}%` } },
-            //   { description: { [Op.like]: `%${searchText.trim()}%` } },
-            // ];
-        }
-        const result = await db.products.findAndCountAll({
-            where: whereClause,
-            include: [
-                {
-                    model: db.product_types,
-                    as: 'productType',
-                    attributes: ['id', 'type_name']
-                }
-            ],
-            limit: queryLimit,
-            offset,
-            order: [['product_name', 'ASC']], // หรือเรียงตาม field ที่ต้องการ เช่น created_at DESC
-            // attributes: ['id', 'name', 'code', 'description'] // ถ้าต้องการเลือกเฉพาะบาง field
-        });
+        // 2. ອັບເດດສະຖານະພ້ອມກັນຫຼາຍລາຍການ 
+        // ໂດຍມີເງື່ອນໄຂວ່າ ຕ້ອງເປັນ ID ທີ່ສົ່ງມາ (Op.in) ແລະ ຕ້ອງເປັນສິນຄ້າຂອງ Partner ຄົນນີ້ເທົ່ານັ້ນ (Security)
+        const [updateCount] = await db.products.update(
+            { is_active: status },
+            { 
+                where: { 
+                    id: { [Op.in]: productIds }, 
+                    partner_id: partner.dataValues.id 
+                } 
+            }
+        );
 
-        // ถ้า getAllData = true → return แค่ rows
-        if (getAllData) {
-            return {
-                data: result.rows,
-                total: result.count,
-            };
-        }
+        logger.info(`Bulk updated status to ${status} for ${updateCount} products by partner ID: ${partnerId}`);
+        return updateCount; // ສົ່ງກັບຈຳນວນແຖວທີ່ຖືກອັບເດດສຳເລັດ
 
-        // ปกติ return แบบ pagination
+    } catch (error) {
+        logger.error(`Error in updateMultipleProductStatus: ${(error as Error).message}`);
+        throw error;
+    }
+}
+
+async findAllActiveProducts(options: {
+    search?: string,            // ✅ เพิ่มรับคำค้นหา
+    searchText?: string,        // คงไว้เผื่อมีของเก่าเรียกใช้
+    limit?: number,
+    page?: number,
+    getAllData?: boolean,
+    shop_id?: number,
+    is_active?: number,         // 🟢 เพิ่มรับค่า filter สถานะ
+    productType_id?: number     // 🟢 เพิ่มรับค่า filter ประเภท
+}) {
+    const { search, searchText, limit, page, getAllData = false, shop_id, is_active, productType_id } = options;
+    
+    // รวมค่าการค้นหา (รองรับทั้ง key: search และ searchText)
+    const actualSearch = search || searchText;
+
+    const parsedLimit = limit && limit > 0 ? Math.min(limit, 100) : 10;
+    const parsedPage = parseInt(String(page), 10) || 1;
+    
+    // ถ้า getAllData = true → ดึงทั้งหมด ไม่แบ่งหน้า
+    const offset = getAllData ? undefined : (parsedPage - 1) * parsedLimit;
+    const queryLimit = getAllData ? undefined : parsedLimit;
+
+    // สร้างเงื่อนไข where เริ่มต้น
+    const whereClause: any = {};
+
+    // ✅ กรอง shop_id ถ้ามี
+    if (shop_id) {
+        whereClause.partner_id = shop_id;
+    }
+
+    // 🟢 กรองตามสถานะ is_active (ต้องเช็ค !== undefined เพราะ 0 เป็น falsy value)
+    if (is_active !== undefined && !isNaN(is_active)) {
+        whereClause.is_active = Number(is_active);
+    }
+
+    // 🟢 กรองตามประเภทสินค้า productType_id
+    if (productType_id !== undefined && !isNaN(productType_id)) {
+        whereClause.productType_id = Number(productType_id);
+    }
+
+    // 🟢 ถ้ามีคำค้นหา → ค้นหาในชื่อ, ยี่ห้อ, และรุ่นสินค้า
+    if (actualSearch && actualSearch.trim()) {
+        const searchKeyword = `%${actualSearch.trim()}%`;
+        whereClause[Op.or] = [
+            { product_name: { [Op.like]: searchKeyword } },
+            { brand: { [Op.like]: searchKeyword } },
+            { model: { [Op.like]: searchKeyword } }
+        ];
+    }
+
+    const result = await db.products.findAndCountAll({
+        where: whereClause,
+        include: [
+            {
+                model: db.product_types,
+                as: 'productType',
+                attributes: ['id', 'type_name']
+            }
+        ],
+        limit: queryLimit,
+        offset,
+        order: [['created_at', 'DESC']], // แนะนำให้เรียงจากใหม่ไปเก่า หรือเปลี่ยนกลับเป็น product_name ASC ได้ครับ
+    });
+
+    // ถ้า getAllData = true → return แค่ rows
+    if (getAllData) {
         return {
             data: result.rows,
             total: result.count,
-            page: parsedPage,
-            limit: parsedLimit,
-            totalPages: Math.ceil(result.count / parsedLimit),
         };
     }
+
+    // ปกติ return แบบ pagination
+    return {
+        data: result.rows,
+        total: result.count,
+        page: parsedPage,
+        limit: parsedLimit,
+        totalPages: Math.ceil(result.count / parsedLimit),
+    };
+}
+    // async findAllActiveProducts(options: {
+    //     searchText?: string,
+    //     limit?: number,
+    //     page?: number,
+    //     getAllData?: boolean,
+    //     shop_id?: number
+    // }) {
+    //     const { searchText, limit, page, getAllData = false, shop_id } = options;
+    //     const parsedLimit = limit && limit > 0 ? Math.min(limit, 100) : 10;
+    //     const parsedPage = parseInt(String(page), 10) || 1;
+    //     // ถ้า getAllData = true → ดึงทั้งหมด ไม่แบ่งหน้า
+    //     const offset = getAllData ? undefined : (parsedPage - 1) * parsedLimit;
+    //     const queryLimit = getAllData ? undefined : parsedLimit;
+
+    //     // สร้างเงื่อนไข where
+    //     const whereClause: any = {
+    //         //  partner_id: partner?.dataValues.id,
+    //     };
+
+    //     // ✅ กรอง shop_id ถ้ามี
+    //     if (shop_id) {
+    //         whereClause.partner_id = shop_id; // หรือ shop_id ขึ้นอยู่กับชื่อ column
+    //     }
+
+    //     // ถ้ามี searchText → ค้นหาในชื่อ (หรือ field อื่นที่ต้องการ)
+    //     if (searchText && searchText.trim()) {
+    //         whereClause.product_name = {
+    //             [Op.like]: `%${searchText.trim()}%`,
+    //         };
+    //         // ถ้าต้องการค้นหาหลาย field เช่น code หรือ description
+    //         // whereClause[Op.or] = [
+    //         //   { name: { [Op.like]: `%${searchText.trim()}%` } },
+    //         //   { description: { [Op.like]: `%${searchText.trim()}%` } },
+    //         // ];
+    //     }
+    //     const result = await db.products.findAndCountAll({
+    //         where: whereClause,
+    //         include: [
+    //             {
+    //                 model: db.product_types,
+    //                 as: 'productType',
+    //                 attributes: ['id', 'type_name']
+    //             }
+    //         ],
+    //         limit: queryLimit,
+    //         offset,
+    //         order: [['product_name', 'ASC']], // หรือเรียงตาม field ที่ต้องการ เช่น created_at DESC
+    //         // attributes: ['id', 'name', 'code', 'description'] // ถ้าต้องการเลือกเฉพาะบาง field
+    //     });
+
+    //     // ถ้า getAllData = true → return แค่ rows
+    //     if (getAllData) {
+    //         return {
+    //             data: result.rows,
+    //             total: result.count,
+    //         };
+    //     }
+
+    //     // ปกติ return แบบ pagination
+    //     return {
+    //         data: result.rows,
+    //         total: result.count,
+    //         page: parsedPage,
+    //         limit: parsedLimit,
+    //         totalPages: Math.ceil(result.count / parsedLimit),
+    //     };
+    // }
 
     async findProductsByType(productTypeId: number): Promise<products[]> {
         return await db.products.findAll({ where: { productType_id: productTypeId, is_active: 1 } });

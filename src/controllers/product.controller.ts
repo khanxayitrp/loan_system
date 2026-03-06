@@ -83,37 +83,78 @@ class ProductController {
     }
 
     public async getAllProduct(req: Request, res: Response) {
-        try {
-            const {
-                searchText,
-                limit,
-                page,
-                getAllData,
-                shop_id // ✅ เพิ่ม: รับ shop_id จาก query params
-            } = req.query;
+    try {
+        const {
+            searchText,
+            search,      // ✅ รับ search
+            status,      // ✅ รับ status (ที่ Vue ส่งมา)
+            type,        // ✅ รับ type (ที่ Vue ส่งมา)
+            limit,
+            page,
+            getAllData,
+            shop_id 
+        } = req.query;
 
-            // const userId = req.userPayload?.userId as number;
-
-            //Validate parameters 
-            const validationErrors = ProductController.validateQueryParams(req.query);
-            if (validationErrors.length > 0) {
-                res.status(400).json({ message: 'Invalid query parameters', validationErrors });
-                return;
-            }
-            const options = {
-                search: searchText as string,
-                limit: Number(limit),
-                page: Number(page),
-                getAllData: getAllData === 'true', 
-                shop_id: shop_id ? Number(shop_id) : undefined // ✅ เพิ่ม shop_id
-            };
-            const product = await productRepo.findAllActiveProducts(options);
-            return res.status(200).json({ products: product });
-        } catch (error: any) {
-            logger.error('Error in getAllProduct controller', { error: error.message });
-            return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງປະເພດສິນຄ້າ', error: error.message });
+        // Validate parameters (ถ้ามี)
+        const validationErrors = ProductController.validateQueryParams(req.query);
+        if (validationErrors.length > 0) {
+            res.status(400).json({ message: 'Invalid query parameters', validationErrors });
+            return;
         }
+
+        // จัดเตรียม Options เพื่อส่งต่อให้ Repository
+        const options = {
+            search: (search || searchText) as string,
+            limit: Number(limit),
+            page: Number(page),
+            getAllData: getAllData === 'true', 
+            shop_id: shop_id ? Number(shop_id) : undefined,
+            
+            // 🟢 แมปชื่อตัวแปรที่รับมา ให้ตรงกับที่ Repo นำไปใช้
+            is_active: status !== undefined && status !== '' ? Number(status) : undefined,
+            productType_id: type !== undefined && type !== '' ? Number(type) : undefined
+        };
+
+        const product = await productRepo.findAllActiveProducts(options);
+        return res.status(200).json({ products: product });
+    } catch (error: any) {
+        logger.error('Error in getAllProduct controller', { error: error.message });
+        return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງຂໍ້ມູນສິນຄ້າ', error: error.message });
     }
+}
+
+    // public async getAllProduct(req: Request, res: Response) {
+    //     try {
+    //         const {
+    //             searchText,
+    //             limit,
+    //             page,
+    //             getAllData,
+    //             shop_id // ✅ เพิ่ม: รับ shop_id จาก query params
+    //         } = req.query;
+
+    //         // const userId = req.userPayload?.userId as number;
+
+    //         //Validate parameters 
+    //         const validationErrors = ProductController.validateQueryParams(req.query);
+    //         if (validationErrors.length > 0) {
+    //             res.status(400).json({ message: 'Invalid query parameters', validationErrors });
+    //             return;
+    //         }
+    //         const options = {
+    //             search: searchText as string,
+    //             limit: Number(limit),
+    //             page: Number(page),
+    //             getAllData: getAllData === 'true', 
+    //             shop_id: shop_id ? Number(shop_id) : undefined // ✅ เพิ่ม shop_id
+    //         };
+    //         const product = await productRepo.findAllActiveProducts(options);
+    //         return res.status(200).json({ products: product });
+    //     } catch (error: any) {
+    //         logger.error('Error in getAllProduct controller', { error: error.message });
+    //         return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງປະເພດສິນຄ້າ', error: error.message });
+    //     }
+    // }
     public async updateProduct(req: Request, res: Response) {
         try {
             const productId = parseInt(req.params.id, 10);
@@ -150,6 +191,52 @@ class ProductController {
             return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດໃນການປິດການໃຊ້ງານສິນຄ້າ', error: error.message });
         }
     }
+
+    public async updateMultipleProductStatus(req: Request, res: Response) {
+    try {
+        // ຮັບຄ່າ array ຂອງ id ແລະ status ຈາກ Body
+        const { productIds, is_active } = req.body;
+
+        // 1. Validation ຂໍ້ມູນທີ່ສົ່ງມາ
+        if (!Array.isArray(productIds) || productIds.length === 0) {
+            throw new ValidationError('ກະລຸນາເລືອກຢ່າງໜ້ອຍ 1 ສິນຄ້າ (productIds ຕ້ອງເປັນ Array)');
+        }
+        if (is_active === undefined || is_active === null) {
+            throw new ValidationError('ກະລຸນາລະບູສະຖານະ is_active');
+        }
+
+        const partnerId = req.userPayload?.userId as number;
+
+        // 2. ເອີ້ນໃຊ້ Repository ທີ່ສ້າງໃໝ່
+        const updatedCount = await productRepo.updateMultipleProductStatus(productIds, partnerId, is_active);
+
+        // 3. ກວດສອບຜົນຮັບ
+        if (updatedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'ບໍ່ພົບສິນຄ້າທີ່ສາມາດອັບເດດໄດ້ ຫຼື ທ່ານບໍ່ມີສິດແກ້ໄຂສິນຄ້າເຫຼົ່ານີ້' 
+            });
+        }
+
+        return res.status(200).json({ 
+            success: true, 
+            message: `ອັບເດດສະຖານະສຳເລັດ ${updatedCount} ລາຍການ`,
+            updatedCount
+        });
+
+    } catch (error: any) {
+        logger.error('Error in updateMultipleProductStatus controller', { error: error.message });
+        
+        // ຈັດການ HTTP Status Code ຕາມປະເພດ Error (ຖ້າມີການເຮັດ Custom Error)
+        const statusCode = error instanceof ValidationError ? 400 : 500;
+        
+        return res.status(statusCode).json({ 
+            success: false, 
+            message: 'ເກີດຂໍ້ຜິດພາດໃນການອັບເດດສະຖານະສິນຄ້າ', 
+            error: error.message 
+        });
+    }
+}
 
     public async deActivatedAllProductByPartnerId(req: Request, res: Response) {
         try {
