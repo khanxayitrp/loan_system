@@ -6,6 +6,44 @@ import { NotFoundError, ValidationError, handleErrorResponse } from '../utils/er
 import { customers, customersAttributes } from '../models/init-models';
 import { db } from '../models/init-models';
 import { otpService } from '../services/otp.service';
+import { Transaction } from 'sequelize';
+import { logAudit } from '../utils/auditLogger';
+
+// ==========================================
+// 🟢 HELPER FUNCTION: ສຳລັບບັນທຶກ Audit Log ໃນ Controller
+// ==========================================
+// const logAuditHelper = async (
+//     tableName: string,
+//     recordId: number,
+//     action: 'CREATE' | 'UPDATE' | 'DELETE',
+//     oldValues: any,
+//     newValues: any,
+//     performedBy: number,
+//     t: Transaction
+// ) => {
+//     let changedColumns: any = undefined;
+
+//     if (action === 'UPDATE' && oldValues && newValues) {
+//         const changes: string[] = [];
+//         for (const key in newValues) {
+//             if (newValues[key] !== undefined && oldValues[key] != newValues[key]) {
+//                 changes.push(key);
+//             }
+//         }
+//         if (changes.length === 0) return;
+//         changedColumns = changes;
+//     }
+
+//     await db.audit_logs.create({
+//         table_name: tableName,
+//         record_id: recordId,
+//         action: action,
+//         old_values: oldValues || undefined,
+//         new_values: newValues || undefined,
+//         changed_columns: changedColumns,
+//         performed_by: performedBy
+//     }, { transaction: t });
+// };
 
 export const createLoanApplication = async (req: Request, res: Response) => {
   try {
@@ -14,7 +52,7 @@ export const createLoanApplication = async (req: Request, res: Response) => {
 
     const application = await loanAppRepo.createLoanApplication({
       ...data,
-      requester_id: req.user?.id || null, // จาก middleware auth
+      requester_id: req.userPayload?.userId || null, // จาก middleware auth
     });
 
     res.status(201).json({
@@ -33,7 +71,16 @@ export const createLoanApplication = async (req: Request, res: Response) => {
 export const updateLoanApplication = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const updated = await loanAppRepo.updateLoanApplication(Number(id), req.body);
+    const userId = req.userPayload?.userId;
+    const data = req.body;
+
+    console.log('Update loan application data :', data)
+
+    let loanData: any = {
+      ...data,
+      approver_id: userId, // บันทึกผู้อนุมัติ
+    }
+    const updated = await loanAppRepo.updateLoanApplication(Number(id), loanData);
 
     if (!updated) return res.status(404).json({ message: 'Application not found' });
 
@@ -53,9 +100,13 @@ export const updateLoanApplication = async (req: Request, res: Response) => {
 export const updateDraftLoanApplication = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
+    const userId = req.userPayload?.userId;
     console.log('Draft loan data :', req.body)
-    const updated = await loanAppRepo.updateDraftLoanApplication(Number(id), req.body);
+    let loanData: any = {
+      ...req.body,
+      performed_by: userId, // บันทึกผู้แก้ไข
+    }
+    const updated = await loanAppRepo.updateDraftLoanApplication(Number(id), loanData);
 
     if (!updated) return res.status(404).json({ message: 'Application not found' });
 
@@ -76,8 +127,9 @@ export const changeStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const userId = req.userPayload?.userId;
     console.log('function changeStatus ', req.body)
-    const updated = await loanAppRepo.updateLoanApplicationStatus(Number(id), status);
+    const updated = await loanAppRepo.updateLoanApplicationStatus(Number(id), status, Number(userId));
 
     if (!updated) return res.status(404).json({ message: 'Application not found' });
 
@@ -117,6 +169,9 @@ export const getAllLoan = async (req: Request, res: Response) => {
     // Log เพื่อ debug
     console.log('Request query:', req.query);
 
+    // 🟢 ดึงค่า status ออกมา โดยเช็คทั้ง Key 'status' ธรรมดา และ Key 'status[]' ที่ Axios ชอบแอบแปลงมาให้
+    const actualStatus = status || req.query['status[]'];
+
     const pageNum = page ? parseInt(page as string, 10) : 1;
     const limitNum = limit ? parseInt(limit as string, 10) : 10;
 
@@ -124,7 +179,7 @@ export const getAllLoan = async (req: Request, res: Response) => {
       customerId: CustomerId ? Number(CustomerId) : undefined,
       requesterId: requesterId ? Number(requesterId) : undefined,
       productId: productId ? Number(productId) : undefined,
-      status,
+      status: actualStatus ? String(actualStatus) : undefined,
       min: min ? Number(min) : undefined,
       max: max ? Number(max) : undefined,
       is_confirmed: is_confirmed ? Number(is_confirmed as string) : undefined,  // ✅ เพิ่มถ้าต้องการ
@@ -154,161 +209,192 @@ export const getAllLoan = async (req: Request, res: Response) => {
 }
 
 export const sentApplyDraft = async (req: Request, res: Response) => {
-  const transaction = await db.sequelize.transaction();
-  try {
-    const { id } = req.params
-    const { is_confirmed, otp, phone } = req.body
-    console.log('check before sent to Apply ', req.body)
-    // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
-    if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
-      throw new ValidationError('OTP ບໍ່ຖືກຕ້ອງ ຫລື ຫມົດອາຍຸ');
+    const transaction = await db.sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const { is_confirmed, otp, phone } = req.body;
+        console.log('check before sent to Apply ', req.body);
+        
+        // 🟢 ດຶງ ID ຜູ້ໃຊ້ທີ່ເຮັດລາຍການ (ຖ້າບໍ່ມີໃຫ້ເປັນ 1 ຫຼື ID ຂອງລະບົບ)
+        const performedBy = req.userPayload?.userId || 1;
+
+        // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
+        if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
+            throw new ValidationError('OTP ບໍ່ຖືກຕ້ອງ ຫລື ຫມົດອາຍຸ');
+        }
+
+        const loanApp = await loanAppRepo.findLoanApplicationById(Number(id));
+
+        if (!loanApp) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຂໍສິນເຊຶ່ອຂອງລູກຄ້າ');
+
+        // 🟢 ເກັບຂໍ້ມູນເກົ່າໄວ້ກ່ອນການອັບເດດ
+        const oldLoanData = loanApp.toJSON();
+        const updateData = { is_confirmed };
+
+        const updatedLoan = await loanApp.update(updateData, { transaction });
+        if (!updatedLoan) return res.status(404).json({ message: 'Loan Application not found' });
+
+        // 🟢 ບັນທຶກ Audit Log ສຳລັບການ Update ສະຖານະ
+        await logAudit('loan_applications', loanApp.id, 'UPDATE', oldLoanData, updateData, performedBy, transaction);
+
+        await transaction.commit();
+        res.status(200).json({ success: true, message: `Sent Draft to Apply Completed`, data: updatedLoan });
+
+    } catch (error: any) {
+        await transaction.rollback();
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Internal Server Error'
+        });
     }
-
-    const loanApp = await loanAppRepo.findLoanApplicationById(Number(id))
-
-    if (!loanApp) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຂໍສິນເຊຶ່ອຂອງລູກຄ້າ');
-
-    const updatedLoan = await loanApp.update({ is_confirmed }, {transaction})
-if (!updatedLoan) return res.status(404).json({ message: 'Loan Application not found' });
-    await transaction.commit()
-    res.status(200).json({ success: true, message: `Sent Draft to Apply Completed`, data: updatedLoan });
-
-  } catch (error: any) {
-    await transaction.rollback()
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Internal Server Error'
-    });
-  }
-}
+};
 
 // POST /api/loan-applications/create-with-customer
 export const createWithCustomer = async (req: Request, res: Response) => {
-  const transaction = await db.sequelize.transaction();
-  try {
-    const {
-      phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month,
-      product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay,
-      existing_customer_id // สำหรับ staff
-    } = req.body;
+    const transaction = await db.sequelize.transaction();
+    try {
+        const {
+            phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month,
+            product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay,
+            existing_customer_id // สำหรับ staff
+        } = req.body;
 
-    // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
-    if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
-      throw new ValidationError('OTP ບໍ່ຖືກຕ້ອງ ຫລື ຫມົດອາຍຸ');
-    }
+        // 🟢 ດຶງ ID ຜູ້ໃຊ້ທີ່ເຮັດລາຍການ
+        const performedBy = req.userPayload?.userId || 1;
 
-    // 2. Get or Create Customer
-    let customer;
-    if (req.userPayload?.role === 'staff') {
-      // Staff สามารถเลือก customer_id ที่มีอยู่ได้ (ถ้าส่งมา)
-      if (existing_customer_id) {
-        customer = await customerRepo.findCustomerById(existing_customer_id);
-        if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
-        // อัปเดตข้อมูลลูกค้าโดย staff
-        await customer.update({ first_name, last_name, address, age, occupation, income_per_month }, { transaction });
-      } else {
-        // Staff สร้างลูกค้าใหม่
-        customer = await customerRepo.createCustomer({
-          phone, identity_number, first_name, last_name, address, age, occupation, income_per_month
-        }, { transaction });
-      }
-    } else {
-      // Customer ทั่วไป: สร้างใหม่หรือใช้ที่มี
-      customer = await customerRepo.findCustomersByPhone(phone);  // ← แก้จาก findCustomersByPhone เป็น findCustomerByPhone
-      if (!customer) {
-        customer = await customerRepo.createCustomer({
-          phone, identity_number, first_name, last_name, address, age, occupation, income_per_month
-        }, { transaction });
-      } else {
-        // อัปเดตข้อมูล (optional)
-        await customer.update({ first_name, last_name, address, age, occupation, income_per_month }, { transaction });
-      }
-    }
+        // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
+        if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
+            throw new ValidationError('OTP ບໍ່ຖືກຕ້ອງ ຫລື ຫມົດອາຍຸ');
+        }
 
-    // 3. Validate product
-    const product = await db.products.findByPk(product_id, { transaction });
-    if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
+        // 2. Get or Create Customer
+        let customer;
+        const customerPayload = { phone, identity_number, first_name, last_name, address, age, occupation, income_per_month };
+        const customerUpdatePayload = { first_name, last_name, address, age, occupation, income_per_month };
 
-    const final_total = total_amount || (product.price * quantity);
+        if (req.userPayload?.role === 'staff') {
+            // Staff สามารถเลือก customer_id ที่มีอยู่ได้ (ถ้าส่งมา)
+            if (existing_customer_id) {
+                customer = await customerRepo.findCustomerById(existing_customer_id);
+                if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
+                
+                const oldCustomerData = customer.toJSON();
+                await customer.update(customerUpdatePayload, { transaction });
+                
+                // 🟢 ບັນທຶກ Audit Log (UPDATE Customer)
+                await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
+            } else {
+                // Staff สร้างลูกค้าใหม่
+                customer = await customerRepo.createCustomer(customerPayload, { transaction });
+                
+                // 🟢 ບັນທຶກ Audit Log (CREATE Customer)
+                await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
+            }
+        } else {
+            // Customer ทั่วไป: สร้างใหม่หรือใช้ที่มี
+            customer = await customerRepo.findCustomersByPhone(phone);  // แก้จาก findCustomersByPhone เป็น findCustomerByPhone
+            if (!customer) {
+                customer = await customerRepo.createCustomer(customerPayload, { transaction });
+                
+                // 🟢 ບັນທຶກ Audit Log (CREATE Customer)
+                await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
+            } else {
+                // อัปเดตข้อมูล (optional)
+                const oldCustomerData = customer.toJSON();
+                await customer.update(customerUpdatePayload, { transaction });
+                
+                // 🟢 ບັນທຶກ Audit Log (UPDATE Customer)
+                await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
+            }
+        }
 
-    // 4. Create Loan Application
-    const application = await loanAppRepo.createLoanApplication({
-      customer_id: customer.id,
-      product_id,
-      total_amount: final_total,
-      loan_period: loan_period || 0,
-      interest_rate_at_apply: interest_rate_at_apply || 0,
-      monthly_pay: monthly_pay,
-      is_confirmed: 0,
-      status: 'pending',
-      requester_id: req.userPayload?.userId ?? undefined
-    }, { transaction });
+        // 3. Validate product
+        const product = await db.products.findByPk(product_id, { transaction });
+        if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
+
+        const final_total = total_amount || (product.price * quantity);
+
+        // 4. Create Loan Application
+        const loanPayload = {
+            customer_id: customer.id,
+            product_id,
+            total_amount: final_total,
+            loan_period: loan_period || 0,
+            interest_rate_at_apply: interest_rate_at_apply || 0,
+            monthly_pay: monthly_pay,
+            is_confirmed: 0,
+            status: 'pending',
+            requester_id: req.userPayload?.userId ?? undefined
+        };
+
+        const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
+
+        // 🟢 ບັນທຶກ Audit Log (CREATE Loan Application)
+        await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), performedBy, transaction);
 
         // ✅ 5. ดึงข้อมูล requester (ถ้ามี)
-    let requesterData = null;
-    if (application.requester_id) {
-      const requester = await db.users.findByPk(application.requester_id, { transaction });
-      if (requester) {
-        requesterData = {
-          id: requester.id,
-          name: requester.full_name || requester.username || 'ບໍ່ລະບຸ'
-        };
-      }
+        let requesterData = null;
+        if (application.requester_id) {
+            const requester = await db.users.findByPk(application.requester_id, { transaction });
+            if (requester) {
+                requesterData = {
+                    id: requester.id,
+                    name: requester.full_name || requester.username || 'ບໍ່ລະບຸ'
+                };
+            }
+        }
+
+        await transaction.commit();
+
+        res.status(201).json({
+            success: true,
+            message: 'ສ້າງຮ່າງຄຳຂໍຜ່ອນຮຽບຮ້ອຍ',
+            data: {
+                application_id: application.id,
+                customer_id: customer.id,
+                product_id,
+                loan_id: application.loan_id,
+                total_amount: total_amount,
+                loan_period: loan_period,
+                interest_rate_at_apply: interest_rate_at_apply,
+                monthly_pay: monthly_pay,
+                is_confirmed: application.is_confirmed,
+                status: application.status,
+                requester_id: application.requester_id || null,
+                approver_id: application.approver_id || null,
+                applied_at: application.applied_at || null,
+                approved_at: application.approved_at || null,
+                credit_score: application.credit_score || null,
+                remarks: application.remarks || null,
+                created_at: application.created_at || null,
+                updated_at: application.updated_at || null,
+                customer: {
+                    id: customer.id,
+                    phone: phone,
+                    identity_number: identity_number,
+                    first_name: first_name,
+                    last_name: last_name,
+                    address: address,
+                    age: age,
+                    occupation: occupation,
+                    income_per_month: income_per_month
+                },
+                product: {
+                    id: product_id,
+                    partner_id: product.partner_id,
+                    productType_id: product.productType_id,
+                    product_name: product.product_name,
+                    price: product.price,
+                    interest_rate: interest_rate_at_apply
+                },
+                requester: requesterData,
+                approver: null,
+                is_staff_mode: !!req.userPayload?.role?.includes('staff')
+            }
+        });
+    } catch (error) {
+        await transaction.rollback();
+        const err = handleErrorResponse(error);
+        res.status(err.status).json(err);
     }
-
-    await transaction.commit();
-
-    res.status(201).json({
-      success: true,
-      message: 'ສ້າງຮ່າງຄຳຂໍຜ່ອນຮຽບຮ້ອຍ',
-      data: {
-        // customer_id: customer.id,
-        application_id: application.id,
-        customer_id: customer.id,
-        product_id,
-        loan_id: application.loan_id,                    // ✅ เพิ่ม (มีใน DB)
-        total_amount: total_amount,
-        loan_period: loan_period,
-        interest_rate_at_apply: interest_rate_at_apply,
-        monthly_pay: monthly_pay,
-        is_confirmed: application.is_confirmed,               // 0 or 1
-        status: application.status,
-        requester_id: application.requester_id || null,
-        approver_id: application.approver_id || null,               // ✅ เพิ่ม
-        applied_at: application.applied_at || null,                // ✅ เพิ่ม
-        approved_at: application.approved_at || null,               // ✅ เพิ่ม
-        credit_score: application.credit_score || null,              // ✅ เพิ่ม
-        remarks: application.remarks || null,                   // ✅ เพิ่ม
-        created_at: application.created_at || null,
-        updated_at: application.updated_at || null,
-        customer: {
-          id: customer.id,
-          phone: phone,
-          identity_number: identity_number,
-          first_name: first_name,
-          last_name: last_name,
-          address: address,
-          age: age,
-          occupation: occupation,
-          income_per_month: income_per_month
-        },
-        product: {
-          id: product_id,
-          partner_id: product.partner_id,
-          productType_id: product.productType_id,
-          product_name: product.product_name,
-          price: product.price,
-          interest_rate: interest_rate_at_apply
-        },
-        requester: requesterData, // ✅ ส่ง requester data ที่สมบูรณ์
-          // name: 
-         approver: null, // ยังไม่มี approver
-        is_staff_mode: !!req.userPayload?.role?.includes('staff')  // ปรับให้ปลอดภัยขึ้น
-      }
-    });
-  } catch (error) {
-    await transaction.rollback();
-    const err = handleErrorResponse(error);
-    res.status(err.status).json(err);
-  }
 };

@@ -115,7 +115,7 @@ export const updateLocation = async (req: Request, res: Response) => {
 
         const result = await CustomerLocationService.updateLocation(id, updateData);
         
-        if (result[0] === 0) {
+        if (!result) {
             return res.status(404).json({ 
                 success: false, 
                 message: 'ไม่พบข้อมูลที่อยู่' 

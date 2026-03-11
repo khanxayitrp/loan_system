@@ -1,4 +1,4 @@
-// src/services/productGallery.service.ts - PATH FIX
+// src/services/productGallery.service.ts
 
 import { Transaction } from 'sequelize';
 import { db } from '../models/init-models';
@@ -7,6 +7,9 @@ import path from 'path';
 import fs from 'fs/promises';
 import fileUploadService from './fileUpload.service';
 import type { UploadedImage } from '../types/product';
+
+// 🟢 1. Import Helper ของเราเข้ามา
+import { logAudit } from '../utils/auditLogger';
 
 class ProductGalleryService {
 
@@ -244,8 +247,9 @@ class ProductGalleryService {
 
     /**
      * เพิ่มรูปภาพใหม่และลบรูปเก่า
+     * 🟢 รับ performedBy เข้ามาเพื่อบันทึกว่าพนักงานคนไหนเป็นคนแก้ไข
      */
-    async addImageGallery(productId: number, image_url: UploadedImage[]): Promise<boolean> {
+    async addImageGallery(productId: number, image_url: UploadedImage[], performedBy: number = 1): Promise<boolean> {
         logger.info(`📥 Adding gallery for product ${productId}, images count: ${image_url?.length || 0}`);
         logger.debug('Received images:', JSON.stringify(image_url, null, 2));
         
@@ -257,10 +261,9 @@ class ProductGalleryService {
         const transaction = await db.sequelize.transaction();
 
         try {
-            // 1. ดึงรูปภาพเก่า
+            // 1. ดึงรูปภาพเก่า (🟢 เอา attributes ออก เพื่อให้ได้ id มาสำหรับทำ Audit Log)
             const oldRecords = await db.product_gallery.findAll({
                 where: { product_id: productId },
-                attributes: ['image_url'],
                 raw: true,
                 transaction,
                 lock: Transaction.LOCK.UPDATE
@@ -275,6 +278,11 @@ class ProductGalleryService {
                 transaction
             });
             logger.info(`🗑️ Deleted ${deletedCount} old record(s) from database`);
+
+            // 🟢 บันทึก Audit Log สำหรับการ DELETE รูปเก่าทิ้งทั้งหมด
+            for (const oldRec of oldRecords) {
+                await logAudit('product_gallery', oldRec.id, 'DELETE', oldRec, null, performedBy, transaction);
+            }
 
             // 3. เตรียมข้อมูลใหม่
             const galleryData = image_url
@@ -292,13 +300,20 @@ class ProductGalleryService {
             logger.debug('Gallery data to insert:', JSON.stringify(galleryData, null, 2));
 
             // 4. เพิ่มข้อมูลใหม่
-            await db.product_gallery.bulkCreate(galleryData, { transaction });
+            const newRecords = await db.product_gallery.bulkCreate(galleryData, { transaction });
+
+            // 🟢 บันทึก Audit Log สำหรับการ CREATE รูปใหม่
+            for (const newRec of newRecords) {
+                // newRec เป็น instance ของ Sequelize ควรใช้ .toJSON() ถ้ามี
+                const logPayload = newRec.toJSON ? newRec.toJSON() : newRec;
+                await logAudit('product_gallery', (newRec as any).id || 0, 'CREATE', null, logPayload, performedBy, transaction);
+            }
 
             // 5. COMMIT
             await transaction.commit();
             logger.info(`✅ Database transaction committed successfully`);
 
-            // 6. ลบไฟล์ orphaned
+            // 6. ลบไฟล์ orphaned (ขั้นตอนนี้เกี่ยวกับไฟล์ ไม่ต้องเก็บ Audit Log)
             logger.info(`🧹 Starting file cleanup...`);
             const deletedFileCount = await this.cleanupOrphanedFiles(productId);
             logger.info(`✅ File cleanup completed. Deleted ${deletedFileCount} file(s)`);

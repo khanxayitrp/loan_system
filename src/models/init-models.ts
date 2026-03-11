@@ -1,6 +1,8 @@
 import type { Sequelize } from "sequelize";
 import { application_documents as _application_documents } from "./application_documents";
 import type { application_documentsAttributes, application_documentsCreationAttributes } from "./application_documents";
+import { audit_logs as _audit_logs } from "./audit_logs";
+import type { audit_logsAttributes, audit_logsCreationAttributes } from "./audit_logs";
 import { cus_requestform as _cus_requestform } from "./cus_requestform";
 import type { cus_requestformAttributes, cus_requestformCreationAttributes } from "./cus_requestform";
 import { customer_locations as _customer_locations } from "./customer_locations";
@@ -23,6 +25,8 @@ import { loan_call_verifications as _loan_call_verifications } from "./loan_call
 import type { loan_call_verificationsAttributes, loan_call_verificationsCreationAttributes } from "./loan_call_verifications";
 import { loan_cib_checks as _loan_cib_checks } from "./loan_cib_checks";
 import type { loan_cib_checksAttributes, loan_cib_checksCreationAttributes } from "./loan_cib_checks";
+import { loan_cib_history_details as _loan_cib_history_details } from "./loan_cib_history_details";
+import type { loan_cib_history_detailsAttributes, loan_cib_history_detailsCreationAttributes } from "./loan_cib_history_details";
 import { loan_contract as _loan_contract } from "./loan_contract";
 import type { loan_contractAttributes, loan_contractCreationAttributes } from "./loan_contract";
 import { loan_field_visits as _loan_field_visits } from "./loan_field_visits";
@@ -58,6 +62,7 @@ import { sequelize } from "../config/db.config";
 
 export {
   _application_documents as application_documents,
+  _audit_logs as audit_logs,
   _cus_requestform as cus_requestform,
   _customer_locations as customer_locations,
   _customer_work_info as customer_work_info,
@@ -69,6 +74,7 @@ export {
   _loan_basic_verifications as loan_basic_verifications,
   _loan_call_verifications as loan_call_verifications,
   _loan_cib_checks as loan_cib_checks,
+  _loan_cib_history_details as loan_cib_history_details,
   _loan_contract as loan_contract,
   _loan_field_visits as loan_field_visits,
   _loan_guarantors as loan_guarantors,
@@ -87,9 +93,11 @@ export {
 };
 
 export type {
-  sequelize,
+   sequelize,
   application_documentsAttributes,
   application_documentsCreationAttributes,
+  audit_logsAttributes,
+  audit_logsCreationAttributes,
   cus_requestformAttributes,
   cus_requestformCreationAttributes,
   customer_locationsAttributes,
@@ -112,6 +120,8 @@ export type {
   loan_call_verificationsCreationAttributes,
   loan_cib_checksAttributes,
   loan_cib_checksCreationAttributes,
+  loan_cib_history_detailsAttributes,
+  loan_cib_history_detailsCreationAttributes,
   loan_contractAttributes,
   loan_contractCreationAttributes,
   loan_field_visitsAttributes,
@@ -146,6 +156,7 @@ export type {
 
 export function initModels(sequelize: Sequelize) {
   const application_documents = _application_documents.initModel(sequelize);
+  const audit_logs = _audit_logs.initModel(sequelize);
   const cus_requestform = _cus_requestform.initModel(sequelize);
   const customer_locations = _customer_locations.initModel(sequelize);
   const customer_work_info = _customer_work_info.initModel(sequelize);
@@ -157,6 +168,7 @@ export function initModels(sequelize: Sequelize) {
   const loan_basic_verifications = _loan_basic_verifications.initModel(sequelize);
   const loan_call_verifications = _loan_call_verifications.initModel(sequelize);
   const loan_cib_checks = _loan_cib_checks.initModel(sequelize);
+  const loan_cib_history_details = _loan_cib_history_details.initModel(sequelize);
   const loan_contract = _loan_contract.initModel(sequelize);
   const loan_field_visits = _loan_field_visits.initModel(sequelize);
   const loan_guarantors = _loan_guarantors.initModel(sequelize);
@@ -199,6 +211,8 @@ export function initModels(sequelize: Sequelize) {
   loan_applications.hasMany(loan_call_verifications, { as: "loan_call_verifications", foreignKey: "application_id"});
   loan_cib_checks.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasOne(loan_cib_checks, { as: "loan_cib_check", foreignKey: "application_id"});
+  loan_cib_history_details.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
+  loan_applications.hasMany(loan_cib_history_details, { as: "loan_cib_history_details", foreignKey: "application_id"});
   loan_contract.belongsTo(loan_applications, { as: "loan", foreignKey: "loan_id"});
   loan_applications.hasMany(loan_contract, { as: "loan_contracts", foreignKey: "loan_id"});
   loan_field_visits.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
@@ -233,6 +247,12 @@ export function initModels(sequelize: Sequelize) {
   repayments.hasMany(payment_transactions, { as: "payment_transactions", foreignKey: "schedule_id"});
   application_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by"});
   users.hasMany(application_documents, { as: "application_documents", foreignKey: "uploaded_by"});
+  audit_logs.belongsTo(users, { as: "performed_by_user", foreignKey: "performed_by"});
+  users.hasMany(audit_logs, { as: "audit_logs", foreignKey: "performed_by"});
+  cus_requestform.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
+  users.hasMany(cus_requestform, { as: "cus_requestforms", foreignKey: "created_by"});
+  cus_requestform.belongsTo(users, { as: "updated_by_user", foreignKey: "updated_by"});
+  users.hasMany(cus_requestform, { as: "updated_by_cus_requestforms", foreignKey: "updated_by"});
   customers.belongsTo(users, { as: "user", foreignKey: "user_id"});
   users.hasMany(customers, { as: "customers", foreignKey: "user_id"});
   delivery_receipts.belongsTo(users, { as: "approver", foreignKey: "approver_id"});
@@ -249,6 +269,10 @@ export function initModels(sequelize: Sequelize) {
   users.hasMany(loan_call_verifications, { as: "loan_call_verifications", foreignKey: "called_by"});
   loan_cib_checks.belongsTo(users, { as: "checked_by_user", foreignKey: "checked_by"});
   users.hasMany(loan_cib_checks, { as: "loan_cib_checks", foreignKey: "checked_by"});
+  loan_contract.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
+  users.hasMany(loan_contract, { as: "loan_contracts", foreignKey: "created_by"});
+  loan_contract.belongsTo(users, { as: "updated_by_user", foreignKey: "updated_by"});
+  users.hasMany(loan_contract, { as: "updated_by_loan_contracts", foreignKey: "updated_by"});
   loan_field_visits.belongsTo(users, { as: "visited_by_user", foreignKey: "visited_by"});
   users.hasMany(loan_field_visits, { as: "loan_field_visits", foreignKey: "visited_by"});
   loan_income_assessments.belongsTo(users, { as: "assessed_by_user", foreignKey: "assessed_by"});
@@ -265,8 +289,9 @@ export function initModels(sequelize: Sequelize) {
   users.hasMany(user_refresh_tokens, { as: "user_refresh_tokens", foreignKey: "user_id"});
 
   return {
-    sequelize: sequelize,
+     sequelize: sequelize,
     application_documents: application_documents,
+    audit_logs: audit_logs,
     cus_requestform: cus_requestform,
     customer_locations: customer_locations,
     customer_work_info: customer_work_info,
@@ -278,6 +303,7 @@ export function initModels(sequelize: Sequelize) {
     loan_basic_verifications: loan_basic_verifications,
     loan_call_verifications: loan_call_verifications,
     loan_cib_checks: loan_cib_checks,
+    loan_cib_history_details: loan_cib_history_details,
     loan_contract: loan_contract,
     loan_field_visits: loan_field_visits,
     loan_guarantors: loan_guarantors,

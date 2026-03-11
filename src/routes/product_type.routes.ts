@@ -14,7 +14,7 @@ const router = Router();
  *       200:
  *         description: List of all product types
  */
-router.get('/', productTypeController.getAllProducttypes);
+router.get('/', verifyToken, productTypeController.getAllProducttypes);
 
 /**
  * @swagger
@@ -55,7 +55,7 @@ router.post('/', verifyToken, productTypeController.createProductType);
  *       200:
  *         description: Product type data
  */
-router.get('/:id', productTypeController.getProductTypeById);
+router.get('/:id', verifyToken, productTypeController.getProductTypeById);
 
 /**
  * @swagger

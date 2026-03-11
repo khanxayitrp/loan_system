@@ -6,10 +6,7 @@ import type { users, usersId } from './users';
 export interface loan_cib_checksAttributes {
   id: number;
   application_id: number;
-  good_history_count?: number;
-  good_history_institutions?: string;
-  bad_history_count?: number;
-  bad_history_institutions?: string;
+  cib_status?: 'no_delay' | 'delay_30_days' | 'delay_60_days' | 'delay_90_days' | 'blacklist';
   is_existing_customer?: number;
   existing_customer_status?: 'normal' | 'late_payment' | 'bad_debt';
   cib_report_file?: string;
@@ -20,16 +17,13 @@ export interface loan_cib_checksAttributes {
 
 export type loan_cib_checksPk = "id";
 export type loan_cib_checksId = loan_cib_checks[loan_cib_checksPk];
-export type loan_cib_checksOptionalAttributes = "id" | "good_history_count" | "good_history_institutions" | "bad_history_count" | "bad_history_institutions" | "is_existing_customer" | "existing_customer_status" | "cib_report_file" | "remark" | "checked_at";
+export type loan_cib_checksOptionalAttributes = "id" | "cib_status" | "is_existing_customer" | "existing_customer_status" | "cib_report_file" | "remark" | "checked_at";
 export type loan_cib_checksCreationAttributes = Optional<loan_cib_checksAttributes, loan_cib_checksOptionalAttributes>;
 
 export class loan_cib_checks extends Model<loan_cib_checksAttributes, loan_cib_checksCreationAttributes> implements loan_cib_checksAttributes {
   id!: number;
   application_id!: number;
-  good_history_count?: number;
-  good_history_institutions?: string;
-  bad_history_count?: number;
-  bad_history_institutions?: string;
+  cib_status?: 'no_delay' | 'delay_30_days' | 'delay_60_days' | 'delay_90_days' | 'blacklist';
   is_existing_customer?: number;
   existing_customer_status?: 'normal' | 'late_payment' | 'bad_debt';
   cib_report_file?: string;
@@ -65,23 +59,10 @@ export class loan_cib_checks extends Model<loan_cib_checksAttributes, loan_cib_c
       },
       unique: "loan_cib_checks_ibfk_1"
     },
-    good_history_count: {
-      type: DataTypes.INTEGER,
+    cib_status: {
+      type: DataTypes.ENUM('no_delay','delay_30_days','delay_60_days','delay_90_days','blacklist'),
       allowNull: true,
-      defaultValue: 0
-    },
-    good_history_institutions: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
-    bad_history_count: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      defaultValue: 0
-    },
-    bad_history_institutions: {
-      type: DataTypes.TEXT,
-      allowNull: true
+      defaultValue: "no_delay"
     },
     is_existing_customer: {
       type: DataTypes.BOOLEAN,

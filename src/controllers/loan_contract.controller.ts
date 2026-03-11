@@ -6,7 +6,7 @@ class LoanContractController {
     public async createLoanContract(req: Request, res: Response) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
-
+            const userId = req.userPayload?.userId;
             if (!loan_id || isNaN(loan_id)) {
                 return res.status(400).json({ 
                     success: false, 
@@ -23,7 +23,8 @@ class LoanContractController {
 
         const loan_applicationsData: any = {
             ...data,
-            loan_id
+            loan_id,
+            performed_by: Number(userId)
         };
         console.log('loan_applicationsData all ', loan_applicationsData)
         

@@ -3,6 +3,7 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
 import type { partners, partnersId } from './partners';
 import type { product_types, product_typesId } from './product_types';
+import type { users, usersId } from './users';
 
 export interface loan_contractAttributes {
   id: number;
@@ -48,9 +49,9 @@ export interface loan_contractAttributes {
   monthly_pay: number;
   first_installment_amount?: number;
   payment_day?: number;
-  motor_id: string;
-  motor_color: string;
-  tank_number: string;
+  motor_id?: string;
+  motor_color?: string;
+  tank_number?: string;
   motor_warranty?: number;
   partner_id?: number;
   shop_branch: string;
@@ -86,11 +87,14 @@ export interface loan_contractAttributes {
   is_confirmed?: number;
   created_at?: Date;
   updated_at?: Date;
+  version: number;
+  created_by?: number;
+  updated_by?: number;
 }
 
 export type loan_contractPk = "id";
 export type loan_contractId = loan_contract[loan_contractPk];
-export type loan_contractOptionalAttributes = "id" | "cus_date_of_birth" | "cus_id_pass_date" | "cus_census_number" | "cus_census_created" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "producttype_id" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_warranty" | "partner_id" | "ref_date_of_birth" | "ref_id_pass_date" | "ref_census_number" | "ref_census_created" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at";
+export type loan_contractOptionalAttributes = "id" | "cus_date_of_birth" | "cus_id_pass_date" | "cus_census_number" | "cus_census_created" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "producttype_id" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "ref_date_of_birth" | "ref_id_pass_date" | "ref_census_number" | "ref_census_created" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
 export type loan_contractCreationAttributes = Optional<loan_contractAttributes, loan_contractOptionalAttributes>;
 
 export class loan_contract extends Model<loan_contractAttributes, loan_contractCreationAttributes> implements loan_contractAttributes {
@@ -137,9 +141,9 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   monthly_pay!: number;
   first_installment_amount?: number;
   payment_day?: number;
-  motor_id!: string;
-  motor_color!: string;
-  tank_number!: string;
+  motor_id?: string;
+  motor_color?: string;
+  tank_number?: string;
   motor_warranty?: number;
   partner_id?: number;
   shop_branch!: string;
@@ -175,6 +179,9 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   is_confirmed?: number;
   created_at?: Date;
   updated_at?: Date;
+  version!: number;
+  created_by?: number;
+  updated_by?: number;
 
   // loan_contract belongsTo loan_applications via loan_id
   loan!: loan_applications;
@@ -191,6 +198,16 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   getProducttype!: Sequelize.BelongsToGetAssociationMixin<product_types>;
   setProducttype!: Sequelize.BelongsToSetAssociationMixin<product_types, product_typesId>;
   createProducttype!: Sequelize.BelongsToCreateAssociationMixin<product_types>;
+  // loan_contract belongsTo users via created_by
+  created_by_user!: users;
+  getCreated_by_user!: Sequelize.BelongsToGetAssociationMixin<users>;
+  setCreated_by_user!: Sequelize.BelongsToSetAssociationMixin<users, usersId>;
+  createCreated_by_user!: Sequelize.BelongsToCreateAssociationMixin<users>;
+  // loan_contract belongsTo users via updated_by
+  updated_by_user!: users;
+  getUpdated_by_user!: Sequelize.BelongsToGetAssociationMixin<users>;
+  setUpdated_by_user!: Sequelize.BelongsToSetAssociationMixin<users, usersId>;
+  createUpdated_by_user!: Sequelize.BelongsToCreateAssociationMixin<users>;
 
   static initModel(sequelize: Sequelize.Sequelize): typeof loan_contract {
     return loan_contract.init({
@@ -283,8 +300,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     cus_company_businessType: {
       type: DataTypes.STRING(255),
-      allowNull: false,
-      field: 'cus_company_businessType',
+      allowNull: false
     },
     cus_company_location: {
       type: DataTypes.STRING(255),
@@ -292,8 +308,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     cus_company_workYear: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      field: 'cus_company_workYear',
+      allowNull: false
     },
     cus_position: {
       type: DataTypes.STRING(100),
@@ -494,8 +509,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     ref_company_businessType: {
       type: DataTypes.STRING(255),
-      allowNull: false,
-      field: 'ref_company_businessType',
+      allowNull: false
     },
     ref_company_location: {
       type: DataTypes.STRING(255),
@@ -503,8 +517,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     ref_company_workYear: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      field: 'ref_company_workYear',
+      allowNull: false
     },
     ref_position: {
       type: DataTypes.STRING(100),
@@ -534,6 +547,30 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
       type: DataTypes.BOOLEAN,
       allowNull: true,
       defaultValue: 0
+    },
+    version: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+      comment: "เลขเวอร์ชันของสัญญา"
+    },
+    created_by: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "พนักงานที่ออกสัญญา",
+      references: {
+        model: 'users',
+        key: 'id'
+      }
+    },
+    updated_by: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "พนักงานที่แก้ไขล่าสุด",
+      references: {
+        model: 'users',
+        key: 'id'
+      }
     }
   }, {
     sequelize,
@@ -575,6 +612,20 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
         using: "BTREE",
         fields: [
           { name: "producttype_id" },
+        ]
+      },
+      {
+        name: "fk_contract_created",
+        using: "BTREE",
+        fields: [
+          { name: "created_by" },
+        ]
+      },
+      {
+        name: "fk_contract_updated",
+        using: "BTREE",
+        fields: [
+          { name: "updated_by" },
         ]
       },
     ]

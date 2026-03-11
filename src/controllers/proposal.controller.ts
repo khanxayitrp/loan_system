@@ -22,37 +22,14 @@ export const createProposal = async (req: Request, res: Response) => {
                 message: 'data is required' 
             });
         }
-
+        const userId = req.userPayload?.userId;
         console.log('data all ', data)
-        // // ✅ Validate และแปลง is_primary ใน Controller
-        // const { location_type, address, latitude, longitude, is_primary } = req.body;
-        
-        // // ✅ ตรวจสอบ location_type
-        // if (!location_type || !['home', 'work', 'other'].includes(location_type)) {
-        //     return res.status(400).json({ 
-        //         success: false, 
-        //         message: 'location_type ต้องเป็น home, work, หรือ other' 
-        //     });
-        // }
-
-        // // ✅ ตรวจสอบ address
-        // if (!address || address.trim() === '') {
-        //     return res.status(400).json({ 
-        //         success: false, 
-        //         message: 'address เป็นข้อมูลบังคับ' 
-        //     });
-        // }
-
-        // // ✅ แปลง is_primary เป็น number (0 หรือ 1)
-        // let primaryValue: number = 0;
-        // if (is_primary !== undefined && is_primary !== null) {
-        //     primaryValue = is_primary === 1 || is_primary === true || is_primary === '1' ? 1 : 0;
-        // }
 
         const ProposalData: any = {
               ...data,
             customer_id: customerId,
-            loan_id
+            loan_id,
+            performed_by: Number(userId)
           
         };
         console.log('ProposalData all ', ProposalData)

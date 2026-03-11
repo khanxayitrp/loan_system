@@ -22,11 +22,27 @@ class ChecklistController {
             }
             console.log('Received data for saveIncomeAssessment:', data);
 
+            // ✅ โค้ดใหม่ที่ถูกต้อง (ดึงค่ามาบวกกันตรงๆ)
+            const avgIncome = Number(data.average_monthly_income) || 0;
+            const otherIncome = Number(data.other_verified_income) || 0;
+
+            const total_verified_income = avgIncome + otherIncome;
+            data.total_verified_income = total_verified_income;
+
+            // 💡 แนะนำเพิ่มเติม: คุณสามารถคำนวณ DSR ฝั่ง Backend เผื่อไว้เลยก็ได้ครับเพื่อความชัวร์
+            const debtBurden = (Number(data.existing_debt_payments) || 0) + (Number(data.proposed_installment) || 0);
+            data.dsr_percentage = total_verified_income > 0
+                ? (debtBurden / total_verified_income) * 100
+                : 0;
+
             const checklistData: any = {
                 ...data,
                 loan_id,
                 assessed_by
             };
+
+            console.log('Prepared checklistData for saveIncomeAssessment:', checklistData);
+
             const result = await checklistService.CreateIncomeAssessment(checklistData);
             res.status(200).json(data);
         } catch (error: any) {
@@ -135,7 +151,7 @@ class ChecklistController {
                     success: false,
                     message: 'loan_id ບໍ່ຖືກຕ້ອງ'
                 });
-            }   
+            }
             if (!data) {
                 return res.status(400).json({
                     success: false,
@@ -150,7 +166,7 @@ class ChecklistController {
                 checked_by
             };
             const result = await checklistService.CreateCIBVerification(checklistData);
-            res.status(200).json(data);
+            res.status(200).json(result);
         } catch (error: any) {
             console.error('❌ Error saving CIB checklist:', error);
             res.status(500).json({
@@ -327,7 +343,7 @@ class ChecklistController {
             });
         }
     }
-    
+
 }
 
 export default new ChecklistController();

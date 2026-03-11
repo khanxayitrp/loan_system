@@ -6,7 +6,7 @@ import type { users, usersId } from './users';
 export interface loan_approval_logsAttributes {
   id: number;
   application_id: number;
-  action: 'submitted' | 'verified_basic' | 'verified_call' | 'verified_cib' | 'verified_field' | 'assessed_income' | 'approved' | 'rejected' | 'returned_for_edit';
+  action: 'submitted' | 'verified_basic' | 'verified_call' | 'verified_cib' | 'verified_field' | 'assessed_income' | 'approved' | 'rejected' | 'returned_for_edit' | 'cancelled';
   status_from?: string;
   status_to?: string;
   remarks?: string;
@@ -22,7 +22,7 @@ export type loan_approval_logsCreationAttributes = Optional<loan_approval_logsAt
 export class loan_approval_logs extends Model<loan_approval_logsAttributes, loan_approval_logsCreationAttributes> implements loan_approval_logsAttributes {
   id!: number;
   application_id!: number;
-  action!: 'submitted' | 'verified_basic' | 'verified_call' | 'verified_cib' | 'verified_field' | 'assessed_income' | 'approved' | 'rejected' | 'returned_for_edit';
+  action!: 'submitted' | 'verified_basic' | 'verified_call' | 'verified_cib' | 'verified_field' | 'assessed_income' | 'approved' | 'rejected' | 'returned_for_edit' | 'cancelled';
   status_from?: string;
   status_to?: string;
   remarks?: string;
@@ -57,7 +57,7 @@ export class loan_approval_logs extends Model<loan_approval_logsAttributes, loan
       }
     },
     action: {
-      type: DataTypes.ENUM('submitted','verified_basic','verified_call','verified_cib','verified_field','assessed_income','approved','rejected','returned_for_edit'),
+      type: DataTypes.ENUM('submitted','verified_basic','verified_call','verified_cib','verified_field','assessed_income','approved','rejected','returned_for_edit', 'cancelled'),
       allowNull: false
     },
     status_from: {

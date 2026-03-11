@@ -1,7 +1,46 @@
 import { db } from '../models/init-models';
 import { logger } from '../utils/logger';
+import { Transaction } from "sequelize";
+import { logAudit } from '../utils/auditLogger';
 
 class LoanContractService {
+
+    // ==========================================
+    // 🟢 HELPER FUNCTION: ສຳລັບບັນທຶກ Audit Log
+    // ==========================================
+    // private async logAudit(
+    //     tableName: string,
+    //     recordId: number,
+    //     action: 'CREATE' | 'UPDATE' | 'DELETE',
+    //     oldValues: any,
+    //     newValues: any,
+    //     performedBy: number,
+    //     t: Transaction
+    // ) {
+    //     let changedColumns: any = undefined;
+
+    //     if (action === 'UPDATE' && oldValues && newValues) {
+    //         const changes: string[] = [];
+    //         for (const key in newValues) {
+    //             if (newValues[key] !== undefined && oldValues[key] != newValues[key]) {
+    //                 changes.push(key);
+    //             }
+    //         }
+    //         if (changes.length === 0) return;
+    //         changedColumns = changes; 
+    //     }
+
+    //     await db.audit_logs.create({
+    //         table_name: tableName,
+    //         record_id: recordId,
+    //         action: action,
+    //         old_values: oldValues || undefined,
+    //         new_values: newValues || undefined,
+    //         changed_columns: changedColumns,
+    //         performed_by: performedBy
+    //     }, { transaction: t });
+    // }
+
     async createLoanContract(data: any) {
         const t = await db.sequelize.transaction();
         try {
@@ -9,15 +48,17 @@ class LoanContractService {
                 throw new Error('loan_id ເປັນຂໍ້ມູນບັງຄັບ');
             }
 
+            // 🟢 ID ຂອງພະນັກງານທີ່ເຮັດລາຍການ
+            const performedBy = data.user_id || data.performed_by || 1;
+
             let loan_contract = null;
 
-            // 1. เช็คก่อนว่ามี Contract นี้อยู่ในระบบหรือยัง
             const existingContract = await db.loan_contract.findOne({
                 where: { loan_id: data.loan_id },
                 transaction: t
             });
 
-            // 2. เตรียมข้อมูลที่จะใช้ Save / Update (สังเกตว่าจะยังไม่มี loan_contract_number)
+            // 🟢 Mapping ຂໍ້ມູນຫຼັກ
             const loanContractData: any = {
                 loan_id: data.loan_id,
                 cus_full_name: data.cusFullName,
@@ -28,7 +69,7 @@ class LoanContractService {
                 cus_id_pass_number: data.cusIdPassNumber,
                 cus_id_pass_date: data.cusIdPassDate || null,
                 cus_census_number: data.cusCensusNumber || null,
-                cus_census_create: data.cusCensusCreated || null,
+                cus_census_created: data.cusCensusCreated || null, 
                 cus_census_authorize_by: data.cusCensusAuthorizeBy,
                 cus_house_number: data.cusHouseNumber,
                 cus_unit: data.cusUnit,
@@ -60,9 +101,9 @@ class LoanContractService {
                 monthly_pay: data.monthlyPay,
                 first_installment_amount: data.firstInstallmentAmount,
                 payment_day: data.paymentDay,
-                motor_id: data.motorId || null,
-                motor_color: data.motorColor || null,
-                tank_number: data.tankNumber || null,
+                motor_id: data.motorId || null, 
+                motor_color: data.motorColor || null, 
+                tank_number: data.tankNumber || null, 
                 motor_warranty: data.motorWarranty || null,
                 partner_id: data.partnerId || null,
                 shop_branch: data.shopBranch,
@@ -95,24 +136,26 @@ class LoanContractService {
                 ref_company_emp_number: data.refCompanyEmpNumber,
                 ref_income_other: data.refIncomeOther || null,
                 ref_income_other_source: data.refIncomeOtherSource,
+                is_confirmed: data.isConfirmed !== undefined ? data.isConfirmed : 0
             };
 
             if (existingContract) {
-                // ✅ CASE: UPDATE (มีข้อมูลอยู่แล้ว จะไม่อัปเดต loan_contract_number)
+                // ✅ CASE: UPDATE
                 console.log('📝 Loan Contract info exists, updating...');
-                await db.loan_contract.update(loanContractData, {
-                    where: { loan_id: data.loan_id },
-                    transaction: t
-                });
+                
+                const oldContractData = existingContract.toJSON();
+                
+                // 🟢 ອັບເດດ Version (+1) ແລະ ບັນທຶກຜູ້ທີ່ແກ້ໄຂ
+                loanContractData.version = (existingContract.version || 1) + 1;
+                loanContractData.updated_by = performedBy;
 
-                // ดึงข้อมูลที่เพิ่งอัปเดตเสร็จมาเพื่อส่งกลับไปให้ Frontend
-                loan_contract = await db.loan_contract.findOne({
-                    where: { loan_id: data.loan_id },
-                    transaction: t
-                });
+                await existingContract.update(loanContractData, { transaction: t });
+                loan_contract = existingContract;
+
+                await logAudit('loan_contract', existingContract.id, 'UPDATE', oldContractData, loanContractData, performedBy, t);
 
             } else {
-                // ✅ CASE: CREATE (ยังไม่มีข้อมูล ต้อง Gen เลขที่สัญญาใหม่)
+                // ✅ CASE: CREATE 
                 console.log('📝 Loan Contract info does not exist, creating new...');
 
                 const currentDate = new Date();
@@ -132,14 +175,19 @@ class LoanContractService {
                 }
                 const formattedNumber = `LC-${currentYear}-${String(contractNumber).padStart(6, '0')}`;
 
-                // เพิ่มเลขที่สัญญาเข้าไปใน Object ก่อน Save
                 loanContractData.loan_contract_number = formattedNumber;
 
+                // 🟢 ບັນທຶກຜູ້ສ້າງ ແລະ ຕັ້ງຄ່າ Version ທຳອິດ
+                loanContractData.created_by = performedBy;
+                loanContractData.version = 1;
+
                 loan_contract = await db.loan_contract.create(loanContractData, { transaction: t });
+
+                await logAudit('loan_contract', loan_contract.id, 'CREATE', null, loanContractData, performedBy, t);
             }
 
             await t.commit();
-            console.log('✅ Loan Contract created/updated successfully:', loan_contract);
+            console.log('✅ Loan Contract created/updated successfully:', loan_contract.id);
 
             return {
                 success: true,
@@ -166,7 +214,6 @@ class LoanContractService {
                 success: true,
                 data: loanContract,
                 message: 'Loan Contract retrieved successfully'
-
             };
         } catch (error: any) {
             logger.error('Get Loan Contract Error:', (error as Error).message);

@@ -1,67 +1,49 @@
-
 import bcrypt from 'bcryptjs';
 import { users, usersCreationAttributes } from '../models/users';
-import {user_permissions} from '../models/user_permissions';
+import { user_permissions } from '../models/user_permissions';
 import { features } from '../models/features';
 import tokenService from './token.service'; // เรียกใช้ TokenService ที่คุณทำไว้
 import { Tokens } from '../interfaces/token.interface';
 import { db } from '../models/init-models';
+import { Transaction } from 'sequelize';
+
+// 🟢 1. Import Helper ของเราเข้ามา
+import { logAudit } from '../utils/auditLogger';
 
 class AuthService {
-  // 1. ลงทะเบียนผู้ใช้งาน (Sign Up)
-  // public async signUp(userData: usersCreationAttributes): Promise<users> {
-  //   const hashedPassword = await bcrypt.hash(userData.password, 10);
-  //   const newUser = await users.create({
-  //     ...userData,
-  //     password: hashedPassword,
-  //   });
-  //   return newUser;
-  // }
 
-private async createDefaultPermissions(userId: number, role: string): Promise<void> {
-  try {
-    const defaultPermissionsByRole: Record<string, string[]> = {
-      admin: [
-        'user_view',
-        'user_create',
-        'user_manage',
-        'permission_manage',
-        'loan_view_all',
-        'loan_view_assigned',
-        'loan_create',
-        'loan_approve',
-      ],
-      staff:[
-        'loan_view_all',
-        'loan_view_assigned',
-        'loan_create',
-        'loan_approve',
-      ],
-      partner:[
-        'partner_manage',
-        'shop_view_report',
-      ],
-      customer:[
-        'view_profile',
-        'loan_request',
-        'view_own_loans',
-      ]
-    };
+  // 🟢 เพิ่มการรับ Transaction และ performedBy เข้ามา
+  private async createDefaultPermissions(userId: number, role: string, performedBy: number, t?: Transaction): Promise<void> {
+    try {
+      const defaultPermissionsByRole: Record<string, string[]> = {
+        admin: [
+          'user_view', 'user_create', 'user_manage', 'permission_manage',
+          'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_approve',
+        ],
+        staff: [
+          'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_approve',
+        ],
+        partner: [
+          'partner_manage', 'shop_view_report',
+        ],
+        customer: [
+          'view_profile', 'loan_request', 'view_own_loans',
+        ]
+      };
 
-    const permissionCodes = defaultPermissionsByRole[role] || [];
+      const permissionCodes = defaultPermissionsByRole[role] || [];
 
-    if (permissionCodes.length === 0) {
-      console.log(`[Auth SERVICE] No default permissions for role: ${role}`);
-      return;
-    }
-
-    const featuresList = await db.features.findAll({
-      where: {
-        feature_name: permissionCodes
+      if (permissionCodes.length === 0) {
+        console.log(`[Auth SERVICE] No default permissions for role: ${role}`);
+        return;
       }
-    });
 
-    if (featuresList.length === 0) {
+      const featuresList = await db.features.findAll({
+        where: { feature_name: permissionCodes },
+        transaction: t
+      });
+
+      if (featuresList.length === 0) {
         console.log('[AUTH SERVICE] No features found for permission codes:', permissionCodes);
         return;
       }
@@ -73,23 +55,28 @@ private async createDefaultPermissions(userId: number, role: string): Promise<vo
         can_access: 1
       }));
 
-      await db.user_permissions.bulkCreate(userPermissions);
+      await db.user_permissions.bulkCreate(userPermissions, { transaction: t });
+
+      // 🟢 บันทึก Audit Log (CREATE Permissions)
+      const featureIds = userPermissions.map(p => p.feature_id);
+      await logAudit('user_permissions', userId, 'CREATE', null, { features: featureIds }, performedBy, t);
+
       console.log(`[AUTH SERVICE] Created ${userPermissions.length} default permissions for user ${userId}`);
     } catch (error) {
       console.error('[AUTH SERVICE] Error creating default permissions:', error);
       throw error;
     }
-}
+  }
 
   /**
    * สำหรับลูกค้าสมัครสมาชิกเองผ่านหน้าเว็บ/แอป
    */
   public async signUp(userData: any) {
     const transaction = await db.sequelize.transaction();
-    
+
     try {
       // 1. ตรวจสอบว่า Username ซ้ำหรือไม่
-      const existingUser = await db.users.findOne({ where: { username: userData.username } });
+      const existingUser = await db.users.findOne({ where: { username: userData.username }, transaction });
       if (existingUser) {
         throw new Error('Username already exists');
       }
@@ -107,12 +94,17 @@ private async createDefaultPermissions(userId: number, role: string): Promise<vo
         is_active: 1
       }, { transaction });
 
+      // 🟢 บันทึก Audit Log (ลบ Password ออกก่อนเก็บ)
+      const logData = newUser.toJSON();
+      delete (logData as any).password;
+      // ให้ performedBy เป็น ID ของตัวเอง (เพราะสมัครเอง)
+      await logAudit('users', newUser.id, 'CREATE', null, logData, newUser.id, transaction);
+
       // 4. มอบสิทธิ์พื้นฐาน (Default Features)
-      // เราจะดึง ID ของ feature ที่ต้องการจากชื่อ
       const defaultFeatures = ['view_profile', 'loan_request', 'view_own_loans'];
-      
       const features = await db.features.findAll({
-        where: { feature_name: defaultFeatures }
+        where: { feature_name: defaultFeatures },
+        transaction
       });
 
       if (features.length > 0) {
@@ -121,8 +113,12 @@ private async createDefaultPermissions(userId: number, role: string): Promise<vo
           feature_id: f.id,
           can_access: 1
         }));
-        
+
         await db.user_permissions.bulkCreate(permissionsData, { transaction });
+
+        // 🟢 บันทึก Audit Log สำหรับสิทธิ์
+        const featureIds = permissionsData.map(p => p.feature_id);
+        await logAudit('user_permissions', newUser.id, 'CREATE', null, { features: featureIds }, newUser.id, transaction);
       }
 
       // บันทึกทุกอย่างลง Database
@@ -133,22 +129,20 @@ private async createDefaultPermissions(userId: number, role: string): Promise<vo
       return userWithoutPassword;
 
     } catch (error) {
-      // หากเกิด Error ให้ยกเลิกที่ทำมาทั้งหมด (Rollback)
       await transaction.rollback();
       throw error;
     }
   }
 
-  // 2. เข้าสู่ระบบ (Sign In)
+  // 2. เข้าสู่ระบบ (Sign In) - ไม่มีการเปลี่ยนแปลงข้อมูล จึงไม่ต้องเก็บ Audit Log
   public async signIn(username: string, pass: string): Promise<{ user: users; tokens: Tokens } | null> {
-    // ค้นหา User และเช็คว่าเป็น Active หรือไม่
     const user = await db.users.findOne({
       where: { username, is_active: 1 },
       include: [{
         model: db.user_permissions,
-        as: 'user_permissions', // ตรวจสอบ alias ใน init-models
-        where: { can_access: 1 }, // ดึงเฉพาะตัวที่มีสิทธิ์
-        required: false, // ถ้าไม่มีสิทธิ์เลยก็ยังให้ล็อกอินได้ (แต่ permissions จะว่าง)
+        as: 'user_permissions',
+        where: { can_access: 1 },
+        required: false,
         include: [{
           model: db.features,
           as: 'feature'
@@ -159,18 +153,15 @@ private async createDefaultPermissions(userId: number, role: string): Promise<vo
     if (!user || !(await bcrypt.compare(pass, user.password))) {
       return null;
     }
-    // --- จุดสำคัญ: แปลงข้อมูล Permissions เป็น Array ของชื่อ Feature ---
+
     const userPermissions = (user as any).user_permissions || [];
     const permissions: string[] = userPermissions.map((p: any) => p.feature?.feature_name).filter(Boolean);
 
-    // เรียกใช้ TokenService เพื่อสร้าง Token ชุดใหญ่ (Access + Refresh)
-    // และบันทึกลงตาราง user_refresh_tokens โดยอัตโนมัติ
     const tokens = await tokenService.generateAuthTokens({
       user_id: user.id,
       role: user.role,
       staff_level: user.staff_level!,
-      permissions: permissions // ส่ง [ 'loan_view', 'loan_approve', ... ]
-      // หากใน Interface ของคุณมี staff_level อย่าลืมใส่ไปด้วยครับ
+      permissions: permissions
     });
 
     return { user, tokens };
@@ -182,23 +173,17 @@ private async createDefaultPermissions(userId: number, role: string): Promise<vo
 
   // 3. ออกจากระบบ (Sign Out)
   public async signOut(refreshToken: string): Promise<void> {
-    // สั่ง Revoke Token ในตาราง user_refresh_tokens
     await tokenService.revokeRefreshToken(refreshToken);
   }
 
   // 4. การต่ออายุ Token (Refresh)
   public async refreshTokens(token: string): Promise<Tokens | null> {
-    // เช็คว่า Refresh Token ใน DB ยัง Valid และไม่โดน Revoke หรือไม่
     const isValid = await tokenService.isRefreshTokenValid(token);
     if (!isValid) return null;
 
-    // Verify และถอดรหัส Token
     const payload = tokenService.verifyToken(token, process.env.JWT_REFRESH_SECRET || 'refresh_secret');
-
-    // Revoke ตัวเก่าทิ้ง (Token Rotation เพื่อความปลอดภัย)
     await tokenService.revokeRefreshToken(token);
 
-    // สร้างชุดใหม่ให้ User
     return await tokenService.generateAuthTokens({
       user_id: payload.userId,
       role: payload.role,
@@ -207,15 +192,16 @@ private async createDefaultPermissions(userId: number, role: string): Promise<vo
     });
   }
 
-/**
+  /**
    * 5. ฟังก์ชันสำหรับ Admin เพื่อสร้าง User (Staff, Partner)
-   * โดยจะรับข้อมูลครบชุด และตรวจสอบว่าชื่อผู้ใช้ซ้ำหรือไม่
+   * 🟢 เพิ่มการรับ performedBy และจัดการด้วย Transaction
    */
-  public async registerUser(userData: usersCreationAttributes): Promise<users> {
+  public async registerUser(userData: usersCreationAttributes, performedBy: number = 1): Promise<users> {
+    const transaction = await db.sequelize.transaction();
     try {
-      // 1. ตรวจสอบว่ามี Username นี้ในระบบหรือยัง
-      const existingUser = await users.findOne({ 
-        where: { username: userData.username } 
+      const existingUser = await db.users.findOne({
+        where: { username: userData.username },
+        transaction
       });
 
       if (existingUser) {
@@ -223,52 +209,67 @@ private async createDefaultPermissions(userId: number, role: string): Promise<vo
       }
       console.log('Creating user with data:', userData);
 
-      // 2. Hash รหัสผ่านก่อนบันทึก
       const hashedPassword = await bcrypt.hash(userData.password, 10);
 
-      // 3. สร้าง User ใหม่ในฐานข้อมูล
-      const newUser = await users.create({
+      const newUser = await db.users.create({
         ...userData,
         password: hashedPassword,
-        is_active: 1, // เปิดใช้งานทันทีเมื่อ Admin สร้าง
-        // staff_level: userData.staff_level || 'none', // กำหนดค่าเริ่มต้นถ้าไม่ได้ส่งมา
-      });
+        is_active: 1,
+      }, { transaction });
 
-      // ✅ 4. สร้าง default permissions
-    await this.createDefaultPermissions(newUser.id, userData.role);
+      // 🟢 บันทึก Audit Log (ลบ Password ออกก่อนเก็บ)
+      const logData = newUser.toJSON();
+      delete (logData as any).password;
+      await logAudit('users', newUser.id, 'CREATE', null, logData, performedBy, transaction);
 
+      // ✅ 4. สร้าง default permissions พร้อมส่ง Transaction และคนทำรายการเข้าไปด้วย
+      await this.createDefaultPermissions(newUser.id, userData.role, performedBy, transaction);
+
+      await transaction.commit();
       return newUser;
     } catch (error: any) {
+      await transaction.rollback();
       throw new Error(error.message);
     }
   }
-/**
+
+  /**
    * 6. ฟังก์ชันให้ User เปลี่ยนรหัสผ่านด้วยตัวเอง
+   * 🟢 เพิ่ม Transaction และ Audit Log แบบปิดบังรหัสผ่าน
    */
   public async changePassword(userId: number, oldPass: string, newPass: string): Promise<boolean> {
+    const transaction = await db.sequelize.transaction();
     try {
-      // 1. ค้นหา User
-      const user = await users.findByPk(userId);
+      const user = await db.users.findByPk(userId, { transaction });
       if (!user) throw new Error('ไม่พบผู้ใช้งาน');
 
-      // 2. ตรวจสอบรหัสผ่านเดิมว่าถูกต้องไหม
       const isMatch = await bcrypt.compare(oldPass, user.password);
       if (!isMatch) {
         throw new Error('รหัสผ่านเดิมไม่ถูกต้อง');
       }
 
-      // 3. Hash รหัสผ่านใหม่
       const hashedNewPassword = await bcrypt.hash(newPass, 10);
 
-      // 4. อัปเดตลงฐานข้อมูล
-      await user.update({ password: hashedNewPassword });
+      await user.update({ password: hashedNewPassword }, { transaction });
 
-      // 5. (Option) เมื่อเปลี่ยนรหัสผ่านแล้ว ควรยกเลิก Refresh Token ทั้งหมดของ User คนนี้
-      // เพื่อบังคับให้ทุก Device ที่ Login อยู่ต้องออกแล้วเข้าใหม่ด้วยรหัสผ่านใหม่
-      await tokenService.revokeAllUserTokens(userId); 
+      // 🟢 บันทึก Audit Log ว่ามีการเปลี่ยนรหัสผ่าน (สร้าง Object หลอกขึ้นมาแทนที่จะเก็บค่า Hash จริงๆ)
+      await logAudit(
+        'users',
+        userId,
+        'UPDATE',
+        { password_changed: false },
+        { password_changed: true },
+        userId, // ตัวเองเป็นคนเปลี่ยน
+        transaction
+      );
 
+      // ยกเลิก Token เก่าทั้งหมดเพื่อให้ล็อกอินใหม่
+      await tokenService.revokeAllUserTokens(userId);
+
+      await transaction.commit();
       return true;
     } catch (error: any) {
+      await transaction.rollback();
       throw new Error(error.message);
     }
   }
