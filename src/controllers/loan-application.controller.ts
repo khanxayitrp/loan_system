@@ -256,6 +256,7 @@ export const createWithCustomer = async (req: Request, res: Response) => {
         const {
             phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month,
             product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay,
+            interest_type, interest_rate_type, // <== เพิ่มตรงนี้
             existing_customer_id // สำหรับ staff
         } = req.body;
 
@@ -321,6 +322,8 @@ export const createWithCustomer = async (req: Request, res: Response) => {
             total_amount: final_total,
             loan_period: loan_period || 0,
             interest_rate_at_apply: interest_rate_at_apply || 0,
+            interest_type: interest_type || 'flat_rate',       // <== เพิ่ม
+            interest_rate_type: interest_rate_type || 'monthly', // <== เพิ่ม
             monthly_pay: monthly_pay,
             is_confirmed: 0,
             status: 'pending',
@@ -357,6 +360,8 @@ export const createWithCustomer = async (req: Request, res: Response) => {
                 total_amount: total_amount,
                 loan_period: loan_period,
                 interest_rate_at_apply: interest_rate_at_apply,
+                interest_type: application.interest_type,           // 🟢 รีเทิร์นค่ากลับไปให้ชัวร์
+                interest_rate_type: application.interest_rate_type, // 🟢 รีเทิร์นค่ากลับไปให้ชัวร์
                 monthly_pay: monthly_pay,
                 is_confirmed: application.is_confirmed,
                 status: application.status,

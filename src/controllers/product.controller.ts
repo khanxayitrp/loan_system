@@ -60,6 +60,8 @@ class ProductController {
                 price: data.price,
                 interest_rate: data.interest_rate,
                 image_url: data.image_url || null,
+                description: data.description || null,
+                interest_rate_type: data.interest_rate_type || 'monthly',
                 // gallery: data.gallery || null,
                 is_active: data.is_active,
             }
@@ -71,11 +73,17 @@ class ProductController {
         }
     }
 
+    // 🟢 ตรวจสอบและดึงสินค้าตาม ID พร้อมส่งข้อมูลกลับ
     public async getProductById(req: Request, res: Response) {
         try {
             const productId = parseInt(req.params.id, 10);
-            const product = await productRepo.findProductById(productId)
-            return res.status(200).json({ products: product });
+            const product = await productRepo.findProductById(productId);
+            
+            if (!product) {
+                return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນສິນຄ້າ' });
+            }
+
+            return res.status(200).json({ success: true, product: product });
         } catch (error: any) {
             logger.error('Error in getProductById controller', { error: error.message });
             return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດໃນການດຶງສິນຄ້າ', error: error.message });

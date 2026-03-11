@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as ProposalController from '../controllers/proposal.controller'
+import { verifyToken } from '@/middlewares/auth.middleware';
 
 const router = Router();
 
@@ -31,7 +32,7 @@ const router = Router();
  *       201:
  *         description: Proposal created
  */
-router.post('/:customerId/new', ProposalController.createProposal);
+router.post('/:customerId/new', verifyToken, ProposalController.createProposal);
 
 /**
  * @swagger

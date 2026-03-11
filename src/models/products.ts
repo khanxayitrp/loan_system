@@ -10,10 +10,12 @@ export interface productsAttributes {
   partner_id: number;
   productType_id: number;
   product_name: string;
+  description?: string;
   brand?: string;
   model?: string;
   price: number;
   interest_rate: number;
+  interest_rate_type: 'monthly' | 'yearly';
   image_url?: string;
   is_active?: number;
   created_at?: Date;
@@ -22,7 +24,7 @@ export interface productsAttributes {
 
 export type productsPk = "id";
 export type productsId = products[productsPk];
-export type productsOptionalAttributes = "id" | "brand" | "model" | "image_url" | "is_active" | "created_at" | "updated_at";
+export type productsOptionalAttributes = "id" | "description" | "brand" | "model" | "interest_rate_type" | "image_url" | "is_active" | "created_at" | "updated_at";
 export type productsCreationAttributes = Optional<productsAttributes, productsOptionalAttributes>;
 
 export class products extends Model<productsAttributes, productsCreationAttributes> implements productsAttributes {
@@ -30,10 +32,12 @@ export class products extends Model<productsAttributes, productsCreationAttribut
   partner_id!: number;
   productType_id!: number;
   product_name!: string;
+  description?: string;
   brand?: string;
   model?: string;
   price!: number;
   interest_rate!: number;
+  interest_rate_type!: 'monthly' | 'yearly';
   image_url?: string;
   is_active?: number;
   created_at?: Date;
@@ -103,6 +107,11 @@ export class products extends Model<productsAttributes, productsCreationAttribut
       type: DataTypes.STRING(255),
       allowNull: false
     },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "รายละเอียดสินค้า"
+    },
     brand: {
       type: DataTypes.STRING(255),
       allowNull: true
@@ -118,6 +127,12 @@ export class products extends Model<productsAttributes, productsCreationAttribut
     interest_rate: {
       type: DataTypes.DECIMAL(5,2),
       allowNull: false
+    },
+    interest_rate_type: {
+      type: DataTypes.ENUM('monthly','yearly'),
+      allowNull: false,
+      defaultValue: "monthly",
+      comment: "เรทดอกเบี้ย (ต่อเดือน หรือ ต่อปี)"
     },
     image_url: {
       type: DataTypes.STRING(255),

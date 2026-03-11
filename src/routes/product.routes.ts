@@ -16,7 +16,7 @@ const router = Router();
  *       200:
  *         description: List of all products
  */
-router.get('/', verifyToken, productController.getAllProduct);
+router.get('/',  productController.getAllProduct);
 
 /**
  * @swagger

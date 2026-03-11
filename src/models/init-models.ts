@@ -60,6 +60,7 @@ import type { usersAttributes, usersCreationAttributes } from "./users";
 import connect from "../config/db.config";
 import { sequelize } from "../config/db.config";
 
+
 export {
   _application_documents as application_documents,
   _audit_logs as audit_logs,
@@ -93,7 +94,7 @@ export {
 };
 
 export type {
-   sequelize,
+  sequelize,
   application_documentsAttributes,
   application_documentsCreationAttributes,
   audit_logsAttributes,
@@ -289,7 +290,7 @@ export function initModels(sequelize: Sequelize) {
   users.hasMany(user_refresh_tokens, { as: "user_refresh_tokens", foreignKey: "user_id"});
 
   return {
-     sequelize: sequelize,
+    sequelize: sequelize,
     application_documents: application_documents,
     audit_logs: audit_logs,
     cus_requestform: cus_requestform,

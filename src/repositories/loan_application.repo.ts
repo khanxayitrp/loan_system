@@ -99,6 +99,8 @@ class LoanApplicationRepository {
                 loan_id: formattedId,
                 total_amount: cleanLoanApplication.total_amount,
                 interest_rate_at_apply: cleanLoanApplication.interest_rate_at_apply,
+                interest_type: cleanLoanApplication.interest_type || 'flat_rate',       // <== เพิ่ม
+                interest_rate_type: cleanLoanApplication.interest_rate_type || 'monthly', // <== เพิ่ม
                 loan_period: cleanLoanApplication.loan_period,
                 monthly_pay: cleanLoanApplication.monthly_pay,
                 is_confirmed: cleanLoanApplication.is_confirmed || 0,
@@ -281,6 +283,11 @@ class LoanApplicationRepository {
                 {
                     model: db.users,
                     as: 'requester',
+                    attributes: ['id', 'username', 'full_name']
+                },
+                {
+                    model: db.users,
+                    as: 'approver',
                     attributes: ['id', 'username', 'full_name']
                 },
 

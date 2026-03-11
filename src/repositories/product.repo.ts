@@ -70,6 +70,8 @@ class ProductRepository {
                 model: cleanProduct.model || null,
                 price: cleanProduct.price,
                 interest_rate: cleanProduct.interest_rate,
+                interest_rate_type: cleanProduct.interest_rate_type || 'monthly',
+                description: cleanProduct.description || null,
                 image_url: cleanProduct.image_url || null,
                 is_active: 1,
             };
@@ -91,11 +93,42 @@ class ProductRepository {
     }
 
     async findProductById(productId: number): Promise<products | null> {
-        return await db.products.findByPk(productId);
+        return await db.products.findByPk(productId, {
+            include: [
+                {
+                    model: db.product_types,
+                    as: 'productType',
+                    attributes: ['id', 'type_name']
+                },
+                {
+                    model: db.partners,
+                    as: 'partner',
+                    attributes: ['id', 'shop_name']
+                },
+                {
+                    model: db.product_gallery,
+                    as: 'product_galleries',
+                    attributes: ['id', 'image_url']
+                }
+            ]
+        });
     }
 
     async findProductsByPartnerId(partnerId: number): Promise<products[]> {
-        return await db.products.findAll({ where: { partner_id: partnerId, is_active: 1 } });
+        return await db.products.findAll({ where: { partner_id: partnerId, is_active: 1 },
+            include: [
+                {
+                    model: db.product_types,
+                    as: 'productType',
+                    attributes: ['id', 'type_name']
+                },
+                {
+                    model: db.partners,
+                    as: 'partner',
+                    attributes: ['id', 'shop_name']
+                }
+            ] 
+        });
     }
 
     async updateProduct(productId: number, partnerId: number, data: any): Promise<products | null> {
@@ -119,7 +152,7 @@ class ProductRepository {
             
             // ກອງເອົາແຕ່ຂໍ້ມູນທີ່ຈະອັບເດດແທ້ໆ
             const updateData: any = {};
-            const allowedFields = ['productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate', 'image_url'];
+            const allowedFields = ['productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate', 'image_url', 'description', 'interest_rate_type'];
             for (const field of allowedFields) {
                 if (data[field] !== undefined) {
                     updateData[field] = data[field];
@@ -282,6 +315,11 @@ class ProductRepository {
                     model: db.product_types,
                     as: 'productType',
                     attributes: ['id', 'type_name']
+                },
+                {
+                    model: db.partners,
+                    as: 'partner',
+                    attributes: ['id', 'shop_name']
                 }
             ],
             limit: queryLimit,
@@ -306,15 +344,59 @@ class ProductRepository {
     }
 
     async findProductsByType(productTypeId: number): Promise<products[]> {
-        return await db.products.findAll({ where: { productType_id: productTypeId, is_active: 1 } });
+        return await db.products.findAll(
+            { where: 
+                { 
+                    productType_id: productTypeId, is_active: 1 
+
+                }, 
+                include: [
+                    {
+                        model: db.product_types,
+                        as: 'productType',
+                        attributes: ['id', 'type_name']
+                    },
+                    {
+                        model: db.partners,
+                        as: 'partner',
+                        attributes: ['id', 'shop_name']
+                    }
+                ]
+            });
     }
 
     async findProductsByTypeAndPartner(productTypeId: number, partnerId: number): Promise<products[]> {
-        return await db.products.findAll({ where: { productType_id: productTypeId, partner_id: partnerId, is_active: 1 } });
+        return await db.products.findAll({ where: { productType_id: productTypeId, partner_id: partnerId, is_active: 1 },
+            include: [
+                {
+                    model: db.product_types,
+                    as: 'productType',
+                    attributes: ['id', 'type_name']
+                },
+                {
+                    model: db.partners,
+                    as: 'partner',
+                    attributes: ['id', 'shop_name']
+                }
+            ] 
+            });
     }
 
     async findProductsByPriceRange(minPrice: number, maxPrice: number): Promise<products[]> {
-        return await db.products.findAll({ where: { price: { [Op.between]: [minPrice, maxPrice] }, is_active: 1 } });
+        return await db.products.findAll({ where: { price: { [Op.between]: [minPrice, maxPrice] }, is_active: 1 },
+            include: [
+                {
+                    model: db.product_types,
+                    as: 'productType',
+                    attributes: ['id', 'type_name']
+                },
+                {
+                    model: db.partners,
+                    as: 'partner',
+                    attributes: ['id', 'shop_name']
+                }
+            ] 
+        });
     }
 
     async deleteAllProductsByPartnerId(partnerId: number, performedBy: number = 1): Promise<number> {

@@ -300,6 +300,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     cus_company_businessType: {
       type: DataTypes.STRING(255),
+      field: 'cus_company_businessType',
       allowNull: false
     },
     cus_company_location: {
@@ -308,6 +309,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     cus_company_workYear: {
       type: DataTypes.INTEGER,
+      field: 'cus_company_workYear',
       allowNull: false
     },
     cus_position: {
@@ -509,6 +511,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     ref_company_businessType: {
       type: DataTypes.STRING(255),
+      field: 'ref_company_businessType',
       allowNull: false
     },
     ref_company_location: {
@@ -517,6 +520,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     ref_company_workYear: {
       type: DataTypes.INTEGER,
+      field: 'ref_company_workYear',
       allowNull: false
     },
     ref_position: {

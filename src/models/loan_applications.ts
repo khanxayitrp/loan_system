@@ -8,6 +8,7 @@ import type { loan_approval_logs, loan_approval_logsId } from './loan_approval_l
 import type { loan_basic_verifications, loan_basic_verificationsId } from './loan_basic_verifications';
 import type { loan_call_verifications, loan_call_verificationsId } from './loan_call_verifications';
 import type { loan_cib_checks, loan_cib_checksCreationAttributes, loan_cib_checksId } from './loan_cib_checks';
+import type { loan_cib_history_details, loan_cib_history_detailsId } from './loan_cib_history_details';
 import type { loan_contract, loan_contractId } from './loan_contract';
 import type { loan_field_visits, loan_field_visitsId } from './loan_field_visits';
 import type { loan_guarantors, loan_guarantorsId } from './loan_guarantors';
@@ -26,6 +27,8 @@ export interface loan_applicationsAttributes {
   total_amount: number;
   loan_period: number;
   interest_rate_at_apply: number;
+  interest_type: 'flat_rate' | 'effective_rate';
+  interest_rate_type: 'monthly' | 'yearly';
   monthly_pay: number;
   is_confirmed?: number;
   status?: 'pending' | 'verifying' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
@@ -48,7 +51,7 @@ export interface loan_applicationsAttributes {
 
 export type loan_applicationsPk = "id";
 export type loan_applicationsId = loan_applications[loan_applicationsPk];
-export type loan_applicationsOptionalAttributes = "id" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at" | "down_payment" | "fee" | "first_installment_amount" | "payment_day" | "borrower_signature_date" | "guarantor_signature_date" | "staff_signature_date";
+export type loan_applicationsOptionalAttributes = "id" | "interest_type" | "interest_rate_type" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at" | "down_payment" | "fee" | "first_installment_amount" | "payment_day" | "borrower_signature_date" | "guarantor_signature_date" | "staff_signature_date";
 export type loan_applicationsCreationAttributes = Optional<loan_applicationsAttributes, loan_applicationsOptionalAttributes>;
 
 export class loan_applications extends Model<loan_applicationsAttributes, loan_applicationsCreationAttributes> implements loan_applicationsAttributes {
@@ -59,6 +62,8 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   total_amount!: number;
   loan_period!: number;
   interest_rate_at_apply!: number;
+  interest_type!: 'flat_rate' | 'effective_rate';
+  interest_rate_type!: 'monthly' | 'yearly';
   monthly_pay!: number;
   is_confirmed?: number;
   status?: 'pending' | 'verifying' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
@@ -160,6 +165,18 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   getLoan_cib_check!: Sequelize.HasOneGetAssociationMixin<loan_cib_checks>;
   setLoan_cib_check!: Sequelize.HasOneSetAssociationMixin<loan_cib_checks, loan_cib_checksId>;
   createLoan_cib_check!: Sequelize.HasOneCreateAssociationMixin<loan_cib_checks>;
+  // loan_applications hasMany loan_cib_history_details via application_id
+  loan_cib_history_details!: loan_cib_history_details[];
+  getLoan_cib_history_details!: Sequelize.HasManyGetAssociationsMixin<loan_cib_history_details>;
+  setLoan_cib_history_details!: Sequelize.HasManySetAssociationsMixin<loan_cib_history_details, loan_cib_history_detailsId>;
+  addLoan_cib_history_detail!: Sequelize.HasManyAddAssociationMixin<loan_cib_history_details, loan_cib_history_detailsId>;
+  addLoan_cib_history_details!: Sequelize.HasManyAddAssociationsMixin<loan_cib_history_details, loan_cib_history_detailsId>;
+  createLoan_cib_history_detail!: Sequelize.HasManyCreateAssociationMixin<loan_cib_history_details>;
+  removeLoan_cib_history_detail!: Sequelize.HasManyRemoveAssociationMixin<loan_cib_history_details, loan_cib_history_detailsId>;
+  removeLoan_cib_history_details!: Sequelize.HasManyRemoveAssociationsMixin<loan_cib_history_details, loan_cib_history_detailsId>;
+  hasLoan_cib_history_detail!: Sequelize.HasManyHasAssociationMixin<loan_cib_history_details, loan_cib_history_detailsId>;
+  hasLoan_cib_history_details!: Sequelize.HasManyHasAssociationsMixin<loan_cib_history_details, loan_cib_history_detailsId>;
+  countLoan_cib_history_details!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasMany loan_contract via loan_id
   loan_contracts!: loan_contract[];
   getLoan_contracts!: Sequelize.HasManyGetAssociationsMixin<loan_contract>;
@@ -292,6 +309,18 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
     interest_rate_at_apply: {
       type: DataTypes.DECIMAL(5,2),
       allowNull: false
+    },
+    interest_type: {
+      type: DataTypes.ENUM('flat_rate','effective_rate'),
+      allowNull: false,
+      defaultValue: "flat_rate",
+      comment: "ประเภทการคำนวณดอกเบี้ย (flat_rate=คงที่, effective_rate=ลดต้นลดดอก)"
+    },
+    interest_rate_type: {
+      type: DataTypes.ENUM('monthly','yearly'),
+      allowNull: false,
+      defaultValue: "monthly",
+      comment: "ระยะเวลาของดอกเบี้ย"
     },
     monthly_pay: {
       type: DataTypes.DECIMAL(15,2),
