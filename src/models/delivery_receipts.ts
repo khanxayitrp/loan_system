@@ -59,6 +59,7 @@ export class delivery_receipts extends Model<delivery_receiptsAttributes, delive
     application_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      unique: "unique_application_id",
       references: {
         model: 'loan_applications',
         key: 'id'

@@ -439,6 +439,371 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
     }
 };
 
+
+export const generateRepaymentSchedulePDF = async (req: Request, res: Response) => {
+    let browser = null;
+
+    try {
+        const { loanData, scheduleRows, totals } = req.body;
+
+        console.log('📄 Generating Repayment Schedule PDF for loan:', loanData.loan_id);
+
+        // 1. ອ່ານ HTML Template
+        const templatePath = path.join(__dirname, '../templates/repayment-schedule-template.html');
+        if (!fs.existsSync(templatePath)) {
+            throw new Error(`Template file not found at: ${templatePath}`);
+        }
+        const templateSource = fs.readFileSync(templatePath, 'utf-8');
+
+        // 2. ຈັດການ Path
+        const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
+        const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+
+        let htmlContent = templateSource;
+        htmlContent = htmlContent.replace('{{fontPath}}', fontUrl);
+
+        // 3. Helper Functions
+        const formatCurrency = (val: number | string | null) => {
+            if (!val && val !== 0) return '0';
+            return Number(val).toLocaleString('en-US');
+        };
+        const formatDate = (dateStr: string | null) => {
+            if (!dateStr) return '___/___/____';
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '___/___/____';
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
+
+        // 4. ກຽມຂໍ້ມູນສຳລັບ Handlebars
+        const data = {
+            interestTypeName: loanData.interest_type === 'effective_rate' ? 'ຫຼຸດຕົ້ນຫຼຸດດອກ' : 'ສະເໝີຕົວ',
+            contractNumber: loanData.loan_contract_number || loanData.loan_id || '________________',
+            customerName: `${loanData.customer?.first_name || ''} ${loanData.customer?.last_name || ''}`.trim() || '________________',
+            customerAddress: loanData.customer?.address || '________________',
+            customerPhone: loanData.customer?.phone || '________________',
+            
+            productPrice: formatCurrency(loanData.product?.price || loanData.total_amount),
+            downPayment: formatCurrency(loanData.down_payment),
+            approvedAmount: formatCurrency(Number(loanData.total_amount) - Number(loanData.down_payment || 0)),
+            interestRate: loanData.interest_rate_at_apply,
+            interestRateType: loanData.interest_rate_type === 'yearly' ? '(ຕໍ່ປີ)' : '(ຕໍ່ເດືອນ)',
+            
+            startDate: formatDate(scheduleRows.length > 0 ? scheduleRows[0].due_date : null),
+            endDate: formatDate(scheduleRows.length > 0 ? scheduleRows[scheduleRows.length - 1].due_date : null),
+            paymentDay: loanData.payment_day || '___',
+            loanTerm: loanData.loan_period || '___',
+
+            // Format array ຂອງຕາຕະລາງ
+            schedule: scheduleRows.map((row: any) => ({
+                installment_number: row.installment_number,
+                due_date: formatDate(row.due_date),
+                principal: formatCurrency(row.principal),
+                interest: formatCurrency(row.interest),
+                total_amount: formatCurrency(row.total_amount),
+                remaining_balance: formatCurrency(row.remaining_balance)
+            })),
+
+            // Totals ທາງລຸ່ມ
+            totalPrincipal: formatCurrency(totals.principal),
+            totalInterest: formatCurrency(totals.interest),
+            totalAmount: formatCurrency(totals.amount)
+        };
+
+        // 5. Compile & Render HTML
+        const templateCompiled = handlebars.compile(htmlContent);
+        const html = templateCompiled(data);
+
+        // ✅ 7. Launch Puppeteer
+        browser = await puppeteer.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--font-render-hinting=none',
+                '--disable-web-security',
+                '--allow-file-access-from-files',
+                '--allow-file-access'
+            ]
+        });
+
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1200, height: 800 });
+
+        // 🟢 เปลี่ยนจาก networkidle0 เป็น load เพื่อป้องกัน Timeout
+        await page.setContent(html, { waitUntil: 'load', timeout: 60000 });
+        
+        // 🟢 รอให้ฟอนต์โหลดเสร็จสมบูรณ์
+        await page.evaluateHandle('document.fonts.ready');
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // ✅ 8. Generate PDF
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '12mm', bottom: '15mm', left: '15mm', right: '15mm' },
+            displayHeaderFooter: false,
+            preferCSSPageSize: true
+        });
+        console.log('✅ Schedule PDF generated successfully');
+
+        // 8. Send PDF
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="schedule-${loanData.loan_id || 'draft'}.pdf"`);
+        res.send(pdfBuffer);
+
+    } catch (error: any) {
+        console.error('❌ Schedule PDF Generation Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to generate Schedule PDF',
+            error: error.message
+        });
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+};
+
+export const generateDeliveryReceiptPDF = async (req: Request, res: Response) => {
+    let browser = null;
+
+    try {
+        const { loanData, receiptData, receiverPhone, deliveryAddress } = req.body;
+
+        console.log('📄 Generating Delivery Receipt PDF for receipt:', receiptData?.receipts_id || loanData?.delivery_receipts?.[0]?.receipts_id);
+        
+        
+        // 1. ອ່ານ HTML Template
+        const templatePath = path.join(__dirname, '../templates/loan-receipt-template.html');
+        if (!fs.existsSync(templatePath)) {
+            throw new Error(`Template file not found at: ${templatePath}`);
+        }
+        const templateSource = fs.readFileSync(templatePath, 'utf-8');
+
+        // 2. ຈັດການ Path ສຳລັບ Logo ແລະ Font
+        const logoPath = path.resolve(__dirname, '../../public/image/LOGO INSEE.png');
+        const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath, 'base64') : '';
+        const logoDataUri = logoBase64 ? `data:image/png;base64,${logoBase64}` : '';
+        
+        const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
+        const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+
+        // 3. ແທນທີ່ Path ລົງໃນ Template
+        let htmlContent = templateSource;
+        htmlContent = htmlContent.replace(/{{logoPath}}/g, logoDataUri);
+        htmlContent = htmlContent.replace(/{{fontPath}}/g, fontUrl);
+
+        // ==========================================
+        // 🟢 4. Future-Proof Data Extraction Logic 🟢
+        // ==========================================
+        const customer = loanData?.customer || {};
+        const product = loanData?.product || {};
+        const partner = product?.partner || {};
+        // ดึงข้อมูล Work หรือ Guarantor แบบครอบคลุมเผื่ออนาคต
+        const workInfo = customer?.work_info?.[0] || customer?.customer_work_infos?.[0] || {};
+        const guarantor = loanData?.loan_guarantors?.[0] || null;
+        const guarantorWork = guarantor?.work_info?.[0] || guarantor?.work || {};
+        const receipt = receiptData || loanData?.delivery_receipts?.[0] || {};
+        const today = new Date();
+
+        // 🟢 Helper 1: Fallback handler (ถ้ามีข้อมูลให้ใช้ข้อมูล ถ้าไม่มีให้ตีเส้น)
+        const getVal = (val: any, defaultStr = '________________') => {
+            if (val === null || val === undefined || val === '') return defaultStr;
+            return val;
+        };
+
+        // 🟢 Helper 2: Smart Address Parser (รองรับแบบมีลูกน้ำ และแบบเว้นวรรค)
+        const parseAddress = (addressStr: string | null | undefined) => {
+            const defAddr = { village: '', district: '', province: '' };
+            if (!addressStr) return defAddr;
+            
+            if (addressStr.includes(',')) {
+                const parts = addressStr.split(',').map(p => p.trim());
+                return { village: parts[0] || '', district: parts[1] || '', province: parts[2] || '' };
+            } else {
+                const parts = addressStr.split(' ').map(p => p.trim()).filter(Boolean);
+                if (parts.length >= 3) {
+                    return { province: parts.pop() || '', district: parts.pop() || '', village: parts.join(' ') };
+                }
+                return { village: addressStr, district: '', province: '' };
+            }
+        };
+
+        // 🟢 Helper 3: Format Number (ไม่คืนค่า 0 ถ้ามันควรจะว่างเปล่า)
+        const formatCurrency = (val: any) => {
+            const num = Number(val);
+            return (isNaN(num) || num === 0) ? '' : Math.round(num).toLocaleString('en-US');
+        };
+
+        // 🟢 Helper 4: Format Date
+        const formatDate = (dateStr: any) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '';
+            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        };
+
+        // วิเคราะห์ Address ของทุก Section (เผื่ออนาคตส่งมา)
+        const cusAddr = parseAddress(customer.address);
+        const workAddr = parseAddress(workInfo.address || workInfo.location);
+        const guaAddr = parseAddress(guarantor?.address);
+        const guaWorkAddr = parseAddress(guarantorWork?.address || guarantorWork?.location);
+
+        // คำนวณตัวเลข
+        const price = Number(loanData?.total_amount || product.price || 0);
+        const downPayment = Number(loanData?.down_payment || 0);
+        const approvedAmount = price - downPayment;
+        const term = Number(loanData?.loan_period || 0);
+        const monthlyPay = Number(loanData?.monthly_pay || 0);
+        const totalInterest = (monthlyPay * term) - approvedAmount; 
+
+        // จัดการประเภทสินค้า
+        const pType = String(product.productType_id || product.product_type?.name || product.type || '');
+        const isGold = pType.toLowerCase().includes('gold') || pType.includes('ຄຳ') || pType === '1';
+        const isMoto = pType.toLowerCase().includes('motor') || pType.includes('ລົດ') || pType === '2';
+        const isGen = !isGold && !isMoto;
+
+        // ==========================================
+        // 🟢 5. Data Mapping (ผูกตัวแปรเข้า Template) 🟢
+        // ==========================================
+        const data = {
+            logoPath: logoDataUri,
+
+            // Header & General
+            contractNumber: getVal(receipt?.receipts_id),
+            contractDay: String(today.getDate()).padStart(2, '0'),
+            contractMonth: String(today.getMonth() + 1).padStart(2, '0'),
+            contractYear: String(today.getFullYear()),
+            
+            checkGold: isGold ? '✔' : '', 
+            checkMotorcycle: isMoto ? '✔' : '',
+            checkGeneral: isGen ? '✔' : '',
+
+            // Section I: Customer
+            cusName: getVal(`${customer.first_name || ''} ${customer.last_name || ''}`.trim()),
+            cusDob: getVal(formatDate(customer.date_of_birth)),
+            cusPhone: getVal(customer.phone),
+            cusIdCard: getVal(customer.identity_number),
+            cusVillage: getVal(cusAddr.village, '____________'),
+            cusDistrict: getVal(cusAddr.district, '____________'),
+            cusProvince: getVal(cusAddr.province, '____________'),
+
+            // Section II: Work (ถ้าอนาคตมีข้อมูลเข้ามา มันจะแทนที่ ____ อัตโนมัติ)
+            workName: getVal(workInfo.company_name || workInfo.companyName),
+            workVillage: getVal(workAddr.village, '____________'), 
+            workDistrict: getVal(workAddr.district, '____________'),
+            workProvince: getVal(workAddr.province, '____________'),
+            workDepartment: getVal(workInfo.department),
+            workYears: getVal(workInfo.duration_years || workInfo.workYears, '___'),
+            workPosition: getVal(workInfo.position || customer.occupation),
+            workSalary: getVal(formatCurrency(workInfo.salary || customer.income_per_month)),
+
+            // Section III: Product & Loan
+            prodDesc: getVal(product.product_name),
+            prodType: getVal(isGold ? 'ສິນຄ້າຄຳ' : isMoto ? 'ສິນຄ້າລົດຈັກ' : 'ສິນຄ້າທົ່ວໄປ'), 
+            prodBrand: getVal(product.brand),
+            prodModel: getVal(product.model),
+            prodPrice: getVal(formatCurrency(price)),
+            prodDown: getVal(formatCurrency(downPayment)),
+            prodApprove: getVal(formatCurrency(approvedAmount)),
+            prodInterest: getVal(loanData?.interest_rate_at_apply, '___'),
+            prodTerm: getVal(term, '___'),
+            prodTotalInt: getVal(formatCurrency(totalInterest > 0 ? totalInterest : 0)),
+            prodFee: getVal(formatCurrency(loanData?.fee)),
+            prodMonthly: getVal(formatCurrency(monthlyPay)),
+            prodFirstInst: getVal(formatCurrency(loanData?.first_installment_amount)),
+            prodPayDay: getVal(loanData?.payment_day, '___'),
+            shopName: getVal(partner.shop_name),
+            shopBranch: getVal(partner.branch || 'ສຳນັກງານໃຫຍ່'),
+
+            // Section IV: Guarantor
+            hasGuarantor: guarantor ? '✔' : '',
+            hasReference: !guarantor ? '✔' : '',
+            guaName: getVal(guarantor ? `${guarantor.first_name || ''} ${guarantor.last_name || ''}`.trim() : null),
+            guaDob: getVal(formatDate(guarantor?.date_of_birth)),
+            guaPhone: getVal(guarantor?.phone),
+            guaIdCard: getVal(guarantor?.identity_number),
+            guaVillage: getVal(guaAddr.village, '____________'),
+            guaDistrict: getVal(guaAddr.district, '____________'),
+            guaProvince: getVal(guaAddr.province, '____________'),
+            
+            guaWorkName: getVal(guarantorWork.company_name),
+            guaWorkVillage: getVal(guaWorkAddr.village, '____________'),
+            guaWorkDistrict: getVal(guaWorkAddr.district, '____________'),
+            guaWorkProvince: getVal(guaWorkAddr.province, '____________'),
+            guaIncome: getVal(formatCurrency(guarantorWork.salary || guarantor?.salary)),
+            guaRelation: getVal(guarantor?.relationship),
+
+            // Delivery Receipt Status
+            approveChecked: receipt.status === 'approved' ? '✔' : '',
+            rejectChecked: receipt.status === 'rejected' ? '✔' : ''
+        };
+
+        // 6. Compile & Render HTML
+        const templateCompiled = handlebars.compile(htmlContent);
+        const html = templateCompiled(data);
+
+        // 7. Launch Puppeteer
+        browser = await puppeteer.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--font-render-hinting=none',
+                '--disable-web-security',
+                '--allow-file-access-from-files',
+                '--allow-file-access'
+            ]
+        });
+
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1200, height: 800 });
+
+        try {
+            await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+            await page.evaluateHandle('document.fonts.ready');
+        } catch (e: any) {
+            console.warn('⚠️ ຂໍ້ຄວາມເຕືອນ: ໜ້າເວັບໂຫຼດຊ້າກວ່າປົກກະຕິ. ລະບົບກຳລັງບັງຄັບສ້າງ PDF ຕໍ່ໄປ...');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 8. Generate PDF
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '12mm', bottom: '15mm', left: '15mm', right: '15mm' },
+            displayHeaderFooter: false,
+            preferCSSPageSize: true
+        });
+
+        console.log('✅ Delivery Receipt PDF generated successfully');
+
+        // 9. Send PDF
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="receipt-${receipt?.receipts_id || 'draft'}.pdf"`);
+        res.send(pdfBuffer);
+
+    } catch (error: any) {
+        console.error('❌ Delivery Receipt PDF Generation Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to generate Delivery Receipt PDF',
+            error: error.message
+        });
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+};
+
 // ==========================================
 // Helper Functions (ເພີ່ມໃສ່ກ້ອງໄຟລ໌)
 // ==========================================

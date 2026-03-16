@@ -8,30 +8,30 @@ import CustomerLocationService from '../services/customer_location.service';
 export const createLocation = async (req: Request, res: Response) => {
     try {
         const customerId = parseInt(req.params.customerId);
-        
+
         if (!customerId || isNaN(customerId)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'customer_id ไม่ถูกต้อง' 
+            return res.status(400).json({
+                success: false,
+                message: 'customer_id ไม่ถูกต้อง'
             });
         }
 
         // ✅ Validate และแปลง is_primary ใน Controller
         const { location_type, address, latitude, longitude, is_primary } = req.body;
-        
+
         // ✅ ตรวจสอบ location_type
         if (!location_type || !['home', 'work', 'other'].includes(location_type)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'location_type ต้องเป็น home, work, หรือ other' 
+            return res.status(400).json({
+                success: false,
+                message: 'location_type ต้องเป็น home, work, หรือ other'
             });
         }
 
         // ✅ ตรวจสอบ address
         if (!address || address.trim() === '') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'address เป็นข้อมูลบังคับ' 
+            return res.status(400).json({
+                success: false,
+                message: 'address เป็นข้อมูลบังคับ'
             });
         }
 
@@ -51,17 +51,17 @@ export const createLocation = async (req: Request, res: Response) => {
         };
 
         const result = await CustomerLocationService.createLocation(locationData);
-        
-        res.status(201).json({ 
-            success: true, 
+
+        res.status(201).json({
+            success: true,
             message: 'สร้างที่อยู่สำเร็จ',
-            data: result 
+            data: result
         });
     } catch (error) {
         console.error('Create Location Error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: (error as Error).message 
+        res.status(500).json({
+            success: false,
+            message: (error as Error).message
         });
     }
 };
@@ -73,17 +73,17 @@ export const createLocation = async (req: Request, res: Response) => {
 export const updateLocation = async (req: Request, res: Response) => {
     try {
         const id = parseInt(req.params.id);
-        
+
         if (!id || isNaN(id)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'location_id ไม่ถูกต้อง' 
+            return res.status(400).json({
+                success: false,
+                message: 'location_id ไม่ถูกต้อง'
             });
         }
 
         // ✅ Validate และแปลง is_primary ใน Controller
         const { address, latitude, longitude, is_primary, location_type } = req.body;
-        
+
         const updateData: any = {};
 
         if (address !== undefined) {
@@ -100,9 +100,9 @@ export const updateLocation = async (req: Request, res: Response) => {
 
         if (location_type !== undefined) {
             if (!['home', 'work', 'other'].includes(location_type)) {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: 'location_type ต้องเป็น home, work, หรือ other' 
+                return res.status(400).json({
+                    success: false,
+                    message: 'location_type ต้องเป็น home, work, หรือ other'
                 });
             }
             updateData.location_type = location_type;
@@ -112,25 +112,26 @@ export const updateLocation = async (req: Request, res: Response) => {
         if (is_primary !== undefined) {
             updateData.is_primary = is_primary === 1 || is_primary === true || is_primary === '1' ? 1 : 0;
         }
+        console.log('Update Location Data:', updateData);
 
         const result = await CustomerLocationService.updateLocation(id, updateData);
-        
+
         if (!result) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'ไม่พบข้อมูลที่อยู่' 
+            return res.status(404).json({
+                success: false,
+                message: 'ไม่พบข้อมูลที่อยู่'
             });
         }
 
-        res.json({ 
-            success: true, 
-            message: 'อัปเดตที่อยู่สำเร็จ' 
+        res.json({
+            success: true,
+            message: 'อัปเดตที่อยู่สำเร็จ'
         });
     } catch (error) {
         console.error('Update Location Error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: (error as Error).message 
+        res.status(500).json({
+            success: false,
+            message: (error as Error).message
         });
     }
 };
@@ -142,25 +143,25 @@ export const updateLocation = async (req: Request, res: Response) => {
 export const getCustomerLocations = async (req: Request, res: Response) => {
     try {
         const customerId = parseInt(req.params.customerId);
-        
+
         if (!customerId || isNaN(customerId)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'customer_id ไม่ถูกต้อง' 
+            return res.status(400).json({
+                success: false,
+                message: 'customer_id ไม่ถูกต้อง'
             });
         }
 
         const result = await CustomerLocationService.getLocationsByCustomerId(customerId);
-        
-        res.json({ 
-            success: true, 
-            data: result 
+
+        res.json({
+            success: true,
+            data: result
         });
     } catch (error) {
         console.error('Get Locations Error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: (error as Error).message 
+        res.status(500).json({
+            success: false,
+            message: (error as Error).message
         });
     }
 };
@@ -172,25 +173,25 @@ export const getCustomerLocations = async (req: Request, res: Response) => {
 export const deleteLocation = async (req: Request, res: Response) => {
     try {
         const id = parseInt(req.params.id);
-        
+
         if (!id || isNaN(id)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'location_id ไม่ถูกต้อง' 
+            return res.status(400).json({
+                success: false,
+                message: 'location_id ไม่ถูกต้อง'
             });
         }
 
         await CustomerLocationService.deleteLocation(id);
-        
-        res.json({ 
-            success: true, 
-            message: 'ลบที่อยู่สำเร็จ' 
+
+        res.json({
+            success: true,
+            message: 'ลบที่อยู่สำเร็จ'
         });
     } catch (error) {
         console.error('Delete Location Error:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: (error as Error).message 
+        res.status(500).json({
+            success: false,
+            message: (error as Error).message
         });
     }
 };

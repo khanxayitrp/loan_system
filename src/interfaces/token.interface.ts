@@ -1,7 +1,7 @@
 export interface TokenPayload {
   userId: number;
   role: 'admin' | 'staff' | 'partner' | 'customer';
-  staff_level: 'requester' | 'approver' | 'none';
+  staff_level: 'sale' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'approver' | 'none';
   permissions: string[];
   iat?: number; // 👈 issued at (เวลาที่สร้าง token) - optional
   exp?: number; // 👈 expires at (เวลาที่หมดอายุ) - optional

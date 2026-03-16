@@ -2,10 +2,12 @@ import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
 import type { payment_transactions, payment_transactionsId } from './payment_transactions';
+import type { repayment_schedules, repayment_schedulesId } from './repayment_schedules';
 
 export interface repaymentsAttributes {
   id: number;
   application_id: number;
+  schedule_id: number;
   installment_no: number;
   due_date: string;
   principal_amount: number;
@@ -14,18 +16,21 @@ export interface repaymentsAttributes {
   discounts?: number;
   penalty?: number;
   remaining_principal: number;
+  paid_principal?: number;
+  paid_interest?: number;
   payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
   paid_at?: Date;
 }
 
 export type repaymentsPk = "id";
 export type repaymentsId = repayments[repaymentsPk];
-export type repaymentsOptionalAttributes = "id" | "discounts" | "penalty" | "payment_status" | "paid_at";
+export type repaymentsOptionalAttributes = "id" | "discounts" | "penalty" | "paid_principal" | "paid_interest" | "payment_status" | "paid_at";
 export type repaymentsCreationAttributes = Optional<repaymentsAttributes, repaymentsOptionalAttributes>;
 
 export class repayments extends Model<repaymentsAttributes, repaymentsCreationAttributes> implements repaymentsAttributes {
   id!: number;
   application_id!: number;
+  schedule_id!: number;
   installment_no!: number;
   due_date!: string;
   principal_amount!: number;
@@ -34,6 +39,8 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
   discounts?: number;
   penalty?: number;
   remaining_principal!: number;
+  paid_principal?: number;
+  paid_interest?: number;
   payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
   paid_at?: Date;
 
@@ -42,6 +49,11 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
   getApplication!: Sequelize.BelongsToGetAssociationMixin<loan_applications>;
   setApplication!: Sequelize.BelongsToSetAssociationMixin<loan_applications, loan_applicationsId>;
   createApplication!: Sequelize.BelongsToCreateAssociationMixin<loan_applications>;
+  // repayments belongsTo repayment_schedules via schedule_id
+  schedule!: repayment_schedules;
+  getSchedule!: Sequelize.BelongsToGetAssociationMixin<repayment_schedules>;
+  setSchedule!: Sequelize.BelongsToSetAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  createSchedule!: Sequelize.BelongsToCreateAssociationMixin<repayment_schedules>;
   // repayments hasMany payment_transactions via schedule_id
   payment_transactions!: payment_transactions[];
   getPayment_transactions!: Sequelize.HasManyGetAssociationsMixin<payment_transactions>;
@@ -68,6 +80,14 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
       allowNull: false,
       references: {
         model: 'loan_applications',
+        key: 'id'
+      }
+    },
+    schedule_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'repayment_schedules',
         key: 'id'
       }
     },
@@ -105,6 +125,18 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
       type: DataTypes.DECIMAL(15,2),
       allowNull: false
     },
+    paid_principal: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true,
+      defaultValue: 0.00,
+      comment: "ยอดสะสมที่ตัดต้นไปแล้วในงวดนี้"
+    },
+    paid_interest: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true,
+      defaultValue: 0.00,
+      comment: "ยอดสะสมที่ตัดดอกเบี้ยไปแล้วในงวดนี้"
+    },
     payment_status: {
       type: DataTypes.ENUM('unpaid','partial','paid','overdue'),
       allowNull: true,
@@ -132,6 +164,13 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
         using: "BTREE",
         fields: [
           { name: "application_id" },
+        ]
+      },
+      {
+        name: "fk_repayments_schedule",
+        using: "BTREE",
+        fields: [
+          { name: "schedule_id" },
         ]
       },
     ]

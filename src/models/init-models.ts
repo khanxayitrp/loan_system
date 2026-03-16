@@ -13,6 +13,8 @@ import { customers as _customers } from "./customers";
 import type { customersAttributes, customersCreationAttributes } from "./customers";
 import { delivery_receipts as _delivery_receipts } from "./delivery_receipts";
 import type { delivery_receiptsAttributes, delivery_receiptsCreationAttributes } from "./delivery_receipts";
+import { document_signatures as _document_signatures } from "./document_signatures";
+import type { document_signaturesAttributes, document_signaturesCreationAttributes } from "./document_signatures";
 import { features as _features } from "./features";
 import type { featuresAttributes, featuresCreationAttributes } from "./features";
 import { loan_applications as _loan_applications } from "./loan_applications";
@@ -49,6 +51,8 @@ import { products as _products } from "./products";
 import type { productsAttributes, productsCreationAttributes } from "./products";
 import { promotions as _promotions } from "./promotions";
 import type { promotionsAttributes, promotionsCreationAttributes } from "./promotions";
+import { repayment_schedules as _repayment_schedules } from "./repayment_schedules";
+import type { repayment_schedulesAttributes, repayment_schedulesCreationAttributes } from "./repayment_schedules";
 import { repayments as _repayments } from "./repayments";
 import type { repaymentsAttributes, repaymentsCreationAttributes } from "./repayments";
 import { user_permissions as _user_permissions } from "./user_permissions";
@@ -60,7 +64,6 @@ import type { usersAttributes, usersCreationAttributes } from "./users";
 import connect from "../config/db.config";
 import { sequelize } from "../config/db.config";
 
-
 export {
   _application_documents as application_documents,
   _audit_logs as audit_logs,
@@ -69,6 +72,7 @@ export {
   _customer_work_info as customer_work_info,
   _customers as customers,
   _delivery_receipts as delivery_receipts,
+  _document_signatures as document_signatures,
   _features as features,
   _loan_applications as loan_applications,
   _loan_approval_logs as loan_approval_logs,
@@ -87,6 +91,7 @@ export {
   _product_types as product_types,
   _products as products,
   _promotions as promotions,
+  _repayment_schedules as repayment_schedules,
   _repayments as repayments,
   _user_permissions as user_permissions,
   _user_refresh_tokens as user_refresh_tokens,
@@ -94,7 +99,7 @@ export {
 };
 
 export type {
-  sequelize,
+    sequelize,
   application_documentsAttributes,
   application_documentsCreationAttributes,
   audit_logsAttributes,
@@ -109,6 +114,8 @@ export type {
   customersCreationAttributes,
   delivery_receiptsAttributes,
   delivery_receiptsCreationAttributes,
+  document_signaturesAttributes,
+  document_signaturesCreationAttributes,
   featuresAttributes,
   featuresCreationAttributes,
   loan_applicationsAttributes,
@@ -145,6 +152,8 @@ export type {
   productsCreationAttributes,
   promotionsAttributes,
   promotionsCreationAttributes,
+  repayment_schedulesAttributes,
+  repayment_schedulesCreationAttributes,
   repaymentsAttributes,
   repaymentsCreationAttributes,
   user_permissionsAttributes,
@@ -163,6 +172,7 @@ export function initModels(sequelize: Sequelize) {
   const customer_work_info = _customer_work_info.initModel(sequelize);
   const customers = _customers.initModel(sequelize);
   const delivery_receipts = _delivery_receipts.initModel(sequelize);
+  const document_signatures = _document_signatures.initModel(sequelize);
   const features = _features.initModel(sequelize);
   const loan_applications = _loan_applications.initModel(sequelize);
   const loan_approval_logs = _loan_approval_logs.initModel(sequelize);
@@ -181,6 +191,7 @@ export function initModels(sequelize: Sequelize) {
   const product_types = _product_types.initModel(sequelize);
   const products = _products.initModel(sequelize);
   const promotions = _promotions.initModel(sequelize);
+  const repayment_schedules = _repayment_schedules.initModel(sequelize);
   const repayments = _repayments.initModel(sequelize);
   const user_permissions = _user_permissions.initModel(sequelize);
   const user_refresh_tokens = _user_refresh_tokens.initModel(sequelize);
@@ -203,7 +214,9 @@ export function initModels(sequelize: Sequelize) {
   cus_requestform.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(cus_requestform, { as: "cus_requestforms", foreignKey: "application_id"});
   delivery_receipts.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
-  loan_applications.hasMany(delivery_receipts, { as: "delivery_receipts", foreignKey: "application_id"});
+  loan_applications.hasOne(delivery_receipts, { as: "delivery_receipt", foreignKey: "application_id"});
+  document_signatures.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
+  loan_applications.hasMany(document_signatures, { as: "document_signatures", foreignKey: "application_id"});
   loan_approval_logs.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(loan_approval_logs, { as: "loan_approval_logs", foreignKey: "application_id"});
   loan_basic_verifications.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
@@ -226,6 +239,8 @@ export function initModels(sequelize: Sequelize) {
   loan_applications.hasMany(loan_payments, { as: "loan_payments", foreignKey: "loan_application_id"});
   payment_transactions.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(payment_transactions, { as: "payment_transactions", foreignKey: "application_id"});
+  repayment_schedules.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
+  loan_applications.hasMany(repayment_schedules, { as: "repayment_schedules", foreignKey: "application_id"});
   repayments.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(repayments, { as: "repayments", foreignKey: "application_id"});
   loan_contract.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
@@ -244,6 +259,8 @@ export function initModels(sequelize: Sequelize) {
   products.hasMany(loan_applications, { as: "loan_applications", foreignKey: "product_id"});
   product_gallery.belongsTo(products, { as: "product", foreignKey: "product_id"});
   products.hasMany(product_gallery, { as: "product_galleries", foreignKey: "product_id"});
+  repayments.belongsTo(repayment_schedules, { as: "schedule", foreignKey: "schedule_id"});
+  repayment_schedules.hasMany(repayments, { as: "repayments", foreignKey: "schedule_id"});
   payment_transactions.belongsTo(repayments, { as: "schedule", foreignKey: "schedule_id"});
   repayments.hasMany(payment_transactions, { as: "payment_transactions", foreignKey: "schedule_id"});
   application_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by"});
@@ -258,6 +275,8 @@ export function initModels(sequelize: Sequelize) {
   users.hasMany(customers, { as: "customers", foreignKey: "user_id"});
   delivery_receipts.belongsTo(users, { as: "approver", foreignKey: "approver_id"});
   users.hasMany(delivery_receipts, { as: "delivery_receipts", foreignKey: "approver_id"});
+  document_signatures.belongsTo(users, { as: "user", foreignKey: "user_id"});
+  users.hasMany(document_signatures, { as: "document_signatures", foreignKey: "user_id"});
   loan_applications.belongsTo(users, { as: "requester", foreignKey: "requester_id"});
   users.hasMany(loan_applications, { as: "loan_applications", foreignKey: "requester_id"});
   loan_applications.belongsTo(users, { as: "approver", foreignKey: "approver_id"});
@@ -284,6 +303,10 @@ export function initModels(sequelize: Sequelize) {
   users.hasMany(payment_transactions, { as: "payment_transactions", foreignKey: "recorded_by"});
   promotions.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
   users.hasMany(promotions, { as: "promotions", foreignKey: "created_by"});
+  repayment_schedules.belongsTo(users, { as: "approved_by_user", foreignKey: "approved_by"});
+  users.hasMany(repayment_schedules, { as: "repayment_schedules", foreignKey: "approved_by"});
+  repayment_schedules.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
+  users.hasMany(repayment_schedules, { as: "created_by_repayment_schedules", foreignKey: "created_by"});
   user_permissions.belongsTo(users, { as: "user", foreignKey: "user_id"});
   users.hasMany(user_permissions, { as: "user_permissions", foreignKey: "user_id"});
   user_refresh_tokens.belongsTo(users, { as: "user", foreignKey: "user_id"});
@@ -298,6 +321,7 @@ export function initModels(sequelize: Sequelize) {
     customer_work_info: customer_work_info,
     customers: customers,
     delivery_receipts: delivery_receipts,
+    document_signatures: document_signatures,
     features: features,
     loan_applications: loan_applications,
     loan_approval_logs: loan_approval_logs,
@@ -316,6 +340,7 @@ export function initModels(sequelize: Sequelize) {
     product_types: product_types,
     products: products,
     promotions: promotions,
+    repayment_schedules: repayment_schedules,
     repayments: repayments,
     user_permissions: user_permissions,
     user_refresh_tokens: user_refresh_tokens,

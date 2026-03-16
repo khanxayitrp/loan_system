@@ -25,6 +25,7 @@ export interface loan_contractAttributes {
   cus_lived_year: number;
   cus_lived_with: string;
   cus_lived_situation: string;
+  cus_occupation?: string;
   cus_company_name: string;
   cus_company_businessType: string;
   cus_company_location: string;
@@ -117,6 +118,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   cus_lived_year!: number;
   cus_lived_with!: string;
   cus_lived_situation!: string;
+  cus_occupation?: string;
   cus_company_name!: string;
   cus_company_businessType!: string;
   cus_company_location!: string;
@@ -293,6 +295,11 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     cus_lived_situation: {
       type: DataTypes.STRING(255),
       allowNull: false
+    },
+    cus_occupation: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment: "ອາຊີບລູກຄ້າ (ຖ້າມີ)",
     },
     cus_company_name: {
       type: DataTypes.STRING(255),

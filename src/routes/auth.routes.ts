@@ -221,4 +221,6 @@ router.post(
  */
 router.get('/me', verifyToken, authController.getCurrentUser);
 
+router.post('/refresh', authController.refresh); // เพิ่ม route สำหรับ refresh token
+
 export default router;

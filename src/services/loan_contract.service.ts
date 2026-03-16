@@ -77,6 +77,7 @@ class LoanContractService {
                 cus_lived_year: data.cusLivedYear,
                 cus_lived_with: data.cusLivedWith,
                 cus_lived_situation: data.cusLivedSituation,
+                cus_occupation: data.cusOccupation || null,
                 cus_company_name: data.cusCompanyName,
                 cus_company_businessType: data.cusCompanyBusinessType,
                 cus_company_location: data.cusCompanyLocation,
@@ -207,7 +208,11 @@ class LoanContractService {
     async getLoanContract(loan_id: number) {
         try {
             const loanContract = await db.loan_contract.findOne({
-                where: { loan_id },
+                where: { loan_id }, include: [ {
+                    model: db.partners,
+                    as: 'partner',
+                    attributes: ['id', 'shop_name']
+                } ],
                 raw: true
             });
             return {

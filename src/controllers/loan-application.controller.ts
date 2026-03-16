@@ -1,6 +1,8 @@
 
 import { Request, Response } from 'express';
 import loanAppRepo from '../repositories/loan_application.repo';
+import repaymentRepo from '../repositories/repayment.repo';
+import delivery_receiptRepo from '../repositories/delivery_receipt.repo';
 import customerRepo from '../repositories/customer.repo';
 import { NotFoundError, ValidationError, handleErrorResponse } from '../utils/errors';
 import { customers, customersAttributes } from '../models/init-models';
@@ -249,6 +251,8 @@ export const sentApplyDraft = async (req: Request, res: Response) => {
     }
 };
 
+// // POST /api/loan-applications/create-with-customer
+
 // POST /api/loan-applications/create-with-customer
 export const createWithCustomer = async (req: Request, res: Response) => {
     const transaction = await db.sequelize.transaction();
@@ -256,12 +260,16 @@ export const createWithCustomer = async (req: Request, res: Response) => {
         const {
             phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month,
             product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay,
-            interest_type, interest_rate_type, // <== เพิ่มตรงนี้
-            existing_customer_id // สำหรับ staff
+            interest_type, interest_rate_type, 
+            existing_customer_id 
         } = req.body;
 
-        // 🟢 ດຶງ ID ຜູ້ໃຊ້ທີ່ເຮັດລາຍການ
-        const performedBy = req.userPayload?.userId || 1;
+        // 🟢 Check if request is from an authenticated staff member
+        const isStaffRequest = !!req.userPayload;
+        const staffId = req.userPayload?.userId || null;
+        
+        // For audit logs: Use staff ID if available, otherwise use a generic System ID (e.g., 1) or null
+        const performedBy = staffId || 1; 
 
         // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
         if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
@@ -273,38 +281,29 @@ export const createWithCustomer = async (req: Request, res: Response) => {
         const customerPayload = { phone, identity_number, first_name, last_name, address, age, occupation, income_per_month };
         const customerUpdatePayload = { first_name, last_name, address, age, occupation, income_per_month };
 
-        if (req.userPayload?.role === 'staff') {
-            // Staff สามารถเลือก customer_id ที่มีอยู่ได้ (ถ้าส่งมา)
+        // 🟢 Logic split based on authentication status
+        if (isStaffRequest && req.userPayload?.role === 'staff') {
+            // STAFF FLOW
             if (existing_customer_id) {
                 customer = await customerRepo.findCustomerById(existing_customer_id);
                 if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
                 
                 const oldCustomerData = customer.toJSON();
                 await customer.update(customerUpdatePayload, { transaction });
-                
-                // 🟢 ບັນທຶກ Audit Log (UPDATE Customer)
                 await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
             } else {
-                // Staff สร้างลูกค้าใหม่
                 customer = await customerRepo.createCustomer(customerPayload, { transaction });
-                
-                // 🟢 ບັນທຶກ Audit Log (CREATE Customer)
                 await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
             }
         } else {
-            // Customer ทั่วไป: สร้างใหม่หรือใช้ที่มี
-            customer = await customerRepo.findCustomersByPhone(phone);  // แก้จาก findCustomersByPhone เป็น findCustomerByPhone
+            // CUSTOMER (PUBLIC) FLOW
+            customer = await customerRepo.findCustomersByPhone(phone);  
             if (!customer) {
                 customer = await customerRepo.createCustomer(customerPayload, { transaction });
-                
-                // 🟢 ບັນທຶກ Audit Log (CREATE Customer)
                 await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
             } else {
-                // อัปเดตข้อมูล (optional)
                 const oldCustomerData = customer.toJSON();
                 await customer.update(customerUpdatePayload, { transaction });
-                
-                // 🟢 ບັນທຶກ Audit Log (UPDATE Customer)
                 await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
             }
         }
@@ -322,20 +321,19 @@ export const createWithCustomer = async (req: Request, res: Response) => {
             total_amount: final_total,
             loan_period: loan_period || 0,
             interest_rate_at_apply: interest_rate_at_apply || 0,
-            interest_type: interest_type || 'flat_rate',       // <== เพิ่ม
-            interest_rate_type: interest_rate_type || 'monthly', // <== เพิ่ม
+            interest_type: interest_type || 'flat_rate',       
+            interest_rate_type: interest_rate_type || 'monthly', 
             monthly_pay: monthly_pay,
             is_confirmed: 0,
             status: 'pending',
-            requester_id: req.userPayload?.userId ?? undefined
+            // 🟢 Set requester_id ONLY if it's a staff member. If public customer, it remains null.
+            requester_id: staffId || null
         };
 
         const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
 
-        // 🟢 ບັນທຶກ Audit Log (CREATE Loan Application)
         await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), performedBy, transaction);
 
-        // ✅ 5. ดึงข้อมูล requester (ถ้ามี)
         let requesterData = null;
         if (application.requester_id) {
             const requester = await db.users.findByPk(application.requester_id, { transaction });
@@ -403,3 +401,34 @@ export const createWithCustomer = async (req: Request, res: Response) => {
         res.status(err.status).json(err);
     }
 };
+
+export const createRepaymentSchedule = async (req: Request, res: Response) => {
+  const transaction = await db.sequelize.transaction();
+    try {
+        const { scheduleData } = req.body;
+        const application_id = parseInt(req.params.application_id);
+        const userId = req.userPayload?.userId;
+        console.log('Creating repayment schedule for application_id:', application_id);
+        console.log('Schedule data:', scheduleData);
+        const result = await repaymentRepo.saveRepaymentSchedule(application_id, scheduleData, Number(userId), transaction);
+        await transaction.commit();
+        res.status(201).json({ success: true, message: 'Repayment schedule created', data: result });
+    } catch (error: any) {
+        await transaction.rollback();
+        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+    }
+  }
+
+  export const getRepaymentSchedule = async (req: Request, res: Response) => {
+    try {
+        const application_id = parseInt(req.params.application_id);
+        console.log('Fetching repayment schedule for application_id:', application_id);
+        const schedule = await repaymentRepo.findRepaymentsByApplicationId(application_id);
+        res.status(200).json({ success: true, message: 'Repayment schedule fetched', data: schedule });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+    } 
+  }
+
+  
+

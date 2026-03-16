@@ -31,7 +31,7 @@ const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
 class App {
     public app: express.Application;
     private corsOptions: cors.CorsOptions = {
-        origin: ["http://localhost:5173", "http://localhost:3000"], // Replace with your allowed origins
+        origin: ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.7:5173'], // Replace with your allowed origins
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
         allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
         credentials: true,

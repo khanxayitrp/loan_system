@@ -164,7 +164,11 @@ class ProposalService {
             if (work_info && guarantor) {
                 const customer_form = await db.cus_requestform.findOne({ where: { application_id: data.loan_id }, transaction: t });
                 if (customer_form) {
-                    throw new Error('customer_form ມີຢູ່ແລ້ວ');
+                    // ❌ ลบ throw new Error ออก เพื่อไม่ให้ Transaction ถูก Rollback
+                    // throw new Error('customer_form ມີຢູ່ແລ້ວ');
+                    
+                    // ✅ เปลี่ยนเป็นแค่ log บอกว่ามีข้อมูลอยู่แล้ว แล้วข้ามการสร้างใหม่ไป
+                    console.log('📝 customer_form ມີຢູ່ແລ້ວ (Skipping creation)');
                 } else {
                     const newForm = await db.cus_requestform.create({
                         application_id: data.loan_id,

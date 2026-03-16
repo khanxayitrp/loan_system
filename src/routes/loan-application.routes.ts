@@ -1,7 +1,7 @@
 // src/routes/loan-application.routes.ts
 import { Router } from 'express';
 import * as loanCtrl from '../controllers/loan-application.controller';
-import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
+import { verifyToken, optionalVerifyToken } from '../middlewares/auth.middleware';
 import { PERMISSIONS } from '../types/permissions'
 
 const router = Router();
@@ -227,6 +227,10 @@ router.patch('/:id/apply', verifyToken, loanCtrl.sentApplyDraft);
  *       201:
  *         description: Application and customer created
  */
-router.post('/create-with-customer', verifyToken , loanCtrl.createWithCustomer)
+router.post('/create-with-customer', optionalVerifyToken , loanCtrl.createWithCustomer)
+
+router.post('/repayment-schedule/:application_id', verifyToken, loanCtrl.createRepaymentSchedule);
+
+router.get('/repayment-schedule/:application_id/all', verifyToken, loanCtrl.getRepaymentSchedule);
 
 export default router;
