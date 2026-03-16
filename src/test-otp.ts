@@ -224,25 +224,25 @@ async function testInvalidPhoneNumber() {
   }
 }
 
-async function testStats() {
-  console.log('\n╔═══════════════════════════════════════════╗');
-  console.log('║        TEST 6: GET STATISTICS             ║');
-  console.log('╚═══════════════════════════════════════════╝\n');
+// async function testStats() {
+//   console.log('\n╔═══════════════════════════════════════════╗');
+//   console.log('║        TEST 6: GET STATISTICS             ║');
+//   console.log('╚═══════════════════════════════════════════╝\n');
 
-  try {
-    const stats = otpService.getStats();
-    console.log('Statistics:', JSON.stringify(stats, null, 2));
+//   try {
+//     const stats = otpService.getStats();
+//     console.log('Statistics:', JSON.stringify(stats, null, 2));
     
-    console.log('\n✅ Statistics retrieved successfully!');
-    console.log(`   Total OTPs in memory: ${stats.total || 0}`);
-    console.log(`   Verified OTPs: ${stats.verified || 0}`);
-    console.log(`   Expired OTPs: ${stats.expired || 0}`);
+//     console.log('\n✅ Statistics retrieved successfully!');
+//     console.log(`   Total OTPs in memory: ${stats.total || 0}`);
+//     console.log(`   Verified OTPs: ${stats.verified || 0}`);
+//     console.log(`   Expired OTPs: ${stats.expired || 0}`);
     
-  } catch (error: any) {
-    console.error('\n❌ Error getting statistics:', error.message);
-    logger.error('Test stats failed', { error: error.message });
-  }
-}
+//   } catch (error: any) {
+//     console.error('\n❌ Error getting statistics:', error.message);
+//     logger.error('Test stats failed', { error: error.message });
+//   }
+// }
 
 async function runAllTests() {
   console.log('\n╔═══════════════════════════════════════════════════════════╗');
@@ -276,7 +276,7 @@ async function runAllTests() {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Test 6: Statistics
-    await testStats();
+    // await testStats();
     
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     
@@ -313,9 +313,9 @@ switch (command) {
   case 'invalid':
     testInvalidPhoneNumber().then(() => process.exit(0)).catch(() => process.exit(1));
     break;
-  case 'stats':
-    testStats().then(() => process.exit(0)).catch(() => process.exit(1));
-    break;
+  // case 'stats':
+  //   testStats().then(() => process.exit(0)).catch(() => process.exit(1));
+  //   break;
   case 'all':
     runAllTests().then(() => process.exit(0)).catch(() => process.exit(1));
     break;

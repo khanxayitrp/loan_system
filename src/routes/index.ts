@@ -16,6 +16,7 @@ import pdfRouter from './pdf.routes'
 import loanContractRouter from './loan_contract.routes'
 import checklistRouter from './checklist.routes';
 import deliveryRouter from './delivery_receipt.routes';
+import custPortalRouter from './customer-portal.routes';
 
 const router = express.Router();
 
@@ -53,6 +54,8 @@ router.use('/loan-contract', loanContractRouter)
 router.use('/checklist', checklistRouter);
 
 router.use('/delivery-receipt', deliveryRouter);
+
+router.use('/portal', custPortalRouter);
 
 
 

@@ -84,6 +84,23 @@ public async revokeAllUserTokens(userId: number): Promise<void> {
 
     return !!refreshToken && new Date(refreshToken.expires_at) > new Date();
   }
+
+  // -------------------------------------------------------------
+  // 🟢 2. ຟັງຊັນສຳລັບລູກຄ້າ (Customer Portal) - ເພີ່ມໃໝ່
+  // -------------------------------------------------------------
+  public generateCustomerToken(customerId: number, phone: string): string {
+    // ກຳນົດ Payload ໂດຍບໍ່ຕ້ອງມີ staff_level ແລະ permissions
+    const payload: TokenPayload = {
+      userId: customerId,
+      role: 'customer',
+      phone: phone
+    } as TokenPayload; // Cast type ເພື່ອປ້ອງກັນ TypeScript Error (ຖ້າບໍ່ໄດ້ອັບເດດ Interface)
+
+    // ອອກ Token ອາຍຸ 7 ມື້ (ສາມາດປັບປ່ຽນໄດ້ເຊັ່ນ '30d')
+    const options: SignOptions = { expiresIn: '7d' };
+    
+    return jwt.sign(payload, config.secret!, options);
+  }
 }
 
 export default new TokenService();

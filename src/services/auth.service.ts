@@ -187,8 +187,8 @@ class AuthService {
     return await tokenService.generateAuthTokens({
       user_id: payload.userId,
       role: payload.role,
-      staff_level: payload.staff_level,
-      permissions: payload.permissions
+      staff_level: payload.staff_level ?? '',
+      permissions: payload.permissions ?? []
     });
   }
 

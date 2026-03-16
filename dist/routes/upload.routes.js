@@ -1,0 +1,321 @@
+"use strict";
+// ==========================================
+// src/routes/upload.routes.ts
+// ==========================================
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const upload_controller_1 = __importDefault(require("../controllers/upload.controller"));
+const upload_middleware_1 = require("../middlewares/upload.middleware");
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+// ทุก route ต้อง authenticate ก่อน
+router.use(auth_middleware_1.verifyToken);
+/**
+ * @swagger
+ * /upload/application/{application_id}/document:
+ *   post:
+ *     summary: Upload application document
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               doc_type:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Document uploaded
+ */
+router.post('/application/:application_id/document', upload_middleware_1.uploadDocument.single('file'), upload_controller_1.default.uploadApplicationDocument);
+/**
+ * @swagger
+ * /upload/application/{application_id}/documents:
+ *   post:
+ *     summary: Upload multiple application documents
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       201:
+ *         description: Documents uploaded
+ */
+router.post('/application/:application_id/documents', upload_middleware_1.uploadDocument.array('files', 10), upload_controller_1.default.uploadMultipleDocuments);
+/**
+ * @swagger
+ * /upload/application/{application_id}/documents:
+ *   get:
+ *     summary: Get application documents
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of documents
+ */
+router.get('/application/:application_id/documents', upload_controller_1.default.getApplicationDocuments);
+/**
+ * @swagger
+ * /upload/document/{document_id}:
+ *   delete:
+ *     summary: Delete document
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: document_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Document deleted
+ */
+router.delete('/document/:document_id', upload_controller_1.default.deleteDocument);
+/**
+ * @swagger
+ * /upload/document/{document_id}:
+ *   put:
+ *     summary: Replace document
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: document_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Document replaced
+ */
+router.put('/document/:document_id', upload_middleware_1.uploadDocument.single('file'), upload_controller_1.default.replaceDocument);
+/**
+ * @swagger
+ * /upload/product/{product_id}/image:
+ *   post:
+ *     summary: Upload product image
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: product_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Image uploaded
+ */
+router.post('/product/:product_id/image', upload_middleware_1.uploadProductImage.single('file'), upload_controller_1.default.uploadProductImage);
+/**
+ * @swagger
+ * /upload/product/{product_id}/gallery:
+ *   post:
+ *     summary: Upload product gallery
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: product_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       201:
+ *         description: Gallery uploaded
+ */
+router.post('/product/:product_id/gallery', upload_middleware_1.uploadProductImage.array('files', 5), upload_controller_1.default.uploadProductGallery);
+router.post('/location/:customer_id/image', upload_middleware_1.uploadLocationImage.array('files', 2), upload_controller_1.default.uploadLocationImage);
+/**
+ * @swagger
+ * /upload/shop/{partner_id}/logo:
+ *   post:
+ *     summary: Upload shop logo
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: partner_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Logo uploaded
+ */
+router.post('/shop/:partner_id/logo', upload_middleware_1.uploadShopLogo.single('file'), upload_controller_1.default.uploadShopLogo);
+/**
+ * @swagger
+ * /upload/payment/{transaction_id}/proof:
+ *   post:
+ *     summary: Upload payment proof
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: transaction_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Proof uploaded
+ */
+router.post('/payment/:transaction_id/proof', upload_middleware_1.uploadPaymentProof.single('file'), upload_controller_1.default.uploadPaymentProof);
+exports.default = router;
+// Route Production
+/*
+import { Router } from 'express';
+import uploadController from '../controllers/upload.controller';
+import {
+    uploadDocument,
+    uploadProductImage,
+    uploadShopLogo,
+    uploadPaymentProof
+} from '../middlewares/upload.middleware';
+import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
+
+const router = Router();
+
+// 1. ใช้ verifyToken กับทุก Route ในไฟล์นี้
+router.use(verifyToken);
+
+// --- Application Documents (สำหรับระบบสินเชื่อ) ---
+router.post(
+    '/application/:application_id/document',
+    checkPermission('loan_document_upload'), // ต้องมีสิทธิ์อัปโหลดเอกสาร
+    uploadDocument.single('file'),
+    uploadController.uploadApplicationDocument
+);
+
+router.delete(
+    '/document/:document_id',
+    checkPermission('loan_document_delete'), // สิทธิ์ในการลบเอกสาร
+    uploadController.deleteDocument
+);
+
+// --- Product Images (สำหรับจัดการสินค้า) ---
+router.post(
+    '/product/:product_id/image',
+    checkPermission('product_management'), // ต้องมีสิทธิ์จัดการสินค้า
+    uploadProductImage.single('file'),
+    uploadController.uploadProductImage
+);
+
+// --- Shop Logo (สำหรับข้อมูลร้านค้า/Partner) ---
+router.post(
+    '/shop/:partner_id/logo',
+    checkPermission('shop_settings'), // สิทธิ์แก้ไขข้อมูลร้านค้า
+    uploadShopLogo.single('file'),
+    uploadController.uploadShopLogo
+);
+
+// --- Payment Proof (สำหรับฝ่ายการเงิน/ลูกค้า) ---
+router.post(
+    '/payment/:transaction_id/proof',
+    checkPermission('payment_upload'),
+    uploadPaymentProof.single('file'),
+    uploadController.uploadPaymentProof
+);
+
+export default router;
+ */ 

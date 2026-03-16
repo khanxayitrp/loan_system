@@ -213,22 +213,22 @@ router.get('/status/:phoneNumber', async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.get('/stats', async (req, res) => {
-  try {
-    const stats = otpService.getStats();
-    res.json({
-      success: true,
-      message: 'Statistics retrieved successfully',
-      data: stats,
-    });
-  } catch (err: any) {
-    logger.error('Error in get OTP stats route', { error: err.message });
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: err.message,
-    });
-  }
-});
+// router.get('/stats', async (req, res) => {
+//   try {
+//     const stats = otpService.getStats();
+//     res.json({
+//       success: true,
+//       message: 'Statistics retrieved successfully',
+//       data: stats,
+//     });
+//   } catch (err: any) {
+//     logger.error('Error in get OTP stats route', { error: err.message });
+//     res.status(500).json({
+//       success: false,
+//       message: 'Internal server error',
+//       error: err.message,
+//     });
+//   }
+// });
 
 export default router;

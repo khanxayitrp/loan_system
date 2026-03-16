@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import customerRepo from '../repositories/customer.repo'; // ปรับ path ตาม project
 import { otpService } from '../services/otp.service';
+import { db } from '../models/init-models';
+import tokenService from '../services/token.service';
 import { ValidationError } from '../utils/errors'; // สมมติมี
 
 export const requestOtpForCustomer = async (req: Request, res: Response) => {
@@ -109,6 +111,62 @@ export const getCustomerBySearch = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error("❌ Search Error:", error);
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
+
+// 🟢 API ສຳລັບລູກຄ້າທີ່ເຄີຍຂໍສິນເຊື່ອແລ້ວ ແຕ່ຕ້ອງການເຂົ້າລະບົບມາເພື່ອ "ອັບໂຫຼດເອກະສານ"
+export const verifyOtpAndGetToken = async (req: Request, res: Response) => {
+  try {
+    const { phone, otp } = req.body;
+
+    if (!phone || !otp) {
+      throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
+    }
+
+    // 1. ຢືນຢັນ OTP ຜ່ານ otpService (ຄືກັນກັບຕອນ createCustomer)
+    const isValid = await otpService.verifyOTP({
+      phoneNumber: phone,
+      otp
+    });
+
+    if (!isValid) {
+      return res.status(400).json({ message: 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ' });
+    }
+
+    // 2. ຄົ້ນຫາລູກຄ້າໃນຖານຂໍ້ມູນ ດ້ວຍເບີໂທ
+    // (ເພາະລູກຄ້າຕ້ອງເຄີຍສະໝັກ/ມີຂໍ້ມູນແລ້ວ ຈຶ່ງຈະມາອັບໂຫຼດເອກະສານໄດ້)
+    const customer = await db.customers.findOne({ where: { phone } });
+
+    if (!customer) {
+      return res.status(404).json({ 
+        message: 'ບໍ່ພົບຂໍ້ມູນລູກຄ້ານີ້ໃນລະບົບ. ກະລຸນາສະໝັກ ຫຼື ສົ່ງຄຳຂໍສິນເຊື່ອກ່ອນ.' 
+      });
+    }
+      // 🔥 ด่านอรหันต์: ถ้าลูกค้าคนนี้ถูกระงับการใช้งาน (is_active = 0) อาจจะไม่ให้เข้าสู่ระบบเลยก็ได้
+    // if (customer.is_active === 0) {
+    //   return res.status(403).json({ message: 'ບັນຊີລູກຄ້າຖືກລະງັບການນຳໃຊ້' });
+    // }
+
+    // 3. 🟢 ສ້າງ Token ຂອງລູກຄ້າ ຜ່ານ TokenService
+    // (ໃຊ້ຟັງຊັນ generateCustomerToken ທີ່ເຮົາສ້າງໄວ້ກ່ອນໜ້ານີ້)
+    const token = tokenService.generateCustomerToken(customer.id, customer.phone);
+
+    // 4. ສົ່ງ Token ກັບໄປໃຫ້ Frontend ເພື່ອເອົາໄປແນບ Header (Authorization: Bearer <token>)
+    res.status(200).json({
+      success: true,
+      message: 'ຢືນຢັນ OTP ສຳເລັດ, ໄດ້ຮັບ Token ແລ້ວ',
+      token: token,
+      customer: {
+        id: customer.id,
+        phone: customer.phone,
+        first_name: customer.first_name,
+        last_name: customer.last_name
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ Verify OTP for Token Error:', error);
     res.status(error.statusCode || 500).json({ message: error.message });
   }
 };

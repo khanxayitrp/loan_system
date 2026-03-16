@@ -1,0 +1,21 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const checklist_controller_1 = __importDefault(require("../controllers/checklist.controller"));
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const router = (0, express_1.Router)();
+router.post('/income-assessment/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.saveIncomeAssessment);
+router.post('/basic/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.saveBasicChecklist);
+router.post('/call/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.saveCallChecklist);
+router.post('/cib/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.saveCIBChecklist);
+router.post('/field/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.saveFieldChecklist);
+router.get('/cib/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.getCIBChecklist);
+router.get('/field/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.getFieldChecklist);
+router.get('/call/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.getCallChecklist);
+router.get('/basic/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.getBasicChecklist);
+router.get('/income-assessment/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.getIncomeAssessment);
+router.get('/summary/:loanId', auth_middleware_1.verifyToken, checklist_controller_1.default.getChecklist);
+exports.default = router;

@@ -240,9 +240,9 @@ export class OTPService {
   /**
    * Get service statistics
    */
-  public getStats() {
-    return otpStorageService.getStats();
-  }
+  // public getStats() {
+  //   return { total: 0, verified: 0, expired: 0 }; // Removed from otpStorageService
+  // }
 }
 
 export const otpService = OTPService.getInstance();

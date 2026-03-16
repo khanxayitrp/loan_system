@@ -4,12 +4,14 @@ import { users } from '../models/users';
 import config from '../config/auth.config';
 import { TokenPayload } from '../interfaces/token.interface';
 import { isTokenBlacklisted } from '../services/tokenBlacklist.service';
+import { db } from '../models/init-models';
 
 declare global {
   namespace Express {
     interface Request {
       user?: users;
       userPayload?: TokenPayload; 
+      customerPayload?: TokenPayload; // 🟢 เพิ่ม Payload สำหรับลูกค้า
     }
   }
 }
@@ -79,7 +81,7 @@ export const isAuthorized = (allowedRoles: Role[], allowedLevels: StaffLevel[] =
     }
 
     const hasRole = allowedRoles.includes(user.role as Role);
-    const hasLevel = allowedLevels.length === 0 || allowedLevels.includes(user.staff_level as StaffLevel);
+    const hasLevel = allowedLevels.length === 0 || allowedLevels.includes((user.staff_level || 'none') as StaffLevel);
 
     if (!hasRole || !hasLevel) {
       return res.status(403).json({ message: 'Forbidden: You do not have the required permissions.' });
@@ -119,4 +121,45 @@ export const optionalVerifyToken = async (req: Request, res: Response, next: Nex
   }
 
   await processTokenVerification(token, req, res, next);
+};
+
+// ============================================================================
+// 🟢 3. สำหรับลูกค้าระบบหน้าบ้าน (Customer Portal)
+// ============================================================================
+export const verifyCustomerToken = async (req: Request, res: Response, next: NextFunction) => {
+  const token = req.cookies.customerToken || req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Access denied. No customer token provided.' });
+  }
+
+  if (isTokenBlacklisted(token)) {
+    return res.status(401).json({ message: 'Token is blacklisted' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, config.secret!) as TokenPayload;
+    
+    // ตรวจสอบว่าเป็น Token ของลูกค้าจริงๆ ไม่ใช่พนักงานเอา Token มาใช้มั่วซั่ว
+    if (decoded.role !== 'customer') {
+      return res.status(403).json({ message: 'Forbidden: Invalid token role.' });
+    }
+
+    // ดึงข้อมูลลูกค้าจากตาราง customers (สมมติชื่อโมเดลคือ Customer)
+    const customer = await db.customers.findByPk(decoded.userId);
+
+    if (!customer) {
+      return res.status(401).json({ message: 'Customer does not exist' });
+    }
+
+    // แนบข้อมูลลูกค้าลงใน Request
+    req.customerPayload = decoded;
+    return next();
+
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ message: 'Customer token expired.', code: 'TOKEN_EXPIRED' });
+    }
+    return res.status(401).json({ message: 'Invalid customer token.' });
+  }
 };
