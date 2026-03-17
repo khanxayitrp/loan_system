@@ -223,4 +223,6 @@ router.get('/me', verifyToken, authController.getCurrentUser);
 
 router.post('/refresh', authController.refresh); // เพิ่ม route สำหรับ refresh token
 
+router.get('/checkLogin', verifyToken, authController.fetchFirstLoginInfo); // เพิ่ม route สำหรับเช็คว่า user ยัง login อยู่หรือไม่
+
 export default router;

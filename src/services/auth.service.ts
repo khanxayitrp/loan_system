@@ -273,6 +273,12 @@ class AuthService {
       throw new Error(error.message);
     }
   }
+
+  public async getFirstLoggedInUser(userId: number) {
+    return await db.user_refresh_tokens.count({
+      where: { user_id: userId }
+    });
+  }
 }
 
 export default new AuthService();

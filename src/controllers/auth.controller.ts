@@ -196,6 +196,26 @@ class AuthController {
     }
   }
 
+  public async fetchFirstLoginInfo(req: Request, res: Response) {
+    try {
+      const userId = req.userPayload?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: 'ไม่พบข้อมูลผู้ใช้งาน' });
+      }
+
+      const loginCount = await authService.getFirstLoggedInUser(userId);
+
+      return res.status(200).json({ 
+        message: 'ข้อมูลการเข้าสู่ระบบ',
+        data: loginCount
+      });
+    }
+      catch (error: any) {
+        return res.status(500).json({ message: error.message });
+      }
+  }
+
   // 🟢 Helper ฟังก์ชันเพื่อเซ็ต Cookie อย่างปลอดภัย
   public static setTokenCookies(res: Response, tokens: any) {
     const isProd = process.env.NODE_ENV === 'production';

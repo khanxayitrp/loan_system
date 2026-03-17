@@ -221,9 +221,9 @@ export const sentApplyDraft = async (req: Request, res: Response) => {
         const performedBy = req.userPayload?.userId || 1;
 
         // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
-        if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
-            throw new ValidationError('OTP ບໍ່ຖືກຕ້ອງ ຫລື ຫມົດອາຍຸ');
-        }
+        // if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
+        //     throw new ValidationError('OTP ບໍ່ຖືກຕ້ອງ ຫລື ຫມົດອາຍຸ');
+        // }
 
         const loanApp = await loanAppRepo.findLoanApplicationById(Number(id));
 
@@ -272,9 +272,22 @@ export const createWithCustomer = async (req: Request, res: Response) => {
         const performedBy = staffId || 1; 
 
         // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
-        if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
-            throw new ValidationError('OTP ບໍ່ຖືກຕ້ອງ ຫລື ຫມົດອາຍຸ');
-        }
+        if (!phone || !otp) {
+      throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
+    }
+
+    const verificationResult = await otpService.verifyOTP({
+      phoneNumber: phone,
+      otp
+    });
+
+         // 🟢 ชี้ไปที่ .success แบบนี้เลยครับ
+    if (!verificationResult.success) {
+      return res.status(400).json({ 
+        message: verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ',
+        data: verificationResult.data // ส่งจำนวนครั้งที่เหลือกลับไปให้ Frontend ด้วยก็ได้ครับ
+      });
+    }
 
         // 2. Get or Create Customer
         let customer;
