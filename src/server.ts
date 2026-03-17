@@ -61,9 +61,11 @@ class ServerApp {
       this.httpServer.keepAliveTimeout = 120000;
       this.httpServer.headersTimeout = 120000;
 
-      this.httpServer.listen(availablePort, () => {
+      this.httpServer.listen(availablePort, '0.0.0.0', () => {
         const HOST = process.env.HOST || 'localhost';
         logger.info(`🚀 Server running on: ➜ \u001b[34mhttp://${HOST}:${availablePort}\u001b[0m`);
+        // แนะนำให้พิมพ์ IP ของวง LAN ออกมาดูด้วยเลย จะได้ก๊อปปี้ไปวางเครื่องอื่นง่ายๆ
+        logger.info(`🌐 Network access: ➜ \u001b[34mhttp://0.0.0.0:${availablePort}\u001b[0m`);
         logger.info(`📊 Redis status: ${redisService.isClientConnected() ? '✅ Connected' : '❌ Disconnected'}`);
       });
     })

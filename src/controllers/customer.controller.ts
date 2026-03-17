@@ -124,14 +124,17 @@ export const verifyOtpAndGetToken = async (req: Request, res: Response) => {
       throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
     }
 
-    // 1. ຢືນຢັນ OTP ຜ່ານ otpService (ຄືກັນກັບຕອນ createCustomer)
-    const isValid = await otpService.verifyOTP({
+    const verificationResult = await otpService.verifyOTP({
       phoneNumber: phone,
       otp
     });
 
-    if (!isValid) {
-      return res.status(400).json({ message: 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ' });
+    // 🟢 ชี้ไปที่ .success แบบนี้เลยครับ
+    if (!verificationResult.success) {
+      return res.status(400).json({ 
+        message: verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ',
+        data: verificationResult.data // ส่งจำนวนครั้งที่เหลือกลับไปให้ Frontend ด้วยก็ได้ครับ
+      });
     }
 
     // 2. ຄົ້ນຫາລູກຄ້າໃນຖານຂໍ້ມູນ ດ້ວຍເບີໂທ

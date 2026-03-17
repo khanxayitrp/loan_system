@@ -8,18 +8,18 @@ import path from 'path';
 import { initModels } from './models/init-models';
 import { sequelize } from './config/db.config';
 import helmet from 'helmet';
-import { limiter } from './middlewares/rateLimiter';
+import { globalLimiter, authLimiter, heavyTaskLimiter } from './middlewares/rateLimiter';
 import redisService from './services/redis.service';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-
+import indexRoutes from './routes/index';
 dotenv.config();
 
 
 // import authRoutes from './routes/auth.route';
 // import employeeRoutes from './routes/employee.route';
 // import userRoutes from './routes/user.route';
-import indexRoutes from './routes/index';
+
 
 // Placeholder for JWT authentication middleware
 const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
@@ -31,7 +31,7 @@ const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
 class App {
     public app: express.Application;
     private corsOptions: cors.CorsOptions = {
-        origin: ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.7:5173'], // Replace with your allowed origins
+        origin: ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.118:5173'], // Replace with your allowed origins
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
         allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
         credentials: true,
@@ -49,6 +49,10 @@ class App {
                     url: 'http://localhost:15520/api',
                     description: 'Development server',
                 },
+                {
+                    url: 'http://192.168.101.118:15520/api', // 🟢 เพิ่ม IP วง LAN ของเครื่องเซิร์ฟเวอร์คุณเข้าไป
+                    description: 'LAN Server'
+                }
             ], components: {
                 securitySchemes: {
                     bearerAuth: {
@@ -91,20 +95,21 @@ class App {
         this.app.use(cookieParser());
         // this.app.use(bodyParser.json({ limit: '50mb' }));
         this.app.use(helmet({
-            //contentSecurityPolicy: false,
+            contentSecurityPolicy: false,
             crossOriginEmbedderPolicy: false,
             crossOriginResourcePolicy: false,
+            hsts: false
         }));
 
-          // ✅ ປັບ rate limiter ບໍ່ໃຫ້ block PDF requests
-    this.app.use((req, res, next) => {
-        if (req.path.includes('/pdf') || req.path.includes('/generate')) {
-            // ຂ້າມ rate limiter ສຳລັບ PDF generation
-            next();
-        } else {
-            limiter(req, res, next);
-        }
-    });
+        // ✅ ປັບ rate limiter ບໍ່ໃຫ້ block PDF requests
+        // this.app.use((req, res, next) => {
+        //     if (req.path.includes('/pdf') || req.path.includes('/generate')) {
+        //         // ຂ້າມ rate limiter ສຳລັບ PDF generation
+        //         heavyTaskLimiter(req, res, next);
+        //     } else {
+        //         globalLimiter(req, res, next);
+        //     }
+        // });
         // this.app.use(limiter);
     }
 
@@ -121,8 +126,12 @@ class App {
 
         // // Mount authentication routes
         // this.app.use('/api/auth', authRoutes);
+        // 1. ດັກໜ້າ Route ທີ່ກ່ຽວກັບ Login/Auth
+        this.app.use('/api/auth/login', authLimiter);
+        this.app.use('/api/auth/refresh', authLimiter);
 
-
+this.app.use('/api/pdf', heavyTaskLimiter);
+        this.app.use('/api/generate', heavyTaskLimiter);
 
         // // Mount employee and user routes with JWT authentication placeholder
         // this.app.use('/api/employees', authenticateJWT, employeeRoutes);
@@ -209,7 +218,7 @@ class App {
         //     }
         // });
 
-        this.app.use('/api', indexRoutes);
+        this.app.use('/api', globalLimiter, indexRoutes);
 
         // Swagger UI
         const specs = swaggerJsdoc(this.swaggerOptions);
@@ -228,12 +237,12 @@ class App {
         });
 
         // // 404 handler
-        // this.app.use('*', (req: Request, res: Response) => {
-        //     res.status(404).json({
-        //         success: false,
-        //         message: `Route ${req.originalUrl} not found`
-        //     });
-        // });
+        this.app.use((req: Request, res: Response) => {
+            res.status(404).json({
+                success: false,
+                message: `Route ${req.originalUrl} not found`
+            });
+        });
 
         // Global error handler
         this.app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
