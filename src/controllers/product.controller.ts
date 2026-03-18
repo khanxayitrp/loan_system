@@ -4,6 +4,7 @@ import { logger } from '../utils/logger'
 import { products } from '../models/products'
 import { NotFoundError, ValidationError, handleErrorResponse } from '../utils/errors';
 import { db } from '../models/init-models'
+import redisService from '../services/redis.service';
 
 class ProductController {
     public static validateQueryParams(query: any): string[] {
@@ -66,6 +67,9 @@ class ProductController {
                 is_active: data.is_active,
             }
             const newProduct = await productRepo.createProduct(mapData);
+            // 🟢 ຫຼັງຈາກສ້າງສິນຄ້າສຳເລັດ ໃຫ້ລ້າງແຄຊຂອງສິນຄ້າທັງໝົດ
+            await redisService.delByPattern('cache:products:*');
+
             return res.status(201).json({ message: 'ສ້າງສິນຄ້າສຳເລັດ', data: newProduct });
         } catch (error: any) {
             logger.error('Error in createProductType controller', { error: error.message });
@@ -77,11 +81,22 @@ class ProductController {
     public async getProductById(req: Request, res: Response) {
         try {
             const productId = parseInt(req.params.id, 10);
+            const cacheKey = `cache:products:detail:${productId}`; // 🟢 Key ສຳລັບສິນຄ້ານີ້
+
+            // 🟢 1. ລອງດຶງຈາກ Redis ກ່ອນ
+            const cachedProduct = await redisService.get(cacheKey);
+            if (cachedProduct) {
+                return res.status(200).json({ success: true, product: JSON.parse(cachedProduct) });
+            }
+
             const product = await productRepo.findProductById(productId);
             
             if (!product) {
                 return res.status(404).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນສິນຄ້າ' });
             }
+
+            // 🟢 3. ເອົາຂໍ້ມູນທີ່ໄດ້ ໄປເກັບໄວ້ໃນ Redis (ອາຍຸ 1 ຊົ່ວໂມງ = 3600 ວິນາທີ)
+            await redisService.set(cacheKey, JSON.stringify(product), 3600);
 
             return res.status(200).json({ success: true, product: product });
         } catch (error: any) {
@@ -123,7 +138,20 @@ class ProductController {
             productType_id: type !== undefined && type !== '' ? Number(type) : undefined
         };
 
+        // 🟢 1. ສ້າງ Cache Key ຈາກ Filter (ຖ້າ Filter ປ່ຽນ Key ກໍຈະປ່ຽນ)
+            const cacheKey = `cache:products:list:${JSON.stringify(options)}`;
+
+            // 🟢 2. ກວດສອບ Redis
+            const cachedProducts = await redisService.get(cacheKey);
+            if (cachedProducts) {
+                return res.status(200).json({ products: JSON.parse(cachedProducts) });
+            }
+
         const product = await productRepo.findAllActiveProducts(options);
+
+        // 🟢 4. ເຊບລົງ Redis (ອາຍຸ 1 ຊົ່ວໂມງ)
+            await redisService.set(cacheKey, JSON.stringify(product), 3600);
+
         return res.status(200).json({ products: product });
     } catch (error: any) {
         logger.error('Error in getAllProduct controller', { error: error.message });
@@ -169,6 +197,10 @@ class ProductController {
             const partnerId = req.userPayload?.userId as number;
             const data = req.body;
             const updateProduct = await productRepo.updateProduct(productId, partnerId, data);
+            
+            // 🟢 ລ້າງແຄຊສິນຄ້າທັງໝົດທິ້ງ (ລວມເຖິງ List ແລະ Detail)
+            await redisService.delByPattern('cache:products:*');
+
             return res.status(200).json({ message: 'ອັບເດດສຶນຄ້າສຳເລັດ', data: updateProduct });
         } catch (error: any) {
             logger.error('Error in updateProduct controller', { error: error.message });
@@ -192,6 +224,10 @@ class ProductController {
                     is_active === 1 ? 'ບໍ່ພົບສິນຄ້າທີ່ຕ້ອງການປິດໃຊ້ງານ' : 'ບໍ່ພົບສິນຄ້າທີ່ຕ້ອງການເປີດໃຊ້ງານ');
                 // return res.status(404).json({ message });
             }
+
+            // 🟢 ລ້າງແຄຊ
+            await redisService.delByPattern('cache:products:*');
+
             return res.status(200).json({ success: true, message: is_active === 1 ? 'ປິດໃຊ້ງານສິນຄ້າສຳເລັດ' : 'ເປີດໃຊ້ງານສິນຄ້າສຳເລັດ' });
             // return res.status(200).json({ message: 'ປິດການໃຊ້ງານສິນຄ້າສຳເລັດ', product: updatedProduct });
         } catch (error: any) {
@@ -226,6 +262,9 @@ class ProductController {
             });
         }
 
+        // 🟢 ລ້າງແຄຊ
+            await redisService.delByPattern('cache:products:*');
+
         return res.status(200).json({ 
             success: true, 
             message: `ອັບເດດສະຖານະສຳເລັດ ${updatedCount} ລາຍການ`,
@@ -250,6 +289,10 @@ class ProductController {
         try {
             const partnerId = req.userPayload?.userId as number;
             const updatedProduct = await productRepo.deleteAllProductsByPartnerId(partnerId);
+            
+            // 🟢 ລ້າງແຄຊ
+            await redisService.delByPattern('cache:products:*');
+            
             return res.status(200).json({ message: 'ປິດການໃຊ້ງານສິນຄ້າສຳເລັດ', product: updatedProduct });
         } catch (error: any) {
             logger.error('Error in deActivatedAllProductByPartnerId controller', { error: error.message });

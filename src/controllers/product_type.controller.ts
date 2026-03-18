@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import ProductTypeRepo from '../repositories/product_type.repo';
 import { logger } from '../utils/logger';
 import { ValidationError, NotFoundError, InternalServerError, handleErrorResponse } from '../utils/errors';
+import redisService from '../services/redis.service'; // 🟢 Import Redis
 
 class ProductTypeController {
 
@@ -46,6 +47,10 @@ class ProductTypeController {
                 is_active: data.is_active
             }
             const newProductType = await ProductTypeRepo.createProductType(mapData);
+            
+            // 🟢 ລ້າງແຄຊປະເພດສິນຄ້າທັງໝົດ
+            await redisService.delByPattern('cache:product_types:*');
+
             return res.status(201).json({ message: 'ສ້າງປະເພດສິນຄ້າສຳເລັດ', data: newProductType });
         } catch (error: any) {
             logger.error('Error in createProductType controller', { error: error.message });
@@ -73,7 +78,20 @@ class ProductTypeController {
                 page: Number(page),
                 getAllData: getAllData === 'true'
             };
+
+            // 🟢 1. ກຳນົດ Cache Key ສຳລັບລາຍການປະເພດສິນຄ້າ
+            const cacheKey = `cache:product_types:list:${JSON.stringify(options)}`;
+
+            // 🟢 2. ກວດສອບ Redis ກ່ອນ
+            const cachedProductTypes = await redisService.get(cacheKey);
+            if (cachedProductTypes) {
+                return res.status(200).json({ productTypes: JSON.parse(cachedProductTypes) });
+            }
+            
             const productType = await ProductTypeRepo.findAllActiveProductTypes(options);
+            // 🟢 3. ເຊບລົງ Redis (ອາຍຸ 1 ຊົ່ວໂມງ)
+            await redisService.set(cacheKey, JSON.stringify(productType), 3600);
+
             return res.status(200).json({ productTypes: productType });  
         } catch (error: any) {
             logger.error('Error in getAllProducttypes controller', { error: error.message });
@@ -84,7 +102,21 @@ class ProductTypeController {
     public async getProductTypeById(req: Request, res: Response) {
         try {
             const productTypeId = parseInt(req.params.id, 10);
+            const cacheKey = `cache:product_types:detail:${productTypeId}`;
+
+            // 🟢 ກວດສອບ Redis
+            const cachedType = await redisService.get(cacheKey);
+            if (cachedType) {
+                return res.status(200).json({ productTypes: JSON.parse(cachedType) });
+            }
+
             const productType = await ProductTypeRepo.findProductTypeById(productTypeId);
+            
+            // 🟢 ເຊບລົງ Redis
+            if(productType) {
+                await redisService.set(cacheKey, JSON.stringify(productType), 3600);
+            }
+
             return res.status(200).json({ productTypes: productType });
         } catch (error: any) {
             logger.error('Error in getProductTypeById controller', { error: error.message });
@@ -99,6 +131,12 @@ class ProductTypeController {
             const data = req.body;
             
             const updatedProductType = await ProductTypeRepo.updateProductType(productTypeId, partnerId, data);
+           
+           // 🟢 ລ້າງແຄຊ
+            await redisService.delByPattern('cache:product_types:*');
+            // 💡 ເນື່ອງຈາກການແກ້ໄຂ "ປະເພດສິນຄ້າ" ອາດສົ່ງຜົນກະທົບຕໍ່ໜ້າລາຍຊື່ສິນຄ້າ (ຊື່ປະເພດປ່ຽນ) ຄວນລ້າງແຄຊ products ນຳ
+            await redisService.delByPattern('cache:products:*');
+
             return res.status(200).json({ message: 'อัปเดตประเภทสินค้าเรียบร้อย', data: updatedProductType });
         } catch (error: any) {
             logger.error('Error in updateProductType controller', { error: error.message });
@@ -111,6 +149,11 @@ class ProductTypeController {
             console.log('productTypeId is :', productTypeId)
             const partnerId = req.userPayload?.userId as number;
             const updatedProductType = await ProductTypeRepo.deleteProductType(productTypeId, partnerId);
+            
+            // 🟢 ລ້າງແຄຊ
+            await redisService.delByPattern('cache:product_types:*');
+            await redisService.delByPattern('cache:products:*');
+            
             return res.status(200).json({ message: 'ปิดใช้งานประเภทสินค้าเรียบร้อย', productType: updatedProductType });
         } catch (error: any) {
             logger.error('Error in deActivatedProductType controller', { error: error.message });
