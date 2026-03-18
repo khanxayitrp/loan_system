@@ -1,10 +1,11 @@
 // src/services/document.service.ts
-
 import { db } from '../models/init-models';
 import fileUploadService from './fileUpload.service';
 import { FILE_UPLOAD_CONFIG, DocumentType, UploadedFile } from '../types/file.types';
 import { logger } from '../utils/logger';
 import { NotFoundError, ForbiddenError } from '@/utils/errors';
+import fs from 'fs/promises';
+import path from 'path';
 
 interface CreateDocumentData {
   application_id: number;
@@ -24,38 +25,152 @@ interface DocumentRecord {
 }
 
 class DocumentService {
+
+  // =========================================================================
+  // 🟢 HELPER METHODS สำหรับเคลียร์ไฟล์ขยะ (Orphaned Files)
+  // =========================================================================
+  
+  private async findDocumentsUploadsDirectory(): Promise<string | null> {
+    const possiblePaths = [
+      path.resolve(process.cwd(), 'public', 'uploads', 'documents'),
+      path.resolve(process.cwd(), 'uploads', 'documents'),
+      path.resolve(process.cwd(), 'src', 'public', 'uploads', 'documents'),
+      path.resolve(process.cwd(), '..', 'public', 'uploads', 'documents'),
+    ];
+    for (const testPath of possiblePaths) {
+      try {
+        await fs.access(testPath);
+        return testPath;
+      } catch { }
+    }
+    return null;
+  }
+
+  /**
+   * ค้นหาและลบไฟล์เอกสารในโฟลเดอร์ที่ไม่มี URL ปรากฏอยู่ใน Database แล้ว
+   * (เรียกใช้หลังจากบันทึกไฟล์ใหม่เสร็จสิ้น เพื่อไม่ให้กระทบ Transaction หลัก)
+   */
+  private async cleanupOrphanedApplicationDocuments(application_id: number): Promise<number> {
+    try {
+      // 1. ดึง URL ของไฟล์ทั้งหมดที่ยังผูกอยู่กับ Application นี้ในฐานข้อมูล
+      const dbRecords = await db.application_documents.findAll({
+        where: { application_id },
+        attributes: ['file_url'],
+        raw: true
+      });
+
+      const dbFileUrls = new Set<string>();
+      dbRecords.forEach((r: any) => {
+        if (r.file_url) dbFileUrls.add(r.file_url.trim());
+      });
+
+      // 2. หาโฟลเดอร์เก็บไฟล์ (อิงจาก FILE_UPLOAD_CONFIG.DOCUMENTS.path)
+      const baseUploadDir = await this.findDocumentsUploadsDirectory();
+      if (!baseUploadDir) return 0;
+
+      // 3. ค้นหาไฟล์ทั้งหมดในโฟลเดอร์ที่ขึ้นต้นด้วย app_id นี้
+      // (อิงจากการตั้งชื่อใน uploadResult: `app_${application_id}_`)
+      const pattern = `app_${application_id}_`;
+      const allFilePaths: string[] = [];
+
+      const searchDirectory = async (dir: string) => {
+        try {
+          const entries = await fs.readdir(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              await searchDirectory(fullPath);
+            } else if (entry.isFile() && entry.name.includes(pattern)) {
+              allFilePaths.push(fullPath);
+            }
+          }
+        } catch (err) { }
+      };
+      await searchDirectory(baseUploadDir);
+
+      if (allFilePaths.length === 0) return 0;
+
+      // 4. เปรียบเทียบไฟล์จริง กับ URL ในฐานข้อมูล
+      const orphanedFiles: string[] = [];
+      for (const filePath of allFilePaths) {
+        const normalizedPath = filePath.replace(/\\/g, '/');
+        // ดึงเฉพาะส่วนของ URL เช่น /uploads/documents/app_1_id_card.pdf
+        const match = normalizedPath.match(/uploads\/documents\/(.+)$/);
+        if (match) {
+          const dbUrl = `/uploads/documents/${match[1]}`;
+          if (!dbFileUrls.has(dbUrl)) {
+            orphanedFiles.push(filePath); // ไฟล์นี้ไม่มีใน DB = เป็นขยะ
+          }
+        }
+      }
+
+      // 5. สั่งลบไฟล์ขยะ
+      if (orphanedFiles.length > 0) {
+        let deletedCount = 0;
+        for (const filePath of orphanedFiles) {
+          try {
+            await fs.unlink(filePath); // ลบไฟล์โดยตรงผ่าน fs
+            deletedCount++;
+          } catch (e) { 
+            logger.warn(`Could not delete orphaned document: ${filePath}`);
+          }
+        }
+        if (deletedCount > 0) {
+          logger.info(`🗑️ Cleaned up ${deletedCount} orphaned document files for app_id: ${application_id}`);
+        }
+        return deletedCount;
+      }
+
+      return 0;
+    } catch (error) {
+      logger.error(`Error during document cleanup for app_id ${application_id}:`, error);
+      return 0;
+    }
+  }
+
+
+  // =========================================================================
+  // 🟢 CORE METHODS (อัปโหลด, ลบ, แทนที่)
+  // =========================================================================
+
   /**
    * อัปโหลดเอกสารสำหรับ loan application
    */
-  async uploadApplicationDocument(
-    data: CreateDocumentData
-  ): Promise<DocumentRecord> {
-
-    const transaction = await db.sequelize.transaction(); // เริ่ม Transaction
+  async uploadApplicationDocument(data: CreateDocumentData): Promise<DocumentRecord> {
+    const transaction = await db.sequelize.transaction();
     let uploadedPath: string | null = null;
+    
     try {
-      // ตรวจสอบว่า application มีอยู่จริง
-      const application = await db.loan_applications.findByPk(data.application_id, {transaction});
-      if (!application) {
-        throw new NotFoundError('Loan application not found');
-      }
+      const application = await db.loan_applications.findByPk(data.application_id, { transaction });
+      if (!application) throw new NotFoundError('Loan application not found');
 
       if (application.is_confirmed === 1) {
-  throw new ForbiddenError('ไม่สามารถอัปโหลดเอกสารเพิ่มได้หลังยื่นคำขอแล้ว');
-}
+        throw new ForbiddenError('ไม่สามารถอัปโหลดเอกสารเพิ่มได้หลังยื่นคำขอแล้ว');
+      }
 
-      // อัปโหลดไฟล์
+      // 1. ค้นหาว่ามีไฟล์ประเภทนี้ (doc_type) อยู่แล้วหรือไม่ ถ้ามีให้ลบออกจาก DB ก่อน (ป้องกันขยะในตาราง)
+      const existingDoc = await db.application_documents.findOne({
+        where: { application_id: data.application_id, doc_type: data.doc_type },
+        transaction
+      });
+
+      if (existingDoc) {
+        await existingDoc.destroy({ transaction });
+      }
+
+      // 2. อัปโหลดไฟล์ไปที่ Storage
       const uploadResult = await fileUploadService.uploadSingleFile(
         data.file,
         FILE_UPLOAD_CONFIG.DOCUMENTS,
-        `app_${data.application_id}_${data.doc_type}_${Date.now()}` // เติม Date.now ป้องกันชื่อซ้ำ
+        `app_${data.application_id}_${data.doc_type}_${Date.now()}` // เติมเวลาป้องกันชื่อซ้ำ
       );
 
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || 'Failed to upload file');
       }
-      uploadedPath = uploadResult.fileUrl!; // เก็บ path ไว้เผื่อต้องลบทิ้งถ้า DB พัง
-      // บันทึกข้อมูลลง database
+      uploadedPath = uploadResult.fileUrl!;
+
+      // 3. บันทึกข้อมูลลง Database
       const document = await db.application_documents.create({
         application_id: data.application_id,
         file_url: uploadedPath,
@@ -65,28 +180,18 @@ class DocumentService {
         doc_type: data.doc_type
       }, { transaction });
 
-      // 4. ถ้าทุกอย่างเรียบร้อย สั่ง Commit
       await transaction.commit();
-
       logger.info(`Document saved: ${uploadedPath}`);
+
+      // 🟢 4. สั่งเคลียร์ไฟล์ขยะเบื้องหลัง (Background Task)
+      this.cleanupOrphanedApplicationDocuments(data.application_id).catch(e => {
+          logger.error('Failed to cleanup documents in background', e);
+      });
+
       return document.get({ plain: true }) as DocumentRecord;
 
-      // logger.info(
-      //   `Document uploaded for application ${data.application_id}: ${uploadResult.fileName}`
-      // );
-
-      //   return document.get({ plain: true });
-      // Since you just created it with a valid doc_type, it's safe to assert
-
-
-      // const plain = document.get({ plain: true }) as DocumentRecord;
-      // return plain;
     } catch (error) {
-
-      // 5. ถ้าพัง ให้ Rollback Database
       await transaction.rollback();
-
-      // 6. !!! สำคัญ: ถ้าอัปโหลดไฟล์ไปแล้วแต่ DB พัง ให้ลบไฟล์ทิ้งทันที
       if (uploadedPath) {
         const filePathToRemove = uploadedPath.replace(/^\//, '');
         await fileUploadService.deleteFile(filePathToRemove).catch(err => 
@@ -120,9 +225,71 @@ class DocumentService {
         results.push(result);
       }
 
+      // Cleanup ถูกเรียกใช้ไปแล้วใน uploadApplicationDocument ของแต่ละลูป
       return results;
     } catch (error) {
       logger.error('Error uploading multiple documents:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ลบเอกสาร
+   */
+  async deleteDocument(document_id: number): Promise<boolean> {
+    const transaction = await db.sequelize.transaction();
+    try {
+      const document = await db.application_documents.findByPk(document_id);
+
+      if (!document) throw new Error('Document not found');
+
+      const fileUrl = document.file_url;
+      const appId = document.application_id;
+
+      // ลบจาก database ก่อน
+      await document.destroy({ transaction });
+
+      // ลบไฟล์จาก storage
+      const filePath = fileUrl.replace(/^\//, '');
+      await fileUploadService.deleteFile(filePath);
+
+      await transaction.commit();
+
+      // สั่งเคลียร์เผื่อมีไฟล์อื่นตกค้าง
+      this.cleanupOrphanedApplicationDocuments(appId).catch(() => {});
+
+      return true;
+    } catch (error) {
+      await transaction.rollback();
+      logger.error('Error deleting document:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ลบเอกสารทั้งหมดของ application (ใช้เมื่อยกเลิกคำขอ)
+   */
+  async deleteAllApplicationDocuments(application_id: number): Promise<boolean> {
+    try {
+      const documents = await this.getApplicationDocuments(application_id);
+
+      // ลบไฟล์ทั้งหมด
+      const filePaths = documents.map(doc => doc.file_url.replace(/^\//, ''));
+      await fileUploadService.deleteFiles(filePaths);
+
+      // ลบจาก database
+      await db.application_documents.destroy({
+        where: { application_id }
+      });
+
+      logger.info(`All documents deleted for application ${application_id}`);
+
+      // 🟢 กวาดขยะรอบสุดท้าย
+      this.cleanupOrphanedApplicationDocuments(application_id).catch(() => {});
+
+      return true;
+    } catch (error) {
+      logger.error('Error deleting all application documents:', error);
       throw error;
     }
   }
@@ -173,47 +340,6 @@ class DocumentService {
     }));
     } catch (error) {
       logger.error('Error getting documents by type:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * ลบเอกสาร
-   */
-  async deleteDocument(document_id: number): Promise<boolean> {
-    const transaction = await db.sequelize.transaction();
-    try {
-      const document = await db.application_documents.findByPk(document_id);
-
-      if (!document) {
-        throw new Error('Document not found');
-      }
-
-      // const plainDoc = document.get({ plain: true });
-
-      // // ลบไฟล์จาก storage
-      // const filePath = plainDoc.file_url.replace(/^\//, ''); // ลบ / ด้านหน้า
-      // await fileUploadService.deleteFile(filePath);
-
-      // // ลบจาก database
-      // await document.destroy();
-
-      // logger.info(`Document ${document_id} deleted successfully`);
-      // return true;
-      const fileUrl = document.file_url;
-
-      // ลบจาก database ก่อน
-      await document.destroy({ transaction });
-
-      // ลบไฟล์จาก storage
-      const filePath = fileUrl.replace(/^\//, '');
-      await fileUploadService.deleteFile(filePath);
-
-      await transaction.commit();
-      return true;
-    } catch (error) {
-      await transaction.rollback();
-      logger.error('Error deleting document:', error);
       throw error;
     }
   }
@@ -302,31 +428,6 @@ class DocumentService {
     }
   }
 
-  /**
-   * ลบเอกสารทั้งหมดของ application (ใช้เมื่อยกเลิกคำขอ)
-   */
-  async deleteAllApplicationDocuments(
-    application_id: number
-  ): Promise<boolean> {
-    try {
-      const documents = await this.getApplicationDocuments(application_id);
-
-      // ลบไฟล์ทั้งหมด
-      const filePaths = documents.map(doc => doc.file_url.replace(/^\//, ''));
-      await fileUploadService.deleteFiles(filePaths);
-
-      // ลบจาก database
-      await db.application_documents.destroy({
-        where: { application_id }
-      });
-
-      logger.info(`All documents deleted for application ${application_id}`);
-      return true;
-    } catch (error) {
-      logger.error('Error deleting all application documents:', error);
-      throw error;
-    }
-  }
 }
 
 export default new DocumentService();
