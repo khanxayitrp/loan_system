@@ -40,22 +40,30 @@ export class OTPService {
       const existingOTP = await otpStorageService.get(formattedPhone);
       if (existingOTP && !existingOTP.verified) {
         const remainingTime = Math.ceil((existingOTP.expiresAt.getTime() - Date.now()) / 1000);
-        if (remainingTime > 0) {
-          logger.info('OTP already sent and not expired', {
+        
+        // 🟢 ປ່ຽນເງື່ອນໄຂ: ຖ້າເວລາເຫຼືອ >= 60 ວິນາທີ ຈຶ່ງຈະບັອກບໍ່ໃຫ້ຂໍໃໝ່
+        // (ແປວ່າຖ້າເຫຼືອ < 60 ວິນາທີ ຈະຫຼຸດອອກຈາກ if ນີ້ແລ້ວໄປສ້າງ OTP ໃໝ່ເລີຍ)
+        if (remainingTime >= 60) {
+          logger.info('OTP already sent and not expired yet', {
             phoneNumber: formattedPhone,
             remainingTime,
           });
+          
+          // ຄຳນວນເວລາທີ່ຕ້ອງລໍຖ້າແທ້ໆ (ລົບອອກ 60 ວິນາທີທີ່ອະນຸລົມໃຫ້)
+          const waitTime = remainingTime - 60; 
+          
           return {
             success: false,
-            message: `OTP already sent. Please wait ${Math.ceil(remainingTime / 60)} minute(s) before requesting again.`,
+            message: `OTP already sent. Please wait ${waitTime} second(s) before requesting again.`,
             data: {
               expiresIn: remainingTime,
+              waitToResend: waitTime // ບອກ Client ວ່າຕ້ອງລໍຖ້າອີກຈັກວິນາທີຈຶ່ງກົດໄດ້
             },
           };
         }
       }
 
-      // Generate OTP
+      // Generate OTP (ຖ້າເວລາເຫຼືອ < 60 ມັນຈະມາເຮັດວຽກບ່ອນນີ້ ແລະ ທັບ OTP ເກົ່າ)
       const otp = generateOTP();
 
       // Create message
@@ -79,7 +87,7 @@ export class OTPService {
         };
       }
 
-      // Store OTP
+      // Store OTP (ນີ້ຈະເປັນການ Replace ລະຫັດ OTP ເກົ່າທີ່ຍັງເຫຼືອເວລາ < 60 ວິນາທີນັ້ນຖິ້ມເລີຍ)
       await otpStorageService.store(formattedPhone, otp);
 
       logger.info('OTP sent successfully', {

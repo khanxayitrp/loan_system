@@ -42,7 +42,7 @@ class LoanApplicationRepository {
                 attributes: ['loan_id'],
                 transaction
             });
-            
+
             let newSequence = 1;
             if (last_loan_id?.loan_id) {
                 const parts = last_loan_id.loan_id.split('-');
@@ -69,16 +69,16 @@ class LoanApplicationRepository {
                 credit_score: cleanLoanApplication.credit_score || null,
                 remarks: cleanLoanApplication.remarks || null,
             };
-            
+
             const newLoanApplication = await db.loan_applications.create(mapData, { transaction });
-            
+
             // 🟢 บันทึก Audit Log (CREATE)
             const performedBy = cleanLoanApplication.requester_id || 1;
             await logAudit('loan_applications', newLoanApplication.id, 'CREATE', null, newLoanApplication.toJSON(), performedBy, transaction);
 
             logger.info(`Loan application created with ID: ${newLoanApplication.id}`);
             return newLoanApplication;
-            
+
         } catch (error) {
             logger.error(`Error creating loan application: ${(error as Error).message}`);
             throw error;
@@ -115,6 +115,11 @@ class LoanApplicationRepository {
                             model: db.partners,
                             as: 'partner',
                             attributes: ['id', 'shop_id', 'shop_name', 'shop_owner', 'contact_number', 'shop_logo_url', 'address', 'business_type', 'is_active'],
+                        },
+                        {
+                            model: db.product_types,
+                            as: 'productType',
+                            attributes: ['id', 'type_name']
                         }
                     ]
                 },
@@ -126,7 +131,7 @@ class LoanApplicationRepository {
                 {
                     model: db.loan_guarantors,
                     as: 'loan_guarantors',
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary','date_of_birth', 'age', 'work_location']
+                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location']
                 }
             ],
         });
@@ -162,6 +167,11 @@ class LoanApplicationRepository {
                             model: db.partners,
                             as: 'partner',
                             attributes: ['id', 'shop_id', 'shop_name', 'shop_owner', 'contact_number', 'shop_logo_url', 'address', 'business_type', 'is_active'],
+                        },
+                        {
+                            model: db.product_types,
+                            as: 'productType',
+                            attributes: ['id', 'type_name']
                         }
                     ]
                 },
@@ -178,7 +188,7 @@ class LoanApplicationRepository {
                 {
                     model: db.loan_guarantors,
                     as: 'loan_guarantors',
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary','date_of_birth', 'age', 'work_location', 'work_phone']
+                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_phone']
                 },
                 {
                     model: db.delivery_receipts,
@@ -187,6 +197,109 @@ class LoanApplicationRepository {
                 }
             ],
         });
+    }
+
+    async findLoanApplicationsByCustomerId(filters: any) {
+        const { customerId, status, is_confirmed, min, max, page, limit } = filters;
+        const whereClause: any = {};
+
+        if (customerId) whereClause.customer_id = customerId;
+
+        // 🟢 ຈຸດທີ່ແກ້ໄຂ: ຖ້າສົ່ງ status ມາເປັນ array ຫຼຶ string ທີ່ມີຈຸດ ໃຫ້ເຮັດ Op.in ເລີຍ
+        let inputStatus = filters.status || filters['status[]'];
+        if (inputStatus) {
+            if (Array.isArray(inputStatus)) {
+                whereClause.status = { [Op.in]: inputStatus };
+            } else if (typeof inputStatus === 'string' && inputStatus.includes(',')) {
+                whereClause.status = { [Op.in]: inputStatus.split(',') };
+            } else {
+                whereClause.status = inputStatus;
+            }
+        }
+
+        if (is_confirmed !== undefined) whereClause.is_confirmed = is_confirmed;
+
+        if (min !== undefined || max !== undefined) {
+            whereClause.total_amount = {};
+            if (min !== undefined) whereClause.total_amount[Op.gte] = min;
+            if (max !== undefined) whereClause.total_amount[Op.lte] = max;
+        }
+
+        let pageNum = 1;
+        let limitNum = 10;
+        if (page) pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
+        if (limit) limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
+        const offset = (pageNum - 1) * limitNum;
+
+        // 🟢 1. ດຶງຈຳນວນແຍກຕາມສະຖານະ (ໂດຍອ້າງອີງເງື່ອນໄຂດຽວກັນກັບ Data, ແຕ່ອາດຈະບໍ່ເອົາສະຖານະມາເປັນເງື່ອນໄຂ ເພື່ອໃຫ້ນັບລວມທັງໝົດໄດ້)
+        // ສ້າງ where condition ໃໝ່ສຳລັບນັບສະເພາະລູກຄ້າຄົນນີ້ (ແຕ່ບໍ່ filter ຕາມ status)
+        const countWhereClause: any = { ...whereClause };
+        delete countWhereClause.status; // ລຶບ status ອອກເພື່ອນັບທຸກໆສະຖານະຂອງລູກຄ້າ
+
+        const DataCount = await db.loan_applications.findAll({
+            where: countWhereClause,
+            attributes: [
+                [
+                    db.sequelize.literal(`
+                        CASE 
+                        WHEN status = 'pending' AND is_confirmed = 0 THEN 'draft'
+                        WHEN status = 'pending' AND is_confirmed = 1 THEN 'pending'
+                        WHEN status = 'verifying' THEN 'verifying'
+                        ELSE status 
+                        END
+                    `),
+                    'display_status'
+                ],
+                [db.sequelize.fn('COUNT', db.sequelize.col('*')), 'total']
+            ],
+            // ປ່ຽນຈາກ group: [db.sequelize.literal('display_status')]
+            group: ['display_status'],
+            raw: true,
+        });
+
+        // 🟢 ແປງຜົນລັບຈາກ Array ເປັນ Object ເພື່ອໃຫ້ອ່ານງ່າຍ ເຊັ່ນ { draft: 1, pending: 5, approved: 10 }
+        const countsByStatus: Record<string, number> = {
+            draft: 0,
+            pending: 0,
+            verifying: 0,
+            approved: 0,
+            rejected: 0,
+            cancelled: 0,
+            completed: 0,
+            closed_early: 0
+        };
+
+        (DataCount as any[]).forEach((item) => {
+            const statusName = item.display_status;
+            const count = parseInt(item.total, 10) || 0;
+            if (statusName) {
+                countsByStatus[statusName] = count;
+            }
+        });
+
+        // 🟢 2. ດຶງຂໍ້ມູນລາຍລະອຽດ (Pagination)
+        const result = await db.loan_applications.findAndCountAll({
+            where: whereClause,
+            attributes: ['id', 'loan_id', 'total_amount', 'is_confirmed', 'status', 'created_at', 'updated_at'],
+            include: [
+                { model: db.customers, as: 'customer', attributes: ['id', 'first_name', 'last_name'] },
+                { model: db.products, as: 'product', attributes: ['id', 'product_name', 'image_url'] },
+                
+            ],
+            order: [['created_at', 'DESC']],
+            limit: limitNum,
+            offset: offset,
+            distinct: true // ສຳຄັນຫຼາຍ ເວລາມີ include ທີ່ມີຄວາມສຳພັນແບບ 1:M ເພື່ອໃຫ້ນັບແຖວຫຼັກຖືກຕ້ອງ
+        });
+
+        // 🟢 3. ສົ່ງຂໍ້ມູນກັບຄືນໄປໃນຮູບແບບທີ່ທ່ານຕ້ອງການ
+        return {
+            data: result.rows,              // ຂໍ້ມູນລາຍລະອຽດຂອງໃບຄຳຂໍ
+            total: result.count,            // ຈຳນວນທັງໝົດທີ່ກົງກັບ Filter (ສຳລັບ Pagination)
+            counts: countsByStatus,         // ຂໍ້ມູນຈຳນວນແຍກຕາມສະຖານະ ເຊັ່ນ counts.draft, counts.pending
+            currentPage: pageNum,
+            totalPages: Math.ceil(result.count / limitNum)
+        };
     }
 
     async findLoanApplications(filters: any): Promise<{ rows: loan_applications[]; count: number }> {
@@ -210,7 +323,7 @@ class LoanApplicationRepository {
                 whereClause.status = inputStatus;
             }
         }
-        
+
         if (min !== undefined || max !== undefined) {
             whereClause.total_amount = {};
             if (min !== undefined) whereClause.total_amount[Op.gte] = min;
@@ -245,7 +358,7 @@ class LoanApplicationRepository {
             const loanApplication = await loan_applications.findByPk(loanApplicationId, { transaction });
             if (!loanApplication) {
                 logger.error(`Loan application with ID: ${loanApplicationId} not found`);
-                await transaction.rollback(); 
+                await transaction.rollback();
                 return null;
             }
 
@@ -260,7 +373,7 @@ class LoanApplicationRepository {
             if (customerId && typeof customerId === 'object') {
                 customerId = customerId.id || customerId.customer_id;
             }
-            
+
             // 🟢 1. ย้ายการดึงข้อมูล Customer ขึ้นมาก่อน เพื่อให้มีข้อมูลเก่าไว้เทียบ
             const customer = await db.customers.findByPk(customerId, { transaction });
             if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
@@ -277,7 +390,7 @@ class LoanApplicationRepository {
                 age: data.age !== undefined ? data.age : customer.age,
                 occupation: data.occupation !== undefined ? data.occupation : customer.occupation,
                 income_per_month: data.income_per_month !== undefined ? data.income_per_month : customer.income_per_month,
-                
+
                 // 🔥 ป้องกันฟิลด์สำคัญเหล่านี้หายเมื่อไม่ได้ส่งมา
                 unit: data.unit !== undefined ? data.unit : customer.unit,
                 issue_place: data.issue_place !== undefined ? data.issue_place : customer.issue_place,
@@ -348,7 +461,7 @@ class LoanApplicationRepository {
 
             if (data.approver_id) {
                 const approverUser = await db.users.findByPk(data.approver_id, { transaction: t });
-                
+
                 // ກວດສອບສິດ
                 if (approverUser?.role !== 'admin' && !['approver', 'credit_manager', 'deputy_director', 'director'].includes(approverUser?.staff_level ?? '')) {
                     throw new Error('ທ່ານບໍ່ມີສິດໃນການອະນຸມັດ Loan Application');
@@ -383,7 +496,7 @@ class LoanApplicationRepository {
             }
 
             // 🟢 ກຳນົດ ID ຜູ້ເຮັດລາຍການ ເພື່ອໃຊ້ບັນທຶກ Audit Log ຂອງທຸກໆຕາຕະລາງ
-            const performedBy = updatePayload.approver_id || data.requester_id || 1; 
+            const performedBy = updatePayload.approver_id || data.requester_id || 1;
 
             // ==========================================
             // STEP 4: ບັນທຶກການອັບເດດລົງ loan_applications
@@ -402,7 +515,7 @@ class LoanApplicationRepository {
             // 🟢 STEP 5: ລວບຍອດ ອະນຸມັດຕາຕະລາງຜ່ອນ + ປະທັບຕາລົງສັນຍາ + ຄອນເຟີມສັນຍາ (ພ້ອມ Audit)
             // ==========================================
             if (finalStatus === 'approved' && updatePayload.approver_id) {
-                
+
                 // 5.1 ອັບເດດຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule) ທີ່ເປັນ draft ໃຫ້ເປັນ approved
                 const draftSchedules = await db.repayment_schedules.findAll({
                     where: { application_id: loanApplicationId, status: 'draft' },
@@ -411,12 +524,12 @@ class LoanApplicationRepository {
 
                 for (const schedule of draftSchedules) {
                     const oldSchedData = schedule.toJSON();
-                    await schedule.update({ 
-                        status: 'approved', 
-                        approved_by: updatePayload.approver_id, 
-                        approved_at: new Date() 
+                    await schedule.update({
+                        status: 'approved',
+                        approved_by: updatePayload.approver_id,
+                        approved_at: new Date()
                     }, { transaction: t });
-                    
+
                     // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ repayment_schedules
                     await logAudit('repayment_schedules', schedule.id, 'UPDATE', oldSchedData, schedule.toJSON(), performedBy, t);
                 }
@@ -431,9 +544,9 @@ class LoanApplicationRepository {
                     const oldContractData = contract.toJSON();
 
                     // 🟢 ອັບເດດໃຫ້ສັນຍາຖືກຢືນຢັນ (is_confirmed = 1) ທັນທີ
-                    await contract.update({ 
-                        is_confirmed: 1, 
-                        updated_by: updatePayload.approver_id 
+                    await contract.update({
+                        is_confirmed: 1,
+                        updated_by: updatePayload.approver_id
                     }, { transaction: t });
 
                     // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ loan_contract
@@ -473,7 +586,7 @@ class LoanApplicationRepository {
                             application_id: loanApplicationId,
                             document_type: 'contract',
                             reference_id: contract.id,
-                            role_type: roleType as any, 
+                            role_type: roleType as any,
                             user_id: updatePayload.approver_id,
                             status: 'signed',
                             signed_at: new Date()
@@ -493,8 +606,8 @@ class LoanApplicationRepository {
 
                 if (finalStatus === 'approved') actionType = 'approved';
                 else if (finalStatus === 'rejected') actionType = 'rejected';
-                else if (finalStatus === 'cancelled') actionType = 'cancelled'; 
-                else if (finalStatus === 'pending') actionType = 'returned_for_edit'; 
+                else if (finalStatus === 'cancelled') actionType = 'cancelled';
+                else if (finalStatus === 'pending') actionType = 'returned_for_edit';
 
                 if (actionType) {
                     await this.logApprovalAction(
@@ -545,19 +658,19 @@ class LoanApplicationRepository {
                 logger.info(`Loan application status is already ${status}`);
                 return loanApplication;
             }
-            
+
             let confirmed = loanApplication.is_confirmed;
             let loan_status: string = loanApplication.status || 'pending';
             let isJustSubmitted = false;
-            
+
             if (loanApplication.is_confirmed === 0) {
                 confirmed = 1;
                 isJustSubmitted = true;
             }
             if (loanApplication.status !== 'pending') {
                 loan_status = status;
-            } 
-            
+            }
+
             const updateData: any = {
                 is_confirmed: confirmed,
                 status: loan_status
@@ -571,16 +684,16 @@ class LoanApplicationRepository {
             // 🟢 บันทึก Log ว่าถูก "ส่งเข้าระบบ" (Submitted)
             if (isJustSubmitted) {
                 await this.logApprovalAction(
-                    loanApplicationId, 
-                    'submitted', 
-                    loanApplication.status, 
-                    loan_status, 
-                    'ສົ່ງຄຳຂໍສິນເຊື່ອເຂົ້າລະບົບ', 
-                    userId, 
+                    loanApplicationId,
+                    'submitted',
+                    loanApplication.status,
+                    loan_status,
+                    'ສົ່ງຄຳຂໍສິນເຊື່ອເຂົ້າລະບົບ',
+                    userId,
                     t
                 );
             }
-            
+
             await t.commit();
             logger.info(`Loan application status updated with ID: ${loanApplicationId}`);
             return updatedLoanApplication;

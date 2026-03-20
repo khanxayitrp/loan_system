@@ -18,13 +18,13 @@ class AuthService {
       const defaultPermissionsByRole: Record<string, string[]> = {
         admin: [
           'user_view', 'user_create', 'user_manage', 'permission_manage',
-          'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_approve',
+          'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_approve', 'user_changepass'
         ],
         staff: [
-          'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_approve',
+          'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_approve', 'user_changepass'
         ],
         partner: [
-          'partner_manage', 'shop_view_report',
+          'partner_manage', 'shop_view_report', 'user_changepass'
         ],
         customer: [
           'view_profile', 'loan_request', 'view_own_loans',

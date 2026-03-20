@@ -6,6 +6,7 @@ import { verifyCustomerToken } from '../middlewares/auth.middleware';
 import { checkLoanOwnership } from '../middlewares/customer.middleware';
 import { uploadDocument } from '../middlewares/upload.middleware';
 import uploadController from '../controllers/upload.controller';
+import { getAllLoanByCustomerId } from '../controllers/loan-application.controller';
 
 const router = Router();
 
@@ -86,5 +87,6 @@ router.post(
   uploadController.uploadMultipleDocuments
 );
 
+router.get('/applications',  getAllLoanByCustomerId); // เพิ่ม Route นี้สำหรับให้ลูกค้าเห็นบิลของตัวเอง
 
 export default router;

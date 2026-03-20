@@ -135,11 +135,30 @@ class RepaymentRepository {
     }
 }
     async findRepaymentsByApplicationId(applicationId: number): Promise<repayments[]> {
-        return await db.repayments.findAll({ where: { application_id: applicationId } });
+        return await db.repayments.findAll({ where: { application_id: applicationId,  },
+        include: [
+            {
+                model: db.repayment_schedules,
+                as: 'schedule',
+                attributes: ['id', 'version', 'status'],
+                // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+                where: { status: 'approved' }
+            }
+        ],
+     });
     }
 
     async findRepaymentById(repaymentId: number): Promise<repayments | null> {
-        return await db.repayments.findByPk(repaymentId);
+        return await db.repayments.findByPk(repaymentId, {
+            include: [
+                {
+                    model: db.repayment_schedules,
+                    as: 'schedule',
+                    attributes: ['id', 'version', 'status'],
+                    where: { status: 'approved' } // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+                }
+            ]
+        });
     }
 
     async updateRepayment(repaymentId: number, data: Partial<repaymentsAttributes>): Promise<repayments | null> {

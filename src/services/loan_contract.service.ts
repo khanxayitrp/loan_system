@@ -212,6 +212,10 @@ class LoanContractService {
                     model: db.partners,
                     as: 'partner',
                     attributes: ['id', 'shop_name']
+                },{
+                    model: db.product_types,
+                    as: 'producttype',
+                    attributes: ['id', 'type_name']
                 } ],
                 raw: true
             });

@@ -10,7 +10,7 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
 
     try {
         const { formData, loanId } = req.body;
-
+        console.log('✅ formData received for PDF generation:', formData); // ตรวจสอบข้อมูลที่ได้รับก่อนส่งให้ Template
         // =========================================================
         // 🟢 2. Check Redis Cache ก่อนสร้างใหม่
         // =========================================================
@@ -54,14 +54,20 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
 
         // ✅ 5. Compile Template
         const templateCompiled = handlebars.compile(htmlContent);
-
+        
+        const pType = formData.product?.type || ''; // ดึงค่าประเภทสินค้ามาเก็บไว้ก่อน
+        
         // ✅ 6. เตรียม Data
         const data = {
             onlineChecked: 'checked',
             offlineChecked: '',
-            goldChecked: formData.product.type === 'gold' ? 'checked' : '',
-            generalChecked: formData.product.type === 'general' ? 'checked' : '',
-            motorcycleChecked: formData.product.type === 'motorcycle' ? 'checked' : '',
+            // goldChecked: formData.product.type === 'gold' ? 'checked' : '',
+            // generalChecked: formData.product.type === 'general' ? 'checked' : '',
+            // motorcycleChecked: formData.product.type === 'motorcycle' ? 'checked' : '',
+            // 🟢 แก้ไขเงื่อนไข Checkbox ให้เช็คจากคำภาษาลาวที่ส่งมา
+            goldChecked: pType.includes('ຄຳ') ? 'checked' : '',
+            generalChecked: pType.includes('ທົ່ວໄປ') ? 'checked' : '',
+            motorcycleChecked: (pType.includes('ລົດ') || pType.includes('ລົດຈັກ')) ? 'checked' : '',
             customer: {
                 fullname: formData.customer.fullname || '________________',
                 dob: formatDate(formData.customer.dob),
@@ -96,7 +102,7 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
                 salary: formatCurrency(formData.work.salary)
             },
             product: {
-                type: getProductTypeName(formData.product.type),
+                type: formData.product?.type || formData.product?.type_name || formData.product?.productType?.type_name || '________________',
                 brand: formData.product.brand || '________________',
                 model: formData.product.model || '________________',
                 price: formatCurrency(formData.product.price),

@@ -165,6 +165,48 @@ export const getLoanById = async (req: Request, res: Response) => {
   }
 }
 
+export const getAllLoanByCustomerId = async (req: Request, res: Response) => {
+  try {
+    const { status, min, max, is_confirmed, page, limit } = req.query
+    const CustomerId = req.userPayload?.userId; // ดึง CustomerId จาก Token ของลูกค้า
+    console.log('Request query:', req.query);
+
+    // 🟢 ດຶງຄ່າ status ອອກມາ ໂດຍເຊັກທັງ Key 'status' ທຳມະດາ ແລະ 'status[]'
+    const actualStatus = status || req.query['status[]'];
+
+    const pageNum = page ? parseInt(page as string, 10) : 1;
+    const limitNum = limit ? parseInt(limit as string, 10) : 10;
+
+    // 🟢 1. ຮັບຄ່າ result ທີ່ສົ່ງມາຈາກ Repository
+    const result = await loanAppRepo.findLoanApplicationsByCustomerId({
+      customerId: CustomerId ? Number(CustomerId) : undefined,
+      status: actualStatus, // ສົ່ງໄປເລີຍ ບໍ່ຕ້ອງຄອບ String() ເພາະ Repository ຈັດການ Array/String ໃຫ້ແລ້ວ
+      min: min ? Number(min) : undefined,
+      max: max ? Number(max) : undefined,
+      is_confirmed: is_confirmed !== undefined ? Number(is_confirmed) : undefined, // ໃຊ້ !== undefined ກັນໜຽວກໍລະນີສົ່ງເລກ 0 ມາ
+      page: pageNum,
+      limit: limitNum
+    });
+
+    // 🟢 2. ສົ່ງ Response ກັບໄປຫາ Frontend (ສຳຄັນຫຼາຍ ຫ້າມລືມ)
+    return res.status(200).json({
+      success: true,
+      data: result.data,
+      total: result.total,
+      counts: result.counts,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching loans:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Internal Server Error'
+    });
+  }
+}
+
 export const getAllLoan = async (req: Request, res: Response) => {
   try {
     const { CustomerId, requesterId, productId, status, min, max, is_confirmed, page, limit } = req.query
