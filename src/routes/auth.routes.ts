@@ -221,8 +221,46 @@ router.post(
  */
 router.get('/me', verifyToken, authController.getCurrentUser);
 
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: User refresh token
+ *     responses:
+ *       200:
+ *         description: Token refreshed successfully
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
 router.post('/refresh', authController.refresh); // เพิ่ม route สำหรับ refresh token
 
+/**
+ * @swagger
+ * /auth/checkLogin:
+ *   get:
+ *     summary: Check if user is logged in and fetch initial login info
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User is logged in, returns initial login info
+ *       401:
+ *         description: Unauthorized, token invalid or expired
+ */
 router.get('/checkLogin', verifyToken, authController.fetchFirstLoginInfo); // เพิ่ม route สำหรับเช็คว่า user ยัง login อยู่หรือไม่
 
 export default router;

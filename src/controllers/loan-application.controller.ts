@@ -168,7 +168,7 @@ export const getLoanById = async (req: Request, res: Response) => {
 export const getAllLoanByCustomerId = async (req: Request, res: Response) => {
   try {
     const { status, min, max, is_confirmed, page, limit } = req.query
-    const CustomerId = req.userPayload?.userId; // ดึง CustomerId จาก Token ของลูกค้า
+    const CustomerId = req.customerPayload?.userId; // ดึง CustomerId จาก Token ของลูกค้า
     console.log('Request query:', req.query);
 
     // 🟢 ດຶງຄ່າ status ອອກມາ ໂດຍເຊັກທັງ Key 'status' ທຳມະດາ ແລະ 'status[]'

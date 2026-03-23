@@ -242,6 +242,36 @@ router.post(
   uploadController.uploadProductGallery
 );
 
+/**
+ * @swagger
+ * /upload/location/{customer_id}/image:
+ *   post:
+ *     summary: Upload customer location image
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: customer_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       201:
+ *         description: Location image uploaded
+ */
 router.post(
   '/location/:customer_id/image',
   uploadLocationImage.array('files', 2),

@@ -205,6 +205,8 @@ class LoanApplicationRepository {
 
         if (customerId) whereClause.customer_id = customerId;
 
+        console.log('Filters received in Repository:', filters);
+
         // 🟢 ຈຸດທີ່ແກ້ໄຂ: ຖ້າສົ່ງ status ມາເປັນ array ຫຼຶ string ທີ່ມີຈຸດ ໃຫ້ເຮັດ Op.in ເລີຍ
         let inputStatus = filters.status || filters['status[]'];
         if (inputStatus) {
@@ -235,9 +237,11 @@ class LoanApplicationRepository {
         // ສ້າງ where condition ໃໝ່ສຳລັບນັບສະເພາະລູກຄ້າຄົນນີ້ (ແຕ່ບໍ່ filter ຕາມ status)
         const countWhereClause: any = { ...whereClause };
         delete countWhereClause.status; // ລຶບ status ອອກເພື່ອນັບທຸກໆສະຖານະຂອງລູກຄ້າ
+        delete countWhereClause.is_confirmed; // ລຶບ is_confirmed ອອກເພື່ອນับทຸກສະຖານະຂອງລູກຄ້າ
 
         const DataCount = await db.loan_applications.findAll({
             where: countWhereClause,
+            // where: customerId ? { customer_id: customerId } : {}, // ຖ້າມີ customerId ໃຫ້ filter ตาม customer_id, ถ้าไม่มีให้ดึงทั้งหมด
             attributes: [
                 [
                     db.sequelize.literal(`

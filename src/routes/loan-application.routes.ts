@@ -229,8 +229,44 @@ router.patch('/:id/apply', verifyToken, loanCtrl.sentApplyDraft);
  */
 router.post('/create-with-customer', optionalVerifyToken , loanCtrl.createWithCustomer)
 
+/**
+ * @swagger
+ * /loan-application/repayment-schedule/{application_id}:
+ *   post:
+ *     summary: Create repayment schedule
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       201:
+ *         description: Repayment schedule created
+ */
 router.post('/repayment-schedule/:application_id', verifyToken, loanCtrl.createRepaymentSchedule);
 
+/**
+ * @swagger
+ * /loan-application/repayment-schedule/{application_id}/all:
+ *   get:
+ *     summary: Get repayment schedule
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Repayment schedule details
+ */
 router.get('/repayment-schedule/:application_id/all', verifyToken, loanCtrl.getRepaymentSchedule);
 
 export default router;

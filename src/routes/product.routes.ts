@@ -93,6 +93,31 @@ router.get('/:id', productController.getProductById);
 router.put('/:id', verifyToken, productController.updateProduct);
 
 // ຕົວຢ່າງ routes/product.routes.ts
+/**
+ * @swagger
+ * /products/bulk-status:
+ *   patch:
+ *     summary: Update multiple products status
+ *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               product_ids:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *               status:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Products status updated
+ */
 router.patch(
     '/bulk-status', 
     verifyToken, // Middleware ກວດສອບ Token ຂອງທ່ານ

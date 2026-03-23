@@ -10,6 +10,13 @@ import { getAllLoanByCustomerId } from '../controllers/loan-application.controll
 
 const router = Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Customer Portal
+ *   description: API endpoints for customer portal (requires customer authentication)
+ */
+
 // ลูกค้าทุกคนต้องมี Token (Login แล้ว)
 router.use(verifyCustomerToken);
 
@@ -87,6 +94,122 @@ router.post(
   uploadController.uploadMultipleDocuments
 );
 
+/**
+ * @swagger
+ * /portal/applications:
+ *   get:
+ *     summary: Get all loan applications for the logged-in customer
+ *     tags: [Customer Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of applications
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/applications',  getAllLoanByCustomerId); // เพิ่ม Route นี้สำหรับให้ลูกค้าเห็นบิลของตัวเอง
+
+
+/**
+ * @swagger
+ * /portal/application/{application_id}/documents:
+ *   get:
+ *     summary: Get application documents (Customer Portal)
+ *     tags: [Customer Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of documents
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (not loan owner)
+ *       404:
+ *         description: Application not found
+ */
+router.get(
+  '/application/:application_id/documents',
+  checkLoanOwnership, // เช็คว่าเป็นบิลของตัวเองไหม
+  uploadController.getApplicationDocuments
+);
+
+/**
+ * @swagger
+ * /portal/document/{document_id}:
+ *   delete:
+ *     summary: Delete a document (Customer Portal)
+ *     tags: [Customer Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: document_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Document deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Document not found
+ */
+router.delete(
+  '/document/:document_id',
+  uploadController.deleteDocument
+);
+
+/**
+ * @swagger
+ * /portal/document/{document_id}:
+ *   put:
+ *     summary: Replace a document (Customer Portal)
+ *     tags: [Customer Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: document_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Document replaced successfully
+ *       400:
+ *         description: Bad request (missing file)
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Document not found
+ */
+router.put(
+  '/document/:document_id',
+  uploadDocument.single('file'),
+  uploadController.replaceDocument
+);
 
 export default router;
