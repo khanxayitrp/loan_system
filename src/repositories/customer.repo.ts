@@ -46,6 +46,7 @@ class CustomerRepository {
                 address: cleanCustomer.address,
                 occupation: cleanCustomer.occupation,
                 income_per_month: cleanCustomer.income_per_month,
+                other_debt: cleanCustomer.other_debt || 0,
             };
             
             const newCustomer = await db.customers.create(mapData, { transaction: options.transaction });
@@ -116,6 +117,7 @@ class CustomerRepository {
                 address: data.address || customer.address,
                 occupation: data.occupation || customer.occupation,
                 income_per_month: data.income_per_month || customer.income_per_month,
+                other_debt: data.other_debt !== undefined ? data.other_debt : customer.other_debt,
             }
 
             // 🟢 ✅ แก้ไข Syntax การ Update ให้ถูกต้อง

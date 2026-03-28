@@ -50,6 +50,16 @@ export const uploadLocationImage = multer({
   fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.LOCATION_IMAGES.allowedMimeTypes)
 });
 
+// สำหรับรูปสินค้าย่อย
+export const uploadVariantImage = multer({
+  storage: memoryStorage,
+  limits: {
+    fileSize: FILE_UPLOAD_CONFIG.VARIANT_IMAGES.maxFileSize,
+    files: 2 // จำกัดไม่เกิน 2 รูป
+  },
+  fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.VARIANT_IMAGES.allowedMimeTypes)
+}); 
+
 // สำหรับรูปสินค้า
 export const uploadProductImage = multer({
   storage: memoryStorage,

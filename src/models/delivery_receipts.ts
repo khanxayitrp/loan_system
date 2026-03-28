@@ -59,11 +59,11 @@ export class delivery_receipts extends Model<delivery_receiptsAttributes, delive
     application_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      unique: "unique_application_id",
       references: {
         model: 'loan_applications',
         key: 'id'
-      }
+      },
+      unique: "fk_delivery_application"
     },
     receipts_id: {
       type: DataTypes.STRING(20),
@@ -116,7 +116,8 @@ export class delivery_receipts extends Model<delivery_receiptsAttributes, delive
         ]
       },
       {
-        name: "fk_delivery_application",
+        name: "unique_application_id",
+        unique: true,
         using: "BTREE",
         fields: [
           { name: "application_id" },

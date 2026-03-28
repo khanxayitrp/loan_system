@@ -129,8 +129,6 @@ export class repayment_schedules extends Model<repayment_schedulesAttributes, re
     sequelize,
     tableName: 'repayment_schedules',
     timestamps: true,
-    createdAt: 'created_at',  // Maps to your column name
-      updatedAt: false,
     indexes: [
       {
         name: "PRIMARY",

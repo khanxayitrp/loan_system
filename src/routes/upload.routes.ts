@@ -8,6 +8,7 @@ import uploadController from '../controllers/upload.controller';
 import {
   uploadDocument,
   uploadProductImage,
+  uploadVariantImage,
   uploadShopLogo,
   uploadPaymentProof,
   uploadLocationImage
@@ -205,6 +206,8 @@ router.post(
   uploadProductImage.single('file'),
   uploadController.uploadProductImage
 );
+
+router.post('/variant-image', uploadVariantImage.single('file'), uploadController.uploadVariantImage);
 
 /**
  * @swagger

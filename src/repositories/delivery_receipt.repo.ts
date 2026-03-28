@@ -5,15 +5,16 @@ import { Op } from 'sequelize';
 
 // 🟢 ສົມມຸດວ່າທ່ານມີ Helper Function ສຳລັບ Audit Log (ຖ້າບໍ່ມີໃຫ້ໃຊ້ db.audit_logs.create ໂດຍກົງ)
 import { logAudit } from '../utils/auditLogger';
+import { generateSignatureSlots } from '../utils/signatureGenerator'; // 🟢 Import Utility ເຂົ້າມາ
 
 
 export type action = "submitted" | "verified_basic" | "verified_call" | "verified_cib" | "verified_field" | "assessed_income" | "verified_delivery_receipt" | "approved" | "rejected" | "returned_for_edit" | "cancelled";
 class DeliveryReceiptRepository {
     async createDeliveryReceipt(
-        data: delivery_receiptsCreationAttributes,
+        data: any, // delivery_receiptsCreationAttributes
         performedBy: number, // 🟢 ເພີ່ມ performedBy (User ID) ເພື່ອໃຊ້ບັນທຶກ Log
         options: { transaction?: any } = {}
-    ): Promise<delivery_receipts> {
+    ): Promise<any> { // Promise<delivery_receipts>
         const transaction = options.transaction || await db.sequelize.transaction();
         try {
             const cleanDeliveryReceipt = { ...data };
@@ -59,12 +60,29 @@ class DeliveryReceiptRepository {
                 await logAudit('delivery_receipts', newDeliveryReceipt.id, 'CREATE', null, mapData, performedBy, transaction);
             }
 
-            if (!options.transaction) await transaction.commit();
+            // ==========================================
+            // 🌟 🟢 ເພີ່ມໃໝ່: ສ້າງຊ່ອງລາຍເຊັນລໍຖ້າໄວ້ ສຳລັບໃບມອບຮັບສິນຄ້າ
+            // ==========================================
+            await generateSignatureSlots(
+                cleanDeliveryReceipt.application_id, 
+                'delivery_note', 
+                newDeliveryReceipt.id, // ໃຊ້ ID ຂອງໃບມອບຮັບທີ່ຫາກໍ່ສ້າງເປັນ Reference
+                transaction
+            );
+
+            // ຖ້າບໍ່ມີການສົ່ງ transaction ມາຈາກຂ້າງນອກ ກໍ່ໃຫ້ commit ຢູ່ບ່ອນນີ້ເລີຍ
+            if (!options.transaction) {
+                await transaction.commit();
+            }
+            
             logger.info(`Delivery receipt created with ID: ${newDeliveryReceipt.id}`);
             return newDeliveryReceipt;
 
         } catch (error) {
-            if (!options.transaction) await transaction.rollback();
+            // ຖ້າບໍ່ມີການສົ່ງ transaction ມາຈາກຂ້າງນອກ ກໍ່ໃຫ້ rollback ຢູ່ບ່ອນນີ້ເລີຍ
+            if (!options.transaction) {
+                await transaction.rollback();
+            }
             logger.error(`Error creating delivery receipt: ${(error as Error).message}`);
             throw error;
         }
@@ -113,12 +131,14 @@ class DeliveryReceiptRepository {
 
     async updateDeliveryReceipt(
         deliveryReceiptId: number,
-        data: Partial<delivery_receiptsAttributes>,
+        data: Partial<any>, // ປ່ຽນເປັນ Partial<delivery_receiptsAttributes> ຕາມ Type ທີ່ມີໃນໂປຣເຈັກຈິງຂອງທ່ານ
         performedBy: number,
         options: { transaction?: any } = {}
-    ): Promise<delivery_receipts | null> {
+    ): Promise<any | null> { // ປ່ຽນເປັນ Promise<delivery_receipts | null> ຕາມ Type ຈິງ
         const transaction = options.transaction || await db.sequelize.transaction();
+        
         try {
+            // 1. ຄົ້ນຫາໃບມອບຮັບສິນຄ້າ
             const deliveryReceipt = await db.delivery_receipts.findByPk(deliveryReceiptId, { transaction });
             if (!deliveryReceipt) {
                 logger.error(`Delivery receipt with ID: ${deliveryReceiptId} not found`);
@@ -126,15 +146,16 @@ class DeliveryReceiptRepository {
                 return null;
             }
 
-            // เก็บค่าเก่าไว้เทียบใน Audit Log
+            // 2. ເກັບຄ່າເກົ່າໄວ້ທຽບໃນ Audit Log
             const oldData = deliveryReceipt.toJSON();
 
+            // 3. ກວດສອບ ແລະ ຈັດການສະຖານະ (Status)
             let receipts_status = "pending";
             if (data.status && !['pending', 'approved', 'rejected'].includes(data.status)) {
                 throw new Error('Invalid status value');
             }
 
-            // ลอจิกเปลี่ยนสถานะ: ถ้ามีรูป หรือ สถานะส่งมาเป็น approved
+            // ໂລຈິກປ່ຽນສະຖານະ: ຖ້າມີຮູບພາບມອບຮັບ ຫຼື ສະຖານະສົ່ງມາເປັນ approved
             if (data.receipt_image_url || data.status === 'approved') {
                 receipts_status = 'approved';
             } else if (data.status === 'rejected') {
@@ -143,6 +164,7 @@ class DeliveryReceiptRepository {
 
             const approverId = data.approver_id || performedBy;
 
+            // 4. ກຽມຂໍ້ມູນສຳລັບອັບເດດ
             const mapData: any = {
                 receiver_name: data.receiver_name !== undefined ? data.receiver_name : deliveryReceipt.receiver_name,
                 delivery_date: data.delivery_date !== undefined ? data.delivery_date : deliveryReceipt.delivery_date,
@@ -153,64 +175,135 @@ class DeliveryReceiptRepository {
                 remark: data.remark !== undefined ? data.remark : deliveryReceipt.remark,
             }
 
-            // อัปเดตข้อมูล
+            // 5. ອັບເດດຂໍ້ມູນ Delivery Receipt ລົງຖານຂໍ້ມູນ
             const updatedDeliveryReceipt = await deliveryReceipt.update(mapData, { transaction });
 
             // ==========================================
-            // 🟢 1. บันทึก Audit Log (Action: UPDATE)
+            // 🟢 6. ບັນທຶກ Audit Log (Action: UPDATE ສຳລັບໃບມອບຮັບ)
             // ==========================================
             if (performedBy) {
-                await logAudit('delivery_receipts', updatedDeliveryReceipt.id, 'UPDATE', oldData, mapData, performedBy, transaction);
+                await logAudit(
+                    'delivery_receipts', 
+                    updatedDeliveryReceipt.id, 
+                    'UPDATE', 
+                    oldData, 
+                    mapData, 
+                    performedBy, 
+                    transaction
+                );
             }
 
             // ==========================================
-            // 🟢 2. บันทึกประวัติลายเซ็น (Document Signatures) 
-            // ทำเฉพาะตอน "อนุมัติ" ใบส่งมอบเท่านั้น
+            // 🌟 🟢 7. ຈັດການລາຍເຊັນ (Document Signatures)
+            // ຈະເຮັດວຽກສະເພາະຕອນທີ່ "ອະນຸມັດ" ຫຼື "ປະຕິເສດ" ເທົ່ານັ້ນ
             // ==========================================
-            if (receipts_status === 'approved') {
-                // หาข้อมูลคนอนุมัติเพื่อดึง Role
+            if (['approved', 'rejected'].includes(receipts_status)) {
                 const approverUser = await db.users.findByPk(approverId, { transaction });
 
-                // กำหนดสิทธิ์เริ่มต้นในการเซ็นใบมอบรับ (มักจะเป็น หัวหน้าแผนก หรือ พนักงานขาย)
-                let roleType = 'credit_head';
+                // 7.1 ຈັດການລາຍເຊັນ "ຄົນໃນລະບົບ" (Staff / Partner)
+                let roleType = 'sales_staff'; // Default Fallback
 
-                if (approverUser?.staff_level) {
-                    if (approverUser.staff_level === 'deputy_director') roleType = 'approver_1';
-                    else if (approverUser.staff_level === 'director') roleType = 'approver_3';
-                    else if (approverUser.staff_level === 'sale') roleType = 'sales_staff';
-                    else if (approverUser.staff_level === 'credit_manager') roleType = 'credit_head';
+                if (approverUser) {
+                    // ✅ ແຍກ Role ແລະ Staff Level ໃຫ້ຕົງກັບ Database
+                    if (approverUser.role === 'partner') {
+                        roleType = 'partner_shop';
+                    } else if (approverUser.staff_level === 'sales') {
+                        roleType = 'sales_staff';
+                    } else if (approverUser.staff_level === 'credit_manager') {
+                        roleType = 'credit_head';
+                    } else if (approverUser.staff_level === 'deputy_director') {
+                        roleType = 'approver_2';
+                    } else if (['director', 'approver'].includes(approverUser.staff_level || '')) {
+                        roleType = 'approver_1';
+                    }
                 }
 
-                // เช็คป้องกันการเซ็นซ้ำในเอกสารใบเดิม
-                const existingSignature = await db.document_signatures.findOne({
+                const signatureStatus = receipts_status === 'approved' ? 'signed' : 'rejected';
+
+                // ຄົ້ນຫາຊ່ອງລາຍເຊັນທີ່ຖືກສ້າງລໍຖ້າໄວ້ແລ້ວ (Pending) ຂອງພະນັກງານ/ຮ້ານຄ້າ
+                const staffSignature = await db.document_signatures.findOne({
                     where: {
-                        document_type: 'delivery_note', // 📍 ระบุว่าเป็นเอกสารใบมอบรับ
+                        document_type: 'delivery_note', // 📍 ລະບຸວ່າເປັນເອກະສານໃບມອບຮັບ
                         reference_id: updatedDeliveryReceipt.id,
                         role_type: roleType
                     },
                     transaction
                 });
 
-                if (!existingSignature) {
-                    await db.document_signatures.create({
+                if (staffSignature) {
+                    // ✅ ຖ້າພົບຊ່ອງທີ່ລໍຖ້າຢູ່ -> ໃຫ້ອັບເດດປະທັບຕາລາຍເຊັນ
+                    const oldSig = staffSignature.toJSON();
+                    await staffSignature.update({
+                        user_id: approverId,
+                        status: signatureStatus,
+                        signed_at: new Date()
+                    }, { transaction });
+
+                    await logAudit('document_signatures', staffSignature.id, 'UPDATE', oldSig, staffSignature.toJSON(), performedBy, transaction);
+                } else {
+                    // ⚠️ ຖ້າບໍ່ພົບຊ່ອງລໍຖ້າ -> ໃຫ້ສ້າງໃໝ່ເລີຍ
+                    const newSig = await db.document_signatures.create({
                         application_id: updatedDeliveryReceipt.application_id,
                         document_type: 'delivery_note',
                         reference_id: updatedDeliveryReceipt.id,
                         role_type: roleType as any,
                         user_id: approverId,
-                        status: 'signed',
+                        status: signatureStatus,
                         signed_at: new Date()
                     }, { transaction });
+
+                    await logAudit('document_signatures', newSig.id, 'CREATE', null, newSig.toJSON(), performedBy, transaction);
+                }
+
+                // 🌟 7.2 ຈັດການລາຍເຊັນ "ຄົນນອກລະບົບ" (ລູກຄ້າ / Borrower)
+                // ຖ້າ Delivery ຖືກ Approved ແປວ່າລູກຄ້າເຊັນຮັບເຄື່ອງແລ້ວ ພະນັກງານຈຶ່ງມາກົດບັນທຶກອະນຸມັດ
+                if (receipts_status === 'approved') {
+                    const borrowerSignature = await db.document_signatures.findOne({
+                        where: { 
+                            document_type: 'delivery_note', 
+                            reference_id: updatedDeliveryReceipt.id, 
+                            role_type: 'borrower' 
+                        },
+                        transaction
+                    });
+
+                    const finalReceiverName = mapData.receiver_name || oldData.receiver_name || 'ລູກຄ້າ';
+                    const finalReceiptImage = mapData.receipt_image_url || oldData.receipt_image_url || null;
+
+                    if (borrowerSignature) {
+                        const oldBorSig = borrowerSignature.toJSON();
+                        await borrowerSignature.update({
+                            signer_name: finalReceiverName,
+                            signature_image_url: finalReceiptImage,
+                            status: 'signed',
+                            signed_at: new Date()
+                        }, { transaction });
+
+                        await logAudit('document_signatures', borrowerSignature.id, 'UPDATE', oldBorSig, borrowerSignature.toJSON(), performedBy, transaction);
+                    } else {
+                        const newBorSig = await db.document_signatures.create({
+                            application_id: updatedDeliveryReceipt.application_id,
+                            document_type: 'delivery_note',
+                            reference_id: updatedDeliveryReceipt.id,
+                            role_type: 'borrower',
+                            signer_name: finalReceiverName,
+                            signature_image_url: finalReceiptImage,
+                            status: 'signed',
+                            signed_at: new Date()
+                        }, { transaction });
+
+                        await logAudit('document_signatures', newBorSig.id, 'CREATE', null, newBorSig.toJSON(), performedBy, transaction);
+                    }
                 }
             }
 
             // ==========================================
-            // 🟢 3. บันทึก Loan Approval Log 
+            // 🟢 8. ບັນທຶກ Loan Approval Log (Timeline ຂອງສິນເຊື່ອ)
             // ==========================================
             if (oldData.status !== receipts_status && ['approved', 'rejected'].includes(receipts_status)) {
                 await db.loan_approval_logs.create({
                     application_id: updatedDeliveryReceipt.application_id,
-                    action: "verified_delivery_receipt", // 📍 ใช้ Action ตามที่คุณมีในระบบได้เลยครับ 
+                    action: "verified_delivery_receipt", // 📍 ຊື່ Action ທີ່ສະແດງໃນ Timeline 
                     status_from: oldData.status,
                     status_to: receipts_status,
                     remarks: mapData.remark || `Delivery receipt has been ${receipts_status}`,
@@ -218,14 +311,19 @@ class DeliveryReceiptRepository {
                 }, { transaction });
             }
 
-            // จบ Transaction
-            if (!options.transaction) await transaction.commit();
+            // 9. ຈົບ Transaction (ຖ້າບໍ່ມີການສົ່ງມາຈາກຂ້າງນອກ)
+            if (!options.transaction) {
+                await transaction.commit();
+            }
             logger.info(`Delivery receipt updated with ID: ${updatedDeliveryReceipt.id}`);
 
             return updatedDeliveryReceipt;
 
         } catch (error) {
-            if (!options.transaction) await transaction.rollback();
+            // ຖ້າເກີດ Error ໃຫ້ Rollback ຂໍ້ມູນທັງໝົດ
+            if (!options.transaction) {
+                await transaction.rollback();
+            }
             logger.error(`Error updating delivery receipt: ${(error as Error).message}`);
             throw error;
         }

@@ -88,7 +88,9 @@ export class product_types extends Model<product_typesAttributes, product_typesC
   }, {
     sequelize,
     tableName: 'product_types',
-    timestamps: false,
+    timestamps: true,
+    createdAt: 'created_at',    // แมปชื่อให้ตรงกับใน DB
+    updatedAt: false,
     indexes: [
       {
         name: "PRIMARY",

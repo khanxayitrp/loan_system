@@ -102,10 +102,10 @@ export class customer_work_info extends Model<customer_work_infoAttributes, cust
     }
   }, {
     sequelize,
-      tableName: 'customer_work_info',
-      timestamps: true,
-      createdAt: 'created_at',  // Maps to your column name
-      updatedAt: false,
+    tableName: 'customer_work_info',
+    timestamps: true,
+    createdAt: 'created_at',    // แมปชื่อให้ตรงกับใน DB
+    updatedAt: false,
     indexes: [
       {
         name: "PRIMARY",

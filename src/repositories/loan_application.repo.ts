@@ -92,7 +92,7 @@ class LoanApplicationRepository {
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'unit', 'issue_place', 'issue_date'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
                     include: [
                         {
                             model: db.customer_work_info,
@@ -109,7 +109,7 @@ class LoanApplicationRepository {
                 {
                     model: db.products,
                     as: 'product',
-                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate'],
+                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price'],
                     include: [
                         {
                             model: db.partners,
@@ -137,14 +137,14 @@ class LoanApplicationRepository {
         });
     }
 
-    async findLoanApplicationById(loanApplicationId: number): Promise<loan_applications | null> {
+    async findLoanApplicationByCusIDandLoanId(customerId: number, loanId: number): Promise<loan_applications | null> {
         return await db.loan_applications.findOne({
-            where: { id: loanApplicationId },
+            where: { customer_id: customerId, id: loanId },
             include: [
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'unit', 'issue_place', 'issue_date'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
                     include: [
                         {
                             model: db.customer_work_info,
@@ -161,7 +161,63 @@ class LoanApplicationRepository {
                 {
                     model: db.products,
                     as: 'product',
-                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate'],
+                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price'],
+                    include: [
+                        {
+                            model: db.partners,
+                            as: 'partner',
+                            attributes: ['id', 'shop_id', 'shop_name', 'shop_owner', 'contact_number', 'shop_logo_url', 'address', 'business_type', 'is_active'],
+                        },
+                        {
+                            model: db.product_types,
+                            as: 'productType',
+                            attributes: ['id', 'type_name']
+                        }
+                    ]
+                },
+                {
+                    model: db.users,
+                    as: 'requester',
+                    attributes: ['id', 'username', 'full_name']
+                },
+                {
+                    model: db.loan_guarantors,
+                    as: 'loan_guarantors',
+                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location']
+                },
+                {
+                    model: db.loan_contract,
+                    as: 'loan_contracts',
+                    attributes: ['id']
+                }
+            ],
+        });
+    }
+    async findLoanApplicationById(loanApplicationId: number): Promise<loan_applications | null> {
+        return await db.loan_applications.findOne({
+            where: { id: loanApplicationId },
+            include: [
+                {
+                    model: db.customers,
+                    as: 'customer',
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
+                    include: [
+                        {
+                            model: db.customer_work_info,
+                            as: 'customer_work_infos',
+                            attributes: ['id', 'company_name', 'address', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
+                        },
+                        {
+                            model: db.customer_locations,
+                            as: 'customer_locations',
+                            attributes: ['id', 'customer_id', 'address_detail', 'latitude', 'longitude', 'is_primary', 'location_type']
+                        }
+                    ]
+                },
+                {
+                    model: db.products,
+                    as: 'product',
+                    attributes: ['id', 'partner_id', 'productType_id', 'product_name', 'brand', 'model', 'price'],
                     include: [
                         {
                             model: db.partners,
@@ -347,7 +403,8 @@ class LoanApplicationRepository {
                 { model: db.products, as: 'product', attributes: ['id', 'partner_id', 'productType_id', 'product_name'] },
                 { model: db.users, as: 'requester', attributes: ['id', 'username', 'full_name'] },
                 { model: db.users, as: 'approver', attributes: ['id', 'username', 'full_name'] },
-                { model: db.delivery_receipts, as: 'delivery_receipt', attributes: ['id', 'application_id', 'receipts_id', 'status'] }
+                { model: db.delivery_receipts, as: 'delivery_receipt', attributes: ['id', 'application_id', 'receipts_id', 'status'] },
+                { model: db.loan_contract, as: 'loan_contracts', attributes: ['id'] }
             ],
             order: [['created_at', 'DESC']],
             limit: limitNum,
@@ -394,7 +451,7 @@ class LoanApplicationRepository {
                 age: data.age !== undefined ? data.age : customer.age,
                 occupation: data.occupation !== undefined ? data.occupation : customer.occupation,
                 income_per_month: data.income_per_month !== undefined ? data.income_per_month : customer.income_per_month,
-
+                other_debt: data.other_debt !== undefined ? data.other_debt : customer.other_debt,
                 // 🔥 ป้องกันฟิลด์สำคัญเหล่านี้หายเมื่อไม่ได้ส่งมา
                 unit: data.unit !== undefined ? data.unit : customer.unit,
                 issue_place: data.issue_place !== undefined ? data.issue_place : customer.issue_place,
@@ -439,7 +496,235 @@ class LoanApplicationRepository {
         }
     }
 
-    async updateLoanApplication(loanApplicationId: number, data: Partial<loan_applicationsAttributes>): Promise<loan_applications | null> {
+    // async updateLoanApplication(loanApplicationId: number, data: Partial<loan_applicationsAttributes>): Promise<loan_applications | null> {
+    //     const t = await db.sequelize.transaction();
+    //     try {
+    //         // ==========================================
+    //         // STEP 1: ຄົ້ນຫາຂໍ້ມູນເດີມ & ກຽມ Payload
+    //         // ==========================================
+    //         const loanApplication = await this.findLoanApplicationById(loanApplicationId);
+    //         if (!loanApplication) {
+    //             logger.error(`Loan application with ID: ${loanApplicationId} not found`);
+    //             return null;
+    //         }
+
+    //         const oldLoanData = loanApplication.toJSON();
+    //         const updatePayload: any = { ...data };
+
+    //         if (data.customer_id && typeof data.customer_id === 'object') {
+    //             updatePayload.customer_id = (data.customer_id as any).id || (data.customer_id as any).customer_id;
+    //         }
+
+    //         // ==========================================
+    //         // STEP 2: ຈັດການ Credit Score & ເງື່ອນໄຂອະນຸມັດ
+    //         // ==========================================
+    //         const currentScore = data.credit_score !== undefined ? data.credit_score : loanApplication.credit_score;
+
+    //         if (data.approver_id) {
+    //             const approverUser = await db.users.findByPk(data.approver_id, { transaction: t });
+
+    //             // ກວດສອບສິດ
+    //             if (approverUser?.role !== 'admin' && !['approver', 'credit_manager', 'deputy_director', 'director'].includes(approverUser?.staff_level ?? '')) {
+    //                 throw new Error('ທ່ານບໍ່ມີສິດໃນການອະນຸມັດ Loan Application');
+    //             }
+    //             updatePayload.approver_id = data.approver_id;
+
+    //             // ຈັດການ Remarks ຕາມເກນຄະແນນ (ຖ້າມີຄະແນນ)
+    //             if (currentScore !== null && currentScore !== undefined) {
+    //                 if (currentScore >= 65 && currentScore <= 79) {
+    //                     updatePayload.remarks = data.remarks;
+    //                 } else if (currentScore < 65) {
+    //                     updatePayload.remarks = data.remarks || 'ເງື່ອນໄຂບໍ່ຜ່ານ (Condition not met)';
+    //                 } else {
+    //                     updatePayload.remarks = data.remarks || 'ຜ່ານການພິຈາລະນາ (Approved)';
+    //                 }
+    //             }
+    //         } else if (currentScore === null && data.approver_id) {
+    //             delete updatePayload.approver_id;
+    //         }
+
+    //         // ==========================================
+    //         // STEP 3: ຈັດການສະຖານະ (Status) & ເວລາ (Timestamps)
+    //         // ==========================================
+    //         const finalStatus = updatePayload.status || loanApplication.status;
+
+    //         if (finalStatus === 'verifying' && !loanApplication.applied_at) {
+    //             updatePayload.applied_at = new Date();
+    //         }
+
+    //         if (finalStatus === 'approved' && updatePayload.approver_id && !loanApplication.approved_at) {
+    //             updatePayload.approved_at = new Date();
+    //         }
+
+    //         // 🟢 ກຳນົດ ID ຜູ້ເຮັດລາຍການ ເພື່ອໃຊ້ບັນທຶກ Audit Log ຂອງທຸກໆຕາຕະລາງ
+    //         const performedBy = updatePayload.approver_id || data.requester_id || 1;
+
+    //         // ==========================================
+    //         // STEP 4: ບັນທຶກການອັບເດດລົງ loan_applications
+    //         // ==========================================
+    //         const updatedLoanApplication = await loanApplication.update(updatePayload, {
+    //             where: { id: loanApplicationId },
+    //             returning: true,
+    //             transaction: t
+    //         });
+
+    //         // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ loan_applications
+    //         await logAudit('loan_applications', loanApplication.id, 'UPDATE', oldLoanData, updatePayload, performedBy, t);
+
+
+    //         // ==========================================
+    //         // 🟢 STEP 5: ລວບຍອດ ອະນຸມັດຕາຕະລາງຜ່ອນ + ປະທັບຕາລົງສັນຍາ + ຄອນເຟີມສັນຍາ (ພ້ອມ Audit)
+    //         // ==========================================
+    //         if (finalStatus === 'approved' && updatePayload.approver_id) {
+
+    //             // 5.1 ອັບເດດຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule) ທີ່ເປັນ draft ໃຫ້ເປັນ approved
+    //             const draftSchedules = await db.repayment_schedules.findAll({
+    //                 where: { application_id: loanApplicationId, status: 'draft' },
+    //                 transaction: t
+    //             });
+
+    //             for (const schedule of draftSchedules) {
+    //                 const oldSchedData = schedule.toJSON();
+    //                 await schedule.update({
+    //                     status: 'approved',
+    //                     approved_by: updatePayload.approver_id,
+    //                     approved_at: new Date()
+    //                 }, { transaction: t });
+
+    //                 // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ repayment_schedules
+    //                 await logAudit('repayment_schedules', schedule.id, 'UPDATE', oldSchedData, schedule.toJSON(), performedBy, t);
+    //             }
+
+    //             // 5.2 ດຶງຂໍ້ມູນສັນຍາ (Loan Contract) ເພື່ອນຳ ID ມາຜູກກັບລາຍເຊັນ ແລະ ຄອນເຟີມສັນຍາ
+    //             const contract = await db.loan_contract.findOne({
+    //                 where: { loan_id: loanApplicationId },
+    //                 transaction: t
+    //             });
+
+    //             if (contract) {
+    //                 const oldContractData = contract.toJSON();
+
+    //                 // 🟢 ອັບເດດໃຫ້ສັນຍາຖືກຢືນຢັນ (is_confirmed = 1) ທັນທີ
+    //                 await contract.update({
+    //                     is_confirmed: 1,
+    //                     updated_by: updatePayload.approver_id
+    //                 }, { transaction: t });
+
+    //                 // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ loan_contract
+    //                 await logAudit('loan_contract', contract.id, 'UPDATE', oldContractData, contract.toJSON(), performedBy, t);
+
+
+    //                 // 5.3 ຈັດການລາຍເຊັນ (document_signatures)
+    //                 const approverUser = await db.users.findByPk(updatePayload.approver_id, { transaction: t });
+    //                 let roleType = 'credit_head'; // Default fallback
+
+    //                 // Map staff_level ໃຫ້ຕົງກັບ ENUM 'role_type'
+    //                 if (approverUser?.staff_level === 'deputy_director') {
+    //                     const existingApp1 = await db.document_signatures.findOne({
+    //                         where: { document_type: 'contract', reference_id: contract.id, role_type: 'approver_1' },
+    //                         transaction: t
+    //                     });
+    //                     roleType = existingApp1 ? 'approver_2' : 'approver_1';
+    //                 } else if (approverUser?.staff_level === 'director') {
+    //                     roleType = 'approver_3';
+    //                 } else if (approverUser?.staff_level === 'credit_manager') {
+    //                     roleType = 'credit_head';
+    //                 }
+
+    //                 // ປ້ອງກັນການເຊັນຊ້ຳໃນຕຳແໜ່ງເດີມ
+    //                 const existingSignature = await db.document_signatures.findOne({
+    //                     where: {
+    //                         document_type: 'contract',
+    //                         reference_id: contract.id,
+    //                         role_type: roleType
+    //                     },
+    //                     transaction: t
+    //                 });
+
+    //                 // 5.4 Insert ລາຍເຊັນລົງຖານຂໍ້ມູນ ຖ້າຍັງບໍ່ມີ
+    //                 if (!existingSignature) {
+    //                     const newSignature = await db.document_signatures.create({
+    //                         application_id: loanApplicationId,
+    //                         document_type: 'contract',
+    //                         reference_id: contract.id,
+    //                         role_type: roleType as any,
+    //                         user_id: updatePayload.approver_id,
+    //                         status: 'signed',
+    //                         signed_at: new Date()
+    //                     }, { transaction: t });
+
+    //                     // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ document_signatures (CREATE)
+    //                     await logAudit('document_signatures', newSignature.id, 'CREATE', null, newSignature.toJSON(), performedBy, t);
+    //                 }
+    //                 // ==========================================
+    //                 // 🌟 🟢 ເພີ່ມໃໝ່: ອັບເດດລາຍເຊັນໃນໃບ Approval Summary
+    //                 // ==========================================
+    //                 const summarySignature = await db.document_signatures.findOne({
+    //                     where: {
+    //                         application_id: loanApplicationId,
+    //                         document_type: 'approval_summary',
+    //                         role_type: roleType // ໃຫ້ກົງກັບ Level ຂອງຜູ້ອະນຸມັດ
+    //                     },
+    //                     transaction: t
+    //                 });
+
+    //                 if (summarySignature) {
+    //                     // ຖ້າມີຊ່ອງລໍຖ້າຢູ່ແລ້ວ (ຖືກສ້າງຕອນກົດພິມ) ໃຫ້ອັບເດດເປັນ Signed
+    //                     await summarySignature.update({
+    //                         user_id: updatePayload.approver_id,
+    //                         status: 'signed',
+    //                         signed_at: new Date()
+    //                     }, { transaction: t });
+    //                 } else {
+    //                     // ຖ້າບໍ່ເຄີຍພິມມາກ່ອນ ແຕ່ຂ້າມມາອະນຸມັດເລີຍ ກໍ່ໃຫ້ສ້າງປະຫວັດໄວ້
+    //                     await db.document_signatures.create({
+    //                         application_id: loanApplicationId,
+    //                         document_type: 'approval_summary',
+    //                         reference_id: loanApplicationId,
+    //                         role_type: roleType as any,
+    //                         user_id: updatePayload.approver_id,
+    //                         status: 'signed',
+    //                         signed_at: new Date()
+    //                     }, { transaction: t });
+    //                 }
+    //             }
+    //         }
+
+    //         // ==========================================
+    //         // STEP 6: ບັນທຶກ Workflow ລົງ Approval Log (Timeline)
+    //         // ==========================================
+    //         if (loanApplication.status !== finalStatus) {
+    //             let actionType: action | null = null;
+
+    //             if (finalStatus === 'approved') actionType = 'approved';
+    //             else if (finalStatus === 'rejected') actionType = 'rejected';
+    //             else if (finalStatus === 'cancelled') actionType = 'cancelled';
+    //             else if (finalStatus === 'pending') actionType = 'returned_for_edit';
+
+    //             if (actionType) {
+    //                 await this.logApprovalAction(
+    //                     loanApplicationId,
+    //                     actionType,
+    //                     loanApplication.status,
+    //                     finalStatus,
+    //                     updatePayload.remarks || null,
+    //                     performedBy,
+    //                     t
+    //                 );
+    //             }
+    //         }
+
+    //         await t.commit();
+    //         logger.info(`Loan application updated with ID: ${loanApplicationId}, Status: ${finalStatus}`);
+    //         return updatedLoanApplication;
+
+    //     } catch (error) {
+    //         await t.rollback();
+    //         logger.error(`Error updating loan application: ${(error as Error).message}`);
+    //         throw error;
+    //     }
+    // }
+async updateLoanApplication(loanApplicationId: number, data: Partial<any>): Promise<any | null> {
         const t = await db.sequelize.transaction();
         try {
             // ==========================================
@@ -447,8 +732,7 @@ class LoanApplicationRepository {
             // ==========================================
             const loanApplication = await this.findLoanApplicationById(loanApplicationId);
             if (!loanApplication) {
-                logger.error(`Loan application with ID: ${loanApplicationId} not found`);
-                return null;
+                throw new Error(`Loan application with ID: ${loanApplicationId} not found`);
             }
 
             const oldLoanData = loanApplication.toJSON();
@@ -458,165 +742,183 @@ class LoanApplicationRepository {
                 updatePayload.customer_id = (data.customer_id as any).id || (data.customer_id as any).customer_id;
             }
 
-            // ==========================================
-            // STEP 2: ຈັດການ Credit Score & ເງື່ອນໄຂອະນຸມັດ
-            // ==========================================
-            const currentScore = data.credit_score !== undefined ? data.credit_score : loanApplication.credit_score;
+            let actionIntent = data.status; // 'verified' ຫລື 'approved'
+            let roleType = ''; // ຕົວແປສຳລັບເກັບບົດບາດໃນການເຊັນ
 
-            if (data.approver_id) {
+            // ==========================================
+            // 🌟 STEP 2: ກວດສອບສິດ ແລະ ບັງຄັບລຳດັບການອະນຸມັດ (Sequential Guard)
+            // ==========================================
+            // let actionIntent = data.status; 
+            // let roleType = '';
+
+            if (data.approver_id && ['approved', 'verified', 'rejected'].includes(actionIntent)) {
                 const approverUser = await db.users.findByPk(data.approver_id, { transaction: t });
+                const staffLevel = approverUser?.staff_level ?? '';
 
-                // ກວດສອບສິດ
-                if (approverUser?.role !== 'admin' && !['approver', 'credit_manager', 'deputy_director', 'director'].includes(approverUser?.staff_level ?? '')) {
-                    throw new Error('ທ່ານບໍ່ມີສິດໃນການອະນຸມັດ Loan Application');
+                if (approverUser?.role !== 'admin' && !['approver', 'credit_manager', 'deputy_director', 'director'].includes(staffLevel)) {
+                    throw new Error('ທ່ານບໍ່ມີສິດໃນການອະນຸມັດ ຫຼື ກວດກາສິນເຊື່ອ');
                 }
-                updatePayload.approver_id = data.approver_id;
 
-                // ຈັດການ Remarks ຕາມເກນຄະແນນ (ຖ້າມີຄະແນນ)
-                if (currentScore !== null && currentScore !== undefined) {
-                    if (currentScore >= 65 && currentScore <= 79) {
-                        updatePayload.remarks = data.remarks;
-                    } else if (currentScore < 65) {
-                        updatePayload.remarks = data.remarks || 'ເງື່ອນໄຂບໍ່ຜ່ານ (Condition not met)';
+                // 🟢 2.1 ຈັດການ Role ຕາມຕຳແໜ່ງ (Mapping & Dynamic Assign)
+                if (staffLevel === 'credit_manager') {
+                    roleType = 'credit_head';
+                } 
+                else if (staffLevel === 'deputy_director') {
+                    // ກວດສອບວ່າ ຮອງຜູ້ອຳນວຍການ ທ່ານນີ້ເຄີຍເຊັນເອກະສານນີ້ແລ້ວຫຼືຍັງ? (ປ້ອງກັນກົດຊ້ຳຄົນດຽວ)
+                    const mySignature = await db.document_signatures.findOne({
+                        where: { application_id: loanApplicationId, user_id: data.approver_id, document_type: 'approval_summary', status: 'signed' },
+                        transaction: t
+                    });
+                    if (mySignature) {
+                        throw new Error('ທ່ານໄດ້ກວດກາ ແລະ ຢືນຢັນເອກະສານນີ້ໄປແລ້ວ!');
+                    }
+
+                    // ກວດສອບວ່າ ຕຳແໜ່ງ approver_2 ມີຮອງຜູ້ອຳນວຍການທ່ານອື່ນເຊັນແລ້ວຫຼືຍັງ?
+                    const existingApp2 = await db.document_signatures.findOne({
+                        where: { application_id: loanApplicationId, role_type: 'approver_2', document_type: 'approval_summary', status: 'signed' },
+                        transaction: t
+                    });
+
+                    // ຖ້າຍັງບໍ່ມີໃຜເຊັນ, ໃຫ້ຄົນນີ້ເປັນ approver_2 / ຖ້າມີແລ້ວ ໃຫ້ຄົນນີ້ເປັນ approver_3
+                    if (!existingApp2) {
+                        roleType = 'approver_2'; 
                     } else {
-                        updatePayload.remarks = data.remarks || 'ຜ່ານການພິຈາລະນາ (Approved)';
+                        roleType = 'approver_3'; 
+                    }
+                } 
+                else if (['director', 'approver'].includes(staffLevel)) {
+                    roleType = 'approver_1'; // ຜູ້ອຳນວຍການສູງສຸດ
+                }
+
+                // 🟢 2.2 ບັງຄັບ Status (Manager ແລະ Deputy ເຮັດໄດ້ແຄ່ verified ເທົ່ານັ້ນ)
+                if ((staffLevel === 'credit_manager' || staffLevel === 'deputy_director') && actionIntent === 'approved') {
+                    actionIntent = 'verified';
+                }
+
+                // 🛡️ 2.3 GUARD LOGIC: ດ່ານກວດກາຂອງຜູ້ອຳນວຍການ (Director)
+                if (actionIntent === 'approved' && roleType === 'approver_1') {
+                    
+                    // ບັງຄັບໃຫ້ຕ້ອງມີລາຍເຊັນຂອງ ຫົວໜ້າສິນເຊື່ອ (1) ແລະ ຮອງຜູ້ອຳນວຍການ (2) ຄົບຖ້ວນ!
+                    const requiredRoles = ['credit_head', 'approver_2', 'approver_3'];
+                    
+                    // ນັບຈຳນວນລາຍເຊັນທີ່ເຊັນສຳເລັດແລ້ວ
+                    const signedCount = await db.document_signatures.count({
+                        where: {
+                            application_id: loanApplicationId,
+                            document_type: 'approval_summary',
+                            role_type: requiredRoles,
+                            status: 'signed'
+                        },
+                        transaction: t
+                    });
+
+                    // ຖ້ານັບແລ້ວໄດ້ໜ້ອຍກວ່າ 3 ແປວ່າຍັງມີຄົນບໍ່ເຊັນ (ເຊັ່ນ Deputy ເຊັນແຄ່ຄົນດຽວ)
+                    if (signedCount < 3) {
+                        throw new Error('ບໍ່ສາມາດອະນຸມັດໄດ້! ຕ້ອງລໍຖ້າໃຫ້ "ຫົວໜ້າສິນເຊື່ອ" ແລະ "ຮອງຜູ້ອຳນວຍການ (ທັງ 2 ທ່ານ)" ກວດກາໃຫ້ຄົບຖ້ວນກ່ອນ.');
                     }
                 }
-            } else if (currentScore === null && data.approver_id) {
-                delete updatePayload.approver_id;
+
+                updatePayload.approver_id = data.approver_id;
+                updatePayload.status = actionIntent;
             }
 
-            // ==========================================
-            // STEP 3: ຈັດການສະຖານະ (Status) & ເວລາ (Timestamps)
-            // ==========================================
             const finalStatus = updatePayload.status || loanApplication.status;
 
+            // ==========================================
+            // STEP 3: ຈັດການເວລາ (Timestamps)
+            // ==========================================
             if (finalStatus === 'verifying' && !loanApplication.applied_at) {
                 updatePayload.applied_at = new Date();
             }
-
             if (finalStatus === 'approved' && updatePayload.approver_id && !loanApplication.approved_at) {
                 updatePayload.approved_at = new Date();
             }
 
-            // 🟢 ກຳນົດ ID ຜູ້ເຮັດລາຍການ ເພື່ອໃຊ້ບັນທຶກ Audit Log ຂອງທຸກໆຕາຕະລາງ
             const performedBy = updatePayload.approver_id || data.requester_id || 1;
 
-            // ==========================================
-            // STEP 4: ບັນທຶກການອັບເດດລົງ loan_applications
-            // ==========================================
             const updatedLoanApplication = await loanApplication.update(updatePayload, {
                 where: { id: loanApplicationId },
                 returning: true,
                 transaction: t
             });
 
-            // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ loan_applications
+            // 🎯 ບັນທຶກ Audit Log
             await logAudit('loan_applications', loanApplication.id, 'UPDATE', oldLoanData, updatePayload, performedBy, t);
 
 
             // ==========================================
-            // 🟢 STEP 5: ລວບຍອດ ອະນຸມັດຕາຕະລາງຜ່ອນ + ປະທັບຕາລົງສັນຍາ + ຄອນເຟີມສັນຍາ (ພ້ອມ Audit)
+            // 🌟 STEP 4: ປະທັບຕາລາຍເຊັນ (ອັບເດດ document_signatures)
             // ==========================================
-            if (finalStatus === 'approved' && updatePayload.approver_id) {
-
-                // 5.1 ອັບເດດຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule) ທີ່ເປັນ draft ໃຫ້ເປັນ approved
-                const draftSchedules = await db.repayment_schedules.findAll({
-                    where: { application_id: loanApplicationId, status: 'draft' },
+            if (['approved', 'verified', 'rejected'].includes(finalStatus) && updatePayload.approver_id && roleType) {
+                
+                // 4.1 ອັບເດດລາຍເຊັນໃນໃບ Approval Summary
+                const existingSummarySig = await db.document_signatures.findOne({
+                    where: { application_id: loanApplicationId, document_type: 'approval_summary', role_type: roleType },
                     transaction: t
                 });
 
-                for (const schedule of draftSchedules) {
-                    const oldSchedData = schedule.toJSON();
-                    await schedule.update({
-                        status: 'approved',
-                        approved_by: updatePayload.approver_id,
-                        approved_at: new Date()
-                    }, { transaction: t });
+                const signatureStatus = finalStatus === 'rejected' ? 'rejected' : 'signed';
 
-                    // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ repayment_schedules
-                    await logAudit('repayment_schedules', schedule.id, 'UPDATE', oldSchedData, schedule.toJSON(), performedBy, t);
+                if (existingSummarySig) {
+                    await existingSummarySig.update({ user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date() }, { transaction: t });
+                    await logAudit('document_signatures', existingSummarySig.id, 'UPDATE', existingSummarySig.toJSON(), { status: signatureStatus }, performedBy, t);
+                } else {
+                    // ຖ້າບໍ່ເຄີຍມີ Recordມາກ່ອນ ໃຫ້ສ້າງໃໝ່ເລີຍ
+                    const newSummarySig = await db.document_signatures.create({
+                        application_id: loanApplicationId, document_type: 'approval_summary', reference_id: loanApplicationId,
+                        role_type: roleType as any, user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date()
+                    }, { transaction: t });
+                    await logAudit('document_signatures', newSummarySig.id, 'CREATE', null, newSummarySig.toJSON(), performedBy, t);
                 }
 
-                // 5.2 ດຶງຂໍ້ມູນສັນຍາ (Loan Contract) ເພື່ອນຳ ID ມາຜູກກັບລາຍເຊັນ ແລະ ຄອນເຟີມສັນຍາ
+                // 4.2 ອັບເດດລາຍເຊັນໃນ Contract
                 const contract = await db.loan_contract.findOne({
                     where: { loan_id: loanApplicationId },
                     transaction: t
                 });
 
                 if (contract) {
-                    const oldContractData = contract.toJSON();
-
-                    // 🟢 ອັບເດດໃຫ້ສັນຍາຖືກຢືນຢັນ (is_confirmed = 1) ທັນທີ
-                    await contract.update({
-                        is_confirmed: 1,
-                        updated_by: updatePayload.approver_id
-                    }, { transaction: t });
-
-                    // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ loan_contract
-                    await logAudit('loan_contract', contract.id, 'UPDATE', oldContractData, contract.toJSON(), performedBy, t);
-
-
-                    // 5.3 ຈັດການລາຍເຊັນ (document_signatures)
-                    const approverUser = await db.users.findByPk(updatePayload.approver_id, { transaction: t });
-                    let roleType = 'credit_head'; // Default fallback
-
-                    // Map staff_level ໃຫ້ຕົງກັບ ENUM 'role_type'
-                    if (approverUser?.staff_level === 'deputy_director') {
-                        const existingApp1 = await db.document_signatures.findOne({
-                            where: { document_type: 'contract', reference_id: contract.id, role_type: 'approver_1' },
-                            transaction: t
-                        });
-                        roleType = existingApp1 ? 'approver_2' : 'approver_1';
-                    } else if (approverUser?.staff_level === 'director') {
-                        roleType = 'approver_3';
-                    } else if (approverUser?.staff_level === 'credit_manager') {
-                        roleType = 'credit_head';
-                    }
-
-                    // ປ້ອງກັນການເຊັນຊ້ຳໃນຕຳແໜ່ງເດີມ
-                    const existingSignature = await db.document_signatures.findOne({
-                        where: {
-                            document_type: 'contract',
-                            reference_id: contract.id,
-                            role_type: roleType
-                        },
+                    const existingContractSig = await db.document_signatures.findOne({
+                        where: { application_id: loanApplicationId, document_type: 'contract', role_type: roleType },
                         transaction: t
                     });
 
-                    // 5.4 Insert ລາຍເຊັນລົງຖານຂໍ້ມູນ ຖ້າຍັງບໍ່ມີ
-                    if (!existingSignature) {
-                        const newSignature = await db.document_signatures.create({
-                            application_id: loanApplicationId,
-                            document_type: 'contract',
-                            reference_id: contract.id,
-                            role_type: roleType as any,
-                            user_id: updatePayload.approver_id,
-                            status: 'signed',
-                            signed_at: new Date()
+                    if (existingContractSig) {
+                        await existingContractSig.update({ user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date() }, { transaction: t });
+                    } else {
+                        await db.document_signatures.create({
+                            application_id: loanApplicationId, document_type: 'contract', reference_id: contract.id,
+                            role_type: roleType as any, user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date()
                         }, { transaction: t });
+                    }
 
-                        // 🎯 ບັນທຶກ Audit Log ສໍາລັບຕາຕະລາງ document_signatures (CREATE)
-                        await logAudit('document_signatures', newSignature.id, 'CREATE', null, newSignature.toJSON(), performedBy, t);
+                    // 🟢 4.3 ຖ້າສະຖານະສຸດທ້າຍຄື Approved ແທ້ໆ ຈຶ່ງຄອນເຟີມສັນຍາ ແລະ ຕາຕະລາງຜ່ອນ
+                    if (finalStatus === 'approved') {
+                        const oldContractData = contract.toJSON();
+                        await contract.update({ is_confirmed: 1, updated_by: updatePayload.approver_id }, { transaction: t });
+                        await logAudit('loan_contract', contract.id, 'UPDATE', oldContractData, contract.toJSON(), performedBy, t);
+
+                        await db.repayment_schedules.update(
+                            { status: 'approved', approved_by: updatePayload.approver_id, approved_at: new Date() },
+                            { where: { application_id: loanApplicationId, status: 'draft' }, transaction: t }
+                        );
                     }
                 }
             }
 
             // ==========================================
-            // STEP 6: ບັນທຶກ Workflow ລົງ Approval Log (Timeline)
+            // STEP 5: ບັນທຶກ Approval Log (Timeline)
             // ==========================================
             if (loanApplication.status !== finalStatus) {
-                let actionType: action | null = null;
+                let actionLogType = '';
+                if (finalStatus === 'approved') actionLogType = 'approved';
+                else if (finalStatus === 'verified') actionLogType = 'verified'; // 🟢 ບັນທຶກວ່າ Verified
+                else if (finalStatus === 'rejected') actionLogType = 'rejected';
 
-                if (finalStatus === 'approved') actionType = 'approved';
-                else if (finalStatus === 'rejected') actionType = 'rejected';
-                else if (finalStatus === 'cancelled') actionType = 'cancelled';
-                else if (finalStatus === 'pending') actionType = 'returned_for_edit';
-
-                if (actionType) {
+                if (actionLogType) {
                     await this.logApprovalAction(
                         loanApplicationId,
-                        actionType,
+                        actionLogType as any,
                         loanApplication.status,
                         finalStatus,
                         updatePayload.remarks || null,
@@ -627,16 +929,13 @@ class LoanApplicationRepository {
             }
 
             await t.commit();
-            logger.info(`Loan application updated with ID: ${loanApplicationId}, Status: ${finalStatus}`);
             return updatedLoanApplication;
 
         } catch (error) {
             await t.rollback();
-            logger.error(`Error updating loan application: ${(error as Error).message}`);
             throw error;
         }
     }
-
     private async logApprovalAction(applicationId: number, action: action, statusFrom: string | undefined, statusTo: string, remarks: string | undefined, userId: number, t: Transaction): Promise<void> {
         await db.loan_approval_logs.create({
             application_id: applicationId,

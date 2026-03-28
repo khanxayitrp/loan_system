@@ -1,20 +1,29 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import authService from '../services/auth.service';
 import config from '../config/auth.config';
 import jwt from 'jsonwebtoken';
+
+// 👉 1. Import Custom Errors เข้ามาใช้งาน
+import { 
+  BadRequestError, 
+  UnauthorizedError, 
+  ForbiddenError, 
+  NotFoundError 
+} from '../utils/errors';
 
 export type RoleType = 'admin' | 'staff' | 'partner' | 'customer';
 
 class AuthController {
 
   // --- 1. Login ---
-  public async login(req: Request, res: Response) {
+  public async login(req: Request, res: Response, next: NextFunction) {
     try {
       const { username, password } = req.body;
       const result = await authService.signIn(username, password);
 
       if (!result) {
-        return res.status(401).json({ message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+        // 👉 เปลี่ยนเป็น throw Custom Error
+        throw new UnauthorizedError('ຊື່ຜູ້ໃຊ້ງານຫຼືລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ');
       }
 
       const { tokens, user } = result;
@@ -25,7 +34,8 @@ class AuthController {
       const decodedToken = jwt.decode(tokens.access.token) as any;
 
       return res.status(200).json({
-        message: 'เข้าสู่ระบบสำเร็จ',
+        success: true, // แนะนำให้เพิ่ม success: true ในเคสปกติ
+        message: 'ເຂົ້າສູ່ລະບົບສຳເລັດ',
         user: {
           id: user.id,
           username: user.username,
@@ -37,22 +47,19 @@ class AuthController {
         permissions: decodedToken.permissions || [],
         expiresAt: decodedToken?.exp
       });
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+    } catch (error) {
+      next(error); // 👉 โยน Error ให้ Global Handler จัดการ
     }
   }
 
   // --- 2. Register (สำหรับ Admin เท่านั้น) ---
-  public async register(req: Request, res: Response) {
+  public async register(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.userPayload) {
-        return res.status(401).json({ 
-          error: 'Authentication required',
-          message: 'กรุณาเข้าสู่ระบบก่อนสร้างผู้ใช้' 
-        });
+        throw new UnauthorizedError('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນສ້າງຜູ້ໃຊ້ງານ');
       }
 
-      const callerRole = req.userPayload.role;
+      const callerRole = req.userPayload.role as RoleType;
       
       const allowedRolesForCaller: Record<RoleType, RoleType[]> = {
         admin: ['admin', 'staff', 'partner', 'customer'],
@@ -61,26 +68,21 @@ class AuthController {
         customer: [] 
       };
 
-      const targetRole = req.body.role;
+      const targetRole = req.body.role as RoleType;
 
       if (!allowedRolesForCaller[callerRole]) {
-        return res.status(403).json({ 
-          error: 'Invalid role',
-          message: 'บทบาทของคุณไม่ถูกต้อง' 
-        });
+        throw new ForbiddenError('ສິດ ແລະ ບົດບາດຂອງທ່ານບໍ່ຖືກຕ້ອງ');
       }
 
       if (!allowedRolesForCaller[callerRole].includes(targetRole)) {
-        return res.status(403).json({ 
-          error: 'Forbidden',
-          message: `คุณไม่มีสิทธิ์สร้างผู้ใช้ประเภท ${targetRole}` 
-        });
+        throw new ForbiddenError(`ທ່ານບໍ່ມີສິດສ້າງຜູ້ໃຊ້ງານປະເພດດັ່ງກ່າວ ${targetRole}`);
       }
 
       const newUser = await authService.registerUser(req.body);
       
-      const responseData = {
-        message: 'สร้างผู้ใช้งานสำเร็จ',
+      return res.status(201).json({
+        success: true,
+        message: 'ສໍາເລັດໃນການສ້າງຜູ້ໃຊ້ງານ',
         user: {
           id: newUser.id,
           username: newUser.username,
@@ -89,27 +91,23 @@ class AuthController {
           full_name: newUser.full_name,
           is_active: newUser.is_active
         }
-      };
-
-      return res.status(201).json(responseData);
-    } catch (error: any) {
-      return res.status(400).json({ 
-        error: error.name || 'Error',
-        message: error.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้' 
       });
+    } catch (error) {
+      next(error);
     }
   }
 
-  public async getCurrentUser(req: Request, res: Response) {
+  public async getCurrentUser(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.userPayload!.userId;
       const user = await authService.getUserById(userId);
 
       if (!user) {
-        return res.status(404).json({ message: 'ไม่พบข้อมูลผู้ใช้งาน' });
+        throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ');
       }
       
       return res.status(200).json({ 
+        success: true,
         user: {
           id: user.id,
           username: user.username,
@@ -121,13 +119,13 @@ class AuthController {
         permissions: req.userPayload!.permissions || [],
         expiresAt: req.userPayload!.exp
       });
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+    } catch (error) {
+      next(error);
     }
   }
 
   // สำหรับลูกค้าสมัครเอง
-  public async signUp(req: Request, res: Response) {
+  public async signUp(req: Request, res: Response, next: NextFunction) {
     try {
       const { username, password, full_name } = req.body;
       const newUser = await authService.signUp({
@@ -138,82 +136,89 @@ class AuthController {
         staff_level: 'none'
       });
 
-      return res.status(201).json(newUser);
-    } catch (error: any) {
-      return res.status(400).json({ message: error.message });
+      return res.status(201).json({
+        success: true,
+        data: newUser
+      });
+    } catch (error) {
+      next(error);
     }
   }
 
   // --- 3. Refresh ---
-  public async refresh(req: Request, res: Response) {
+  public async refresh(req: Request, res: Response, next: NextFunction) {
     try {
       const token = req.cookies.refreshToken;
-      if (!token) return res.status(401).json({ message: 'ไม่พบ Refresh Token' });
+      if (!token) {
+        throw new UnauthorizedError('ບໍ່ພົບ Refresh Token');
+      }
 
       const newTokens = await authService.refreshTokens(token);
-      if (!newTokens) return res.status(403).json({ message: 'Session หมดอายุ กรุณา Login ใหม่' });
+      if (!newTokens) {
+        throw new UnauthorizedError('Session ໝົດອາຍຸ ກະລຸນາ Login ໃຫມ່');
+      }
 
       AuthController.setTokenCookies(res, newTokens);
 
-      return res.status(200).json({ message: 'ต่ออายุสำเร็จ' });
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(200).json({ success: true, message: 'ຕໍ່ອາຍຸສຳເລັດ' });
+    } catch (error) {
+      next(error);
     }
   }
 
   // --- 4. Logout ---
-  public async logout(req: Request, res: Response) {
+  public async logout(req: Request, res: Response, next: NextFunction) {
     try {
       const token = req.cookies.refreshToken;
       if (token) await authService.signOut(token);
 
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
-      return res.status(200).json({ message: 'ออกจากระบบสำเร็จ' });
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
+      return res.status(200).json({ success: true, message: 'ອອກຈາກລະບົບສຳເລັດ' });
+    } catch (error) {
+      next(error);
     }
   }
 
-  public async changePassword(req: Request, res: Response) {
+  public async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
       const { oldPassword, newPassword } = req.body;
       const userId = req.userPayload?.userId; 
 
       if (!userId) {
-        return res.status(401).json({ message: 'ไม่พบข้อมูลผู้ใช้งาน' });
+        throw new UnauthorizedError('ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ');
       }
 
       if (!oldPassword || !newPassword) {
-        return res.status(400).json({ message: 'กรุณาระบุรหัสผ่านเดิมและรหัสผ่านใหม่' });
+        throw new BadRequestError('ກະລຸນາລະບຸລະຫັດຜ່ານເກົ່າ ແລະ ລະຫັດຜ່ານໃຫມ່');
       }
 
       await authService.changePassword(userId, oldPassword, newPassword);
 
-      return res.status(200).json({ message: 'เปลี่ยนรหัสผ่านสำเร็จแล้ว' });
-    } catch (error: any) {
-      return res.status(400).json({ message: error.message });
+      return res.status(200).json({ success: true, message: 'ປ່ຽນລະຫັດຜ່ານສຳເລັດແລ້ວ' });
+    } catch (error) {
+      next(error);
     }
   }
 
-  public async fetchFirstLoginInfo(req: Request, res: Response) {
+  public async fetchFirstLoginInfo(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.userPayload?.userId;
 
       if (!userId) {
-        return res.status(401).json({ message: 'ไม่พบข้อมูลผู้ใช้งาน' });
+        throw new UnauthorizedError('ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ');
       }
 
       const loginCount = await authService.getFirstLoggedInUser(userId);
 
       return res.status(200).json({ 
-        message: 'ข้อมูลการเข้าสู่ระบบ',
+        success: true,
+        message: 'ຂໍ້ມູນການເຂົ້າສູ່ລະບົບຄັ້ງທຳອິດ',
         data: loginCount
       });
+    } catch (error) {
+      next(error);
     }
-      catch (error: any) {
-        return res.status(500).json({ message: error.message });
-      }
   }
 
   // 🟢 Helper ฟังก์ชันเพื่อเซ็ต Cookie อย่างปลอดภัย

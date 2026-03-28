@@ -3,10 +3,22 @@ import { application_documents as _application_documents } from "./application_d
 import type { application_documentsAttributes, application_documentsCreationAttributes } from "./application_documents";
 import { audit_logs as _audit_logs } from "./audit_logs";
 import type { audit_logsAttributes, audit_logsCreationAttributes } from "./audit_logs";
+import { cart_items as _cart_items } from "./cart_items";
+import type { cart_itemsAttributes, cart_itemsCreationAttributes } from "./cart_items";
+import { carts as _carts } from "./carts";
+import type { cartsAttributes, cartsCreationAttributes } from "./carts";
+import { credit_ledgers as _credit_ledgers } from "./credit_ledgers";
+import type { credit_ledgersAttributes, credit_ledgersCreationAttributes } from "./credit_ledgers";
 import { cus_requestform as _cus_requestform } from "./cus_requestform";
 import type { cus_requestformAttributes, cus_requestformCreationAttributes } from "./cus_requestform";
+import { customer_credits as _customer_credits } from "./customer_credits";
+import type { customer_creditsAttributes, customer_creditsCreationAttributes } from "./customer_credits";
 import { customer_locations as _customer_locations } from "./customer_locations";
 import type { customer_locationsAttributes, customer_locationsCreationAttributes } from "./customer_locations";
+import { customer_points as _customer_points } from "./customer_points";
+import type { customer_pointsAttributes, customer_pointsCreationAttributes } from "./customer_points";
+import { customer_vouchers as _customer_vouchers } from "./customer_vouchers";
+import type { customer_vouchersAttributes, customer_vouchersCreationAttributes } from "./customer_vouchers";
 import { customer_work_info as _customer_work_info } from "./customer_work_info";
 import type { customer_work_infoAttributes, customer_work_infoCreationAttributes } from "./customer_work_info";
 import { customers as _customers } from "./customers";
@@ -17,6 +29,8 @@ import { document_signatures as _document_signatures } from "./document_signatur
 import type { document_signaturesAttributes, document_signaturesCreationAttributes } from "./document_signatures";
 import { features as _features } from "./features";
 import type { featuresAttributes, featuresCreationAttributes } from "./features";
+import { global_categories as _global_categories } from "./global_categories";
+import type { global_categoriesAttributes, global_categoriesCreationAttributes } from "./global_categories";
 import { loan_applications as _loan_applications } from "./loan_applications";
 import type { loan_applicationsAttributes, loan_applicationsCreationAttributes } from "./loan_applications";
 import { loan_approval_logs as _loan_approval_logs } from "./loan_approval_logs";
@@ -39,14 +53,24 @@ import { loan_income_assessments as _loan_income_assessments } from "./loan_inco
 import type { loan_income_assessmentsAttributes, loan_income_assessmentsCreationAttributes } from "./loan_income_assessments";
 import { loan_payments as _loan_payments } from "./loan_payments";
 import type { loan_paymentsAttributes, loan_paymentsCreationAttributes } from "./loan_payments";
+import { order_items as _order_items } from "./order_items";
+import type { order_itemsAttributes, order_itemsCreationAttributes } from "./order_items";
+import { orders as _orders } from "./orders";
+import type { ordersAttributes, ordersCreationAttributes } from "./orders";
 import { partners as _partners } from "./partners";
 import type { partnersAttributes, partnersCreationAttributes } from "./partners";
 import { payment_transactions as _payment_transactions } from "./payment_transactions";
 import type { payment_transactionsAttributes, payment_transactionsCreationAttributes } from "./payment_transactions";
+import { point_ledgers as _point_ledgers } from "./point_ledgers";
+import type { point_ledgersAttributes, point_ledgersCreationAttributes } from "./point_ledgers";
 import { product_gallery as _product_gallery } from "./product_gallery";
 import type { product_galleryAttributes, product_galleryCreationAttributes } from "./product_gallery";
+import { product_reviews as _product_reviews } from "./product_reviews";
+import type { product_reviewsAttributes, product_reviewsCreationAttributes } from "./product_reviews";
 import { product_types as _product_types } from "./product_types";
 import type { product_typesAttributes, product_typesCreationAttributes } from "./product_types";
+import { product_variants as _product_variants } from "./product_variants";
+import type { product_variantsAttributes, product_variantsCreationAttributes } from "./product_variants";
 import { products as _products } from "./products";
 import type { productsAttributes, productsCreationAttributes } from "./products";
 import { promotions as _promotions } from "./promotions";
@@ -61,19 +85,30 @@ import { user_refresh_tokens as _user_refresh_tokens } from "./user_refresh_toke
 import type { user_refresh_tokensAttributes, user_refresh_tokensCreationAttributes } from "./user_refresh_tokens";
 import { users as _users } from "./users";
 import type { usersAttributes, usersCreationAttributes } from "./users";
+import { vouchers as _vouchers } from "./vouchers";
+import type { vouchersAttributes, vouchersCreationAttributes } from "./vouchers";
+import { wishlists as _wishlists } from "./wishlists";
+import type { wishlistsAttributes, wishlistsCreationAttributes } from "./wishlists";
 import connect from "../config/db.config";
-import { sequelize } from "../config/db.config";
+import { sequelize } from "../config/db.config"; 
 
 export {
   _application_documents as application_documents,
   _audit_logs as audit_logs,
+  _cart_items as cart_items,
+  _carts as carts,
+  _credit_ledgers as credit_ledgers,
   _cus_requestform as cus_requestform,
+  _customer_credits as customer_credits,
   _customer_locations as customer_locations,
+  _customer_points as customer_points,
+  _customer_vouchers as customer_vouchers,
   _customer_work_info as customer_work_info,
   _customers as customers,
   _delivery_receipts as delivery_receipts,
   _document_signatures as document_signatures,
   _features as features,
+  _global_categories as global_categories,
   _loan_applications as loan_applications,
   _loan_approval_logs as loan_approval_logs,
   _loan_basic_verifications as loan_basic_verifications,
@@ -85,10 +120,15 @@ export {
   _loan_guarantors as loan_guarantors,
   _loan_income_assessments as loan_income_assessments,
   _loan_payments as loan_payments,
+  _order_items as order_items,
+  _orders as orders,
   _partners as partners,
   _payment_transactions as payment_transactions,
+  _point_ledgers as point_ledgers,
   _product_gallery as product_gallery,
+  _product_reviews as product_reviews,
   _product_types as product_types,
+  _product_variants as product_variants,
   _products as products,
   _promotions as promotions,
   _repayment_schedules as repayment_schedules,
@@ -96,18 +136,32 @@ export {
   _user_permissions as user_permissions,
   _user_refresh_tokens as user_refresh_tokens,
   _users as users,
+  _vouchers as vouchers,
+  _wishlists as wishlists,
 };
 
 export type {
-    sequelize,
+  sequelize,
   application_documentsAttributes,
   application_documentsCreationAttributes,
   audit_logsAttributes,
   audit_logsCreationAttributes,
+  cart_itemsAttributes,
+  cart_itemsCreationAttributes,
+  cartsAttributes,
+  cartsCreationAttributes,
+  credit_ledgersAttributes,
+  credit_ledgersCreationAttributes,
   cus_requestformAttributes,
   cus_requestformCreationAttributes,
+  customer_creditsAttributes,
+  customer_creditsCreationAttributes,
   customer_locationsAttributes,
   customer_locationsCreationAttributes,
+  customer_pointsAttributes,
+  customer_pointsCreationAttributes,
+  customer_vouchersAttributes,
+  customer_vouchersCreationAttributes,
   customer_work_infoAttributes,
   customer_work_infoCreationAttributes,
   customersAttributes,
@@ -118,6 +172,8 @@ export type {
   document_signaturesCreationAttributes,
   featuresAttributes,
   featuresCreationAttributes,
+  global_categoriesAttributes,
+  global_categoriesCreationAttributes,
   loan_applicationsAttributes,
   loan_applicationsCreationAttributes,
   loan_approval_logsAttributes,
@@ -140,14 +196,24 @@ export type {
   loan_income_assessmentsCreationAttributes,
   loan_paymentsAttributes,
   loan_paymentsCreationAttributes,
+  order_itemsAttributes,
+  order_itemsCreationAttributes,
+  ordersAttributes,
+  ordersCreationAttributes,
   partnersAttributes,
   partnersCreationAttributes,
   payment_transactionsAttributes,
   payment_transactionsCreationAttributes,
+  point_ledgersAttributes,
+  point_ledgersCreationAttributes,
   product_galleryAttributes,
   product_galleryCreationAttributes,
+  product_reviewsAttributes,
+  product_reviewsCreationAttributes,
   product_typesAttributes,
   product_typesCreationAttributes,
+  product_variantsAttributes,
+  product_variantsCreationAttributes,
   productsAttributes,
   productsCreationAttributes,
   promotionsAttributes,
@@ -162,18 +228,29 @@ export type {
   user_refresh_tokensCreationAttributes,
   usersAttributes,
   usersCreationAttributes,
+  vouchersAttributes,
+  vouchersCreationAttributes,
+  wishlistsAttributes,
+  wishlistsCreationAttributes,
 };
 
 export function initModels(sequelize: Sequelize) {
   const application_documents = _application_documents.initModel(sequelize);
   const audit_logs = _audit_logs.initModel(sequelize);
+  const cart_items = _cart_items.initModel(sequelize);
+  const carts = _carts.initModel(sequelize);
+  const credit_ledgers = _credit_ledgers.initModel(sequelize);
   const cus_requestform = _cus_requestform.initModel(sequelize);
+  const customer_credits = _customer_credits.initModel(sequelize);
   const customer_locations = _customer_locations.initModel(sequelize);
+  const customer_points = _customer_points.initModel(sequelize);
+  const customer_vouchers = _customer_vouchers.initModel(sequelize);
   const customer_work_info = _customer_work_info.initModel(sequelize);
   const customers = _customers.initModel(sequelize);
   const delivery_receipts = _delivery_receipts.initModel(sequelize);
   const document_signatures = _document_signatures.initModel(sequelize);
   const features = _features.initModel(sequelize);
+  const global_categories = _global_categories.initModel(sequelize);
   const loan_applications = _loan_applications.initModel(sequelize);
   const loan_approval_logs = _loan_approval_logs.initModel(sequelize);
   const loan_basic_verifications = _loan_basic_verifications.initModel(sequelize);
@@ -185,10 +262,15 @@ export function initModels(sequelize: Sequelize) {
   const loan_guarantors = _loan_guarantors.initModel(sequelize);
   const loan_income_assessments = _loan_income_assessments.initModel(sequelize);
   const loan_payments = _loan_payments.initModel(sequelize);
+  const order_items = _order_items.initModel(sequelize);
+  const orders = _orders.initModel(sequelize);
   const partners = _partners.initModel(sequelize);
   const payment_transactions = _payment_transactions.initModel(sequelize);
+  const point_ledgers = _point_ledgers.initModel(sequelize);
   const product_gallery = _product_gallery.initModel(sequelize);
+  const product_reviews = _product_reviews.initModel(sequelize);
   const product_types = _product_types.initModel(sequelize);
+  const product_variants = _product_variants.initModel(sequelize);
   const products = _products.initModel(sequelize);
   const promotions = _promotions.initModel(sequelize);
   const repayment_schedules = _repayment_schedules.initModel(sequelize);
@@ -196,19 +278,43 @@ export function initModels(sequelize: Sequelize) {
   const user_permissions = _user_permissions.initModel(sequelize);
   const user_refresh_tokens = _user_refresh_tokens.initModel(sequelize);
   const users = _users.initModel(sequelize);
+  const vouchers = _vouchers.initModel(sequelize);
+  const wishlists = _wishlists.initModel(sequelize);
 
   features.belongsToMany(users, { as: 'user_id_users', through: user_permissions, foreignKey: "feature_id", otherKey: "user_id" });
   users.belongsToMany(features, { as: 'feature_id_features', through: user_permissions, foreignKey: "user_id", otherKey: "feature_id" });
+  cart_items.belongsTo(carts, { as: "cart", foreignKey: "cart_id"});
+  carts.hasMany(cart_items, { as: "cart_items", foreignKey: "cart_id"});
+  carts.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasOne(carts, { as: "cart", foreignKey: "customer_id"});
+  credit_ledgers.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(credit_ledgers, { as: "credit_ledgers", foreignKey: "customer_id"});
   cus_requestform.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(cus_requestform, { as: "cus_requestforms", foreignKey: "customer_id"});
+  customer_credits.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasOne(customer_credits, { as: "customer_credit", foreignKey: "customer_id"});
   customer_locations.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(customer_locations, { as: "customer_locations", foreignKey: "customer_id"});
+  customer_points.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasOne(customer_points, { as: "customer_point", foreignKey: "customer_id"});
+  customer_vouchers.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(customer_vouchers, { as: "customer_vouchers", foreignKey: "customer_id"});
   customer_work_info.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(customer_work_info, { as: "customer_work_infos", foreignKey: "customer_id"});
   loan_applications.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(loan_applications, { as: "loan_applications", foreignKey: "customer_id"});
+  orders.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(orders, { as: "orders", foreignKey: "customer_id"});
+  point_ledgers.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(point_ledgers, { as: "point_ledgers", foreignKey: "customer_id"});
+  product_reviews.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(product_reviews, { as: "product_reviews", foreignKey: "customer_id"});
+  wishlists.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(wishlists, { as: "wishlists", foreignKey: "customer_id"});
   user_permissions.belongsTo(features, { as: "feature", foreignKey: "feature_id"});
   features.hasMany(user_permissions, { as: "user_permissions", foreignKey: "feature_id"});
+  products.belongsTo(global_categories, { as: "global_category", foreignKey: "global_category_id"});
+  global_categories.hasMany(products, { as: "products", foreignKey: "global_category_id"});
   application_documents.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(application_documents, { as: "application_documents", foreignKey: "application_id"});
   cus_requestform.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
@@ -243,10 +349,16 @@ export function initModels(sequelize: Sequelize) {
   loan_applications.hasMany(repayment_schedules, { as: "repayment_schedules", foreignKey: "application_id"});
   repayments.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(repayments, { as: "repayments", foreignKey: "application_id"});
+  loan_applications.belongsTo(orders, { as: "order", foreignKey: "order_id"});
+  orders.hasMany(loan_applications, { as: "loan_applications", foreignKey: "order_id"});
+  order_items.belongsTo(orders, { as: "order", foreignKey: "order_id"});
+  orders.hasMany(order_items, { as: "order_items", foreignKey: "order_id"});
   loan_contract.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
   partners.hasMany(loan_contract, { as: "loan_contracts", foreignKey: "partner_id"});
   loan_payments.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
   partners.hasMany(loan_payments, { as: "loan_payments", foreignKey: "partner_id"});
+  order_items.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
+  partners.hasMany(order_items, { as: "order_items", foreignKey: "partner_id"});
   product_types.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
   partners.hasMany(product_types, { as: "product_types", foreignKey: "partner_id"});
   products.belongsTo(partners, { as: "partner", foreignKey: "partner_id"});
@@ -255,10 +367,20 @@ export function initModels(sequelize: Sequelize) {
   product_types.hasMany(loan_contract, { as: "loan_contracts", foreignKey: "producttype_id"});
   products.belongsTo(product_types, { as: "productType", foreignKey: "productType_id"});
   product_types.hasMany(products, { as: "products", foreignKey: "productType_id"});
+  cart_items.belongsTo(products, { as: "product", foreignKey: "product_id"});
+  products.hasMany(cart_items, { as: "cart_items", foreignKey: "product_id"});
   loan_applications.belongsTo(products, { as: "product", foreignKey: "product_id"});
   products.hasMany(loan_applications, { as: "loan_applications", foreignKey: "product_id"});
+  order_items.belongsTo(products, { as: "product", foreignKey: "product_id"});
+  products.hasMany(order_items, { as: "order_items", foreignKey: "product_id"});
   product_gallery.belongsTo(products, { as: "product", foreignKey: "product_id"});
   products.hasMany(product_gallery, { as: "product_galleries", foreignKey: "product_id"});
+  product_reviews.belongsTo(products, { as: "product", foreignKey: "product_id"});
+  products.hasMany(product_reviews, { as: "product_reviews", foreignKey: "product_id"});
+  product_variants.belongsTo(products, { as: "product", foreignKey: "product_id"});
+  products.hasMany(product_variants, { as: "product_variants", foreignKey: "product_id"});
+  wishlists.belongsTo(products, { as: "product", foreignKey: "product_id"});
+  products.hasMany(wishlists, { as: "wishlists", foreignKey: "product_id"});
   repayments.belongsTo(repayment_schedules, { as: "schedule", foreignKey: "schedule_id"});
   repayment_schedules.hasMany(repayments, { as: "repayments", foreignKey: "schedule_id"});
   payment_transactions.belongsTo(repayments, { as: "schedule", foreignKey: "schedule_id"});
@@ -311,18 +433,27 @@ export function initModels(sequelize: Sequelize) {
   users.hasMany(user_permissions, { as: "user_permissions", foreignKey: "user_id"});
   user_refresh_tokens.belongsTo(users, { as: "user", foreignKey: "user_id"});
   users.hasMany(user_refresh_tokens, { as: "user_refresh_tokens", foreignKey: "user_id"});
+  customer_vouchers.belongsTo(vouchers, { as: "voucher", foreignKey: "voucher_id"});
+  vouchers.hasMany(customer_vouchers, { as: "customer_vouchers", foreignKey: "voucher_id"});
 
   return {
     sequelize: sequelize,
     application_documents: application_documents,
     audit_logs: audit_logs,
+    cart_items: cart_items,
+    carts: carts,
+    credit_ledgers: credit_ledgers,
     cus_requestform: cus_requestform,
+    customer_credits: customer_credits,
     customer_locations: customer_locations,
+    customer_points: customer_points,
+    customer_vouchers: customer_vouchers,
     customer_work_info: customer_work_info,
     customers: customers,
     delivery_receipts: delivery_receipts,
     document_signatures: document_signatures,
     features: features,
+    global_categories: global_categories,
     loan_applications: loan_applications,
     loan_approval_logs: loan_approval_logs,
     loan_basic_verifications: loan_basic_verifications,
@@ -334,10 +465,15 @@ export function initModels(sequelize: Sequelize) {
     loan_guarantors: loan_guarantors,
     loan_income_assessments: loan_income_assessments,
     loan_payments: loan_payments,
+    order_items: order_items,
+    orders: orders,
     partners: partners,
     payment_transactions: payment_transactions,
+    point_ledgers: point_ledgers,
     product_gallery: product_gallery,
+    product_reviews: product_reviews,
     product_types: product_types,
+    product_variants: product_variants,
     products: products,
     promotions: promotions,
     repayment_schedules: repayment_schedules,
@@ -345,6 +481,8 @@ export function initModels(sequelize: Sequelize) {
     user_permissions: user_permissions,
     user_refresh_tokens: user_refresh_tokens,
     users: users,
+    vouchers: vouchers,
+    wishlists: wishlists,
   };
 }
 

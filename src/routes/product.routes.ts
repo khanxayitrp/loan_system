@@ -1,8 +1,16 @@
 import { Router } from 'express';
+import multer from 'multer';
 import productController from '../controllers/product.controller';
 import {verifyToken, checkPermission} from '../middlewares/auth.middleware';
 
 const router = Router();
+
+// 🟢 2. ตั้งค่า Multer ให้เก็บไฟล์ในหน่วยความจำ (Memory Storage) 
+// เพื่อให้ Controller สามารถอ่านไฟล์ Excel ได้ทันทีโดยไม่ต้องเซฟลงเซิร์ฟเวอร์
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 } // จำกัดขนาดไฟล์ที่ 5MB
+});
 
 /**
  * @swagger
@@ -42,6 +50,35 @@ router.get('/',  productController.getAllProduct);
  *         description: Product created
  */
 router.post('/', verifyToken, productController.createProduct);
+
+
+/**
+ * @swagger
+ * /products/import:
+ *   post:
+ *     summary: Import products
+ *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: The Excel file (.xlsx)
+ *     responses:
+ *       201:
+ *         description: Products imported successfully
+ *       400:
+ *         description: Invalid file or data format
+ */
+// 🟢 3. เพิ่ม Route เส้นนี้เข้าไป โดยใช้ upload.single('file') เพื่อรับไฟล์
+router.post('/import', verifyToken, upload.single('file'), productController.importProductsFromExcel);
 
 /**
  * @swagger

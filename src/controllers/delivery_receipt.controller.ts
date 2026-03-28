@@ -1,80 +1,135 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import delivery_receiptRepo from "../repositories/delivery_receipt.repo";
-import { NotFoundError, ValidationError } from "../utils/errors";
 import { db } from "../models/init-models";
-import { logAudit } from '../utils/auditLogger';
-import { Transaction } from "sequelize";
 
-export const saveDeliveryReceipt = async (req: Request, res: Response) => {
+// 👉 1. Import Custom Errors
+import { NotFoundError, BadRequestError } from "../utils/errors";
+
+export const saveDeliveryReceipt = async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await db.sequelize.transaction();
     try {
         const application_id = parseInt(req.params.application_id);
+        
+        // Validate application_id
+        if (!application_id || isNaN(application_id)) {
+            throw new BadRequestError('application_id ບໍ່ຖືກຕ້ອງ (Invalid ID)');
+        }
+
         const { delivery_receipt } = req.body;
+        if (!delivery_receipt) {
+            throw new BadRequestError('ກະລຸນາສົ່ງຂໍ້ມູນ delivery_receipt (Data is required)');
+        }
+
         const userId = req.userPayload?.userId;
         console.log('Saving delivery receipt for application_id:', application_id);
         console.log('Delivery receipt data:', delivery_receipt);
+
         const result = await delivery_receiptRepo.createDeliveryReceipt(delivery_receipt, Number(userId), { transaction });
+        
         await transaction.commit();
-        res.status(200).json({ success: true, message: 'Delivery receipt saved', data: result });
-    } catch (error: any) {
-        await transaction.rollback();
-        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+        
+        return res.status(201).json({ 
+            success: true, 
+            message: 'Delivery receipt saved', 
+            data: result 
+        });
+    } catch (error) {
+        await transaction.rollback(); // 👈 Rollback ก่อนโยน Error
+        next(error); // โยนให้ Global Error Handler
     }
 };
 
-export const getDeliveryReceiptByReceiptId = async (req: Request, res: Response) => {
+export const getDeliveryReceiptByReceiptId = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const receipts_id = req.params.receipts_id;
-        const result = await delivery_receiptRepo.findDeliveryReceiptsByReceiptId(receipts_id);
-        if (!result) {
-          return  res.status(404).json({ success: false, message: 'Delivery receipt not found' });
+        
+        if (!receipts_id) {
+            throw new BadRequestError('receipts_id ເປັນຂໍ້ມູນບັງຄັບ');
         }
-        res.status(200).json({ success: true, message: 'Delivery receipt retrieved', data: result });
 
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+        const result = await delivery_receiptRepo.findDeliveryReceiptsByReceiptId(receipts_id);
+        
+        if (!result) {
+            throw new NotFoundError('Delivery receipt not found');
+        }
+        
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Delivery receipt retrieved', 
+            data: result 
+        });
+    } catch (error) {
+        next(error);
     }
 }
 
-export const getDeliveryReceiptsByApplicationId = async (req: Request, res: Response) => {
+export const getDeliveryReceiptsByApplicationId = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const application_id = parseInt(req.params.application_id);
-        const result = await delivery_receiptRepo.findDeliveryReceiptsByApplicationId(application_id);
-        if (!result) {
-           return res.status(404).json({ success: false, message: 'Delivery receipt not found for this application' });
-        }
-        res.status(200).json({ success: true, message: 'Delivery receipt retrieved', data: result });
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
 
+        if (!application_id || isNaN(application_id)) {
+            throw new BadRequestError('application_id ບໍ່ຖືກຕ້ອງ');
+        }
+
+        const result = await delivery_receiptRepo.findDeliveryReceiptsByApplicationId(application_id);
+        
+        if (!result) {
+            throw new NotFoundError('Delivery receipt not found for this application');
+        }
+        
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Delivery receipt retrieved', 
+            data: result 
+        });
+    } catch (error) {
+        next(error);
     }
 }
 
-export const getLastReceiptId = async (req: Request, res: Response) => {
+export const getLastReceiptId = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await delivery_receiptRepo.findLastReceiptId();
-        res.status(200).json({ success: true, message: 'Last receipt ID retrieved', data: result });
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+        
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Last receipt ID retrieved', 
+            data: result 
+        });
+    } catch (error) {
+        next(error);
     }
 }
 
-export const updateDeliveryReceipt = async (req: Request, res: Response) => {
+export const updateDeliveryReceipt = async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await db.sequelize.transaction();
     try {
         const deliveryReceiptId = parseInt(req.params.id);
+        
+        if (!deliveryReceiptId || isNaN(deliveryReceiptId)) {
+            throw new BadRequestError('Receipt ID ບໍ່ຖືກຕ້ອງ');
+        }
+
         const data = req.body;
-        console.log('Updating delivery receipt with ID:', data);
+        console.log('Updating delivery receipt with ID:', deliveryReceiptId);
+        
         const userId = req.userPayload?.userId;
         const result = await delivery_receiptRepo.updateDeliveryReceipt(deliveryReceiptId, data, Number(userId), { transaction });
+        
         if (!result) {
-            await transaction.rollback();
-           return res.status(404).json({ success: false, message: 'Delivery receipt not found' });    
+            // โยน Error ไปให้ Catch block ทำการ Rollback ทันที
+            throw new NotFoundError('Delivery receipt not found');
         }
+        
         await transaction.commit();
-        res.status(200).json({ success: true, message: 'Delivery receipt updated', data: result });
-    } catch (error: any) {
-        await transaction.rollback();
-        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+        
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Delivery receipt updated', 
+            data: result 
+        });
+    } catch (error) {
+        await transaction.rollback(); // 👈 รับจบ Error ทุกอย่าง และ Rollback ให้
+        next(error);
     }
-}
+};

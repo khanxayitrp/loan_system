@@ -1,19 +1,24 @@
 import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
 import type { application_documents, application_documentsId } from './application_documents';
+import type { audit_logs, audit_logsId } from './audit_logs';
+import type { cus_requestform, cus_requestformId } from './cus_requestform';
 import type { customers, customersId } from './customers';
 import type { delivery_receipts, delivery_receiptsId } from './delivery_receipts';
+import type { document_signatures, document_signaturesId } from './document_signatures';
 import type { features, featuresId } from './features';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
 import type { loan_approval_logs, loan_approval_logsId } from './loan_approval_logs';
 import type { loan_basic_verifications, loan_basic_verificationsId } from './loan_basic_verifications';
 import type { loan_call_verifications, loan_call_verificationsId } from './loan_call_verifications';
 import type { loan_cib_checks, loan_cib_checksId } from './loan_cib_checks';
+import type { loan_contract, loan_contractId } from './loan_contract';
 import type { loan_field_visits, loan_field_visitsId } from './loan_field_visits';
 import type { loan_income_assessments, loan_income_assessmentsId } from './loan_income_assessments';
 import type { partners, partnersId } from './partners';
 import type { payment_transactions, payment_transactionsId } from './payment_transactions';
 import type { promotions, promotionsId } from './promotions';
+import type { repayment_schedules, repayment_schedulesId } from './repayment_schedules';
 import type { user_permissions, user_permissionsId } from './user_permissions';
 import type { user_refresh_tokens, user_refresh_tokensId } from './user_refresh_tokens';
 
@@ -23,7 +28,7 @@ export interface usersAttributes {
   password: string;
   full_name: string;
   role: 'admin' | 'staff' | 'partner' | 'customer';
-  staff_level?: 'sale' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'approver' | 'none';
+  staff_level?: 'approver' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'none';
   is_active?: number;
   created_at?: Date;
   updated_at?: Date;
@@ -40,7 +45,7 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   password!: string;
   full_name!: string;
   role!: 'admin' | 'staff' | 'partner' | 'customer';
-  staff_level?: 'sale' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'approver' | 'none';
+  staff_level?: 'approver' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'none';
   is_active?: number;
   created_at?: Date;
   updated_at?: Date;
@@ -57,6 +62,42 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   hasApplication_document!: Sequelize.HasManyHasAssociationMixin<application_documents, application_documentsId>;
   hasApplication_documents!: Sequelize.HasManyHasAssociationsMixin<application_documents, application_documentsId>;
   countApplication_documents!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany audit_logs via performed_by
+  audit_logs!: audit_logs[];
+  getAudit_logs!: Sequelize.HasManyGetAssociationsMixin<audit_logs>;
+  setAudit_logs!: Sequelize.HasManySetAssociationsMixin<audit_logs, audit_logsId>;
+  addAudit_log!: Sequelize.HasManyAddAssociationMixin<audit_logs, audit_logsId>;
+  addAudit_logs!: Sequelize.HasManyAddAssociationsMixin<audit_logs, audit_logsId>;
+  createAudit_log!: Sequelize.HasManyCreateAssociationMixin<audit_logs>;
+  removeAudit_log!: Sequelize.HasManyRemoveAssociationMixin<audit_logs, audit_logsId>;
+  removeAudit_logs!: Sequelize.HasManyRemoveAssociationsMixin<audit_logs, audit_logsId>;
+  hasAudit_log!: Sequelize.HasManyHasAssociationMixin<audit_logs, audit_logsId>;
+  hasAudit_logs!: Sequelize.HasManyHasAssociationsMixin<audit_logs, audit_logsId>;
+  countAudit_logs!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany cus_requestform via created_by
+  cus_requestforms!: cus_requestform[];
+  getCus_requestforms!: Sequelize.HasManyGetAssociationsMixin<cus_requestform>;
+  setCus_requestforms!: Sequelize.HasManySetAssociationsMixin<cus_requestform, cus_requestformId>;
+  addCus_requestform!: Sequelize.HasManyAddAssociationMixin<cus_requestform, cus_requestformId>;
+  addCus_requestforms!: Sequelize.HasManyAddAssociationsMixin<cus_requestform, cus_requestformId>;
+  createCus_requestform!: Sequelize.HasManyCreateAssociationMixin<cus_requestform>;
+  removeCus_requestform!: Sequelize.HasManyRemoveAssociationMixin<cus_requestform, cus_requestformId>;
+  removeCus_requestforms!: Sequelize.HasManyRemoveAssociationsMixin<cus_requestform, cus_requestformId>;
+  hasCus_requestform!: Sequelize.HasManyHasAssociationMixin<cus_requestform, cus_requestformId>;
+  hasCus_requestforms!: Sequelize.HasManyHasAssociationsMixin<cus_requestform, cus_requestformId>;
+  countCus_requestforms!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany cus_requestform via updated_by
+  updated_by_cus_requestforms!: cus_requestform[];
+  getUpdated_by_cus_requestforms!: Sequelize.HasManyGetAssociationsMixin<cus_requestform>;
+  setUpdated_by_cus_requestforms!: Sequelize.HasManySetAssociationsMixin<cus_requestform, cus_requestformId>;
+  addUpdated_by_cus_requestform!: Sequelize.HasManyAddAssociationMixin<cus_requestform, cus_requestformId>;
+  addUpdated_by_cus_requestforms!: Sequelize.HasManyAddAssociationsMixin<cus_requestform, cus_requestformId>;
+  createUpdated_by_cus_requestform!: Sequelize.HasManyCreateAssociationMixin<cus_requestform>;
+  removeUpdated_by_cus_requestform!: Sequelize.HasManyRemoveAssociationMixin<cus_requestform, cus_requestformId>;
+  removeUpdated_by_cus_requestforms!: Sequelize.HasManyRemoveAssociationsMixin<cus_requestform, cus_requestformId>;
+  hasUpdated_by_cus_requestform!: Sequelize.HasManyHasAssociationMixin<cus_requestform, cus_requestformId>;
+  hasUpdated_by_cus_requestforms!: Sequelize.HasManyHasAssociationsMixin<cus_requestform, cus_requestformId>;
+  countUpdated_by_cus_requestforms!: Sequelize.HasManyCountAssociationsMixin;
   // users hasMany customers via user_id
   customers!: customers[];
   getCustomers!: Sequelize.HasManyGetAssociationsMixin<customers>;
@@ -81,6 +122,18 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   hasDelivery_receipt!: Sequelize.HasManyHasAssociationMixin<delivery_receipts, delivery_receiptsId>;
   hasDelivery_receipts!: Sequelize.HasManyHasAssociationsMixin<delivery_receipts, delivery_receiptsId>;
   countDelivery_receipts!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany document_signatures via user_id
+  document_signatures!: document_signatures[];
+  getDocument_signatures!: Sequelize.HasManyGetAssociationsMixin<document_signatures>;
+  setDocument_signatures!: Sequelize.HasManySetAssociationsMixin<document_signatures, document_signaturesId>;
+  addDocument_signature!: Sequelize.HasManyAddAssociationMixin<document_signatures, document_signaturesId>;
+  addDocument_signatures!: Sequelize.HasManyAddAssociationsMixin<document_signatures, document_signaturesId>;
+  createDocument_signature!: Sequelize.HasManyCreateAssociationMixin<document_signatures>;
+  removeDocument_signature!: Sequelize.HasManyRemoveAssociationMixin<document_signatures, document_signaturesId>;
+  removeDocument_signatures!: Sequelize.HasManyRemoveAssociationsMixin<document_signatures, document_signaturesId>;
+  hasDocument_signature!: Sequelize.HasManyHasAssociationMixin<document_signatures, document_signaturesId>;
+  hasDocument_signatures!: Sequelize.HasManyHasAssociationsMixin<document_signatures, document_signaturesId>;
+  countDocument_signatures!: Sequelize.HasManyCountAssociationsMixin;
   // users belongsToMany features via user_id and feature_id
   feature_id_features!: features[];
   getFeature_id_features!: Sequelize.BelongsToManyGetAssociationsMixin<features>;
@@ -165,6 +218,30 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   hasLoan_cib_check!: Sequelize.HasManyHasAssociationMixin<loan_cib_checks, loan_cib_checksId>;
   hasLoan_cib_checks!: Sequelize.HasManyHasAssociationsMixin<loan_cib_checks, loan_cib_checksId>;
   countLoan_cib_checks!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany loan_contract via created_by
+  loan_contracts!: loan_contract[];
+  getLoan_contracts!: Sequelize.HasManyGetAssociationsMixin<loan_contract>;
+  setLoan_contracts!: Sequelize.HasManySetAssociationsMixin<loan_contract, loan_contractId>;
+  addLoan_contract!: Sequelize.HasManyAddAssociationMixin<loan_contract, loan_contractId>;
+  addLoan_contracts!: Sequelize.HasManyAddAssociationsMixin<loan_contract, loan_contractId>;
+  createLoan_contract!: Sequelize.HasManyCreateAssociationMixin<loan_contract>;
+  removeLoan_contract!: Sequelize.HasManyRemoveAssociationMixin<loan_contract, loan_contractId>;
+  removeLoan_contracts!: Sequelize.HasManyRemoveAssociationsMixin<loan_contract, loan_contractId>;
+  hasLoan_contract!: Sequelize.HasManyHasAssociationMixin<loan_contract, loan_contractId>;
+  hasLoan_contracts!: Sequelize.HasManyHasAssociationsMixin<loan_contract, loan_contractId>;
+  countLoan_contracts!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany loan_contract via updated_by
+  updated_by_loan_contracts!: loan_contract[];
+  getUpdated_by_loan_contracts!: Sequelize.HasManyGetAssociationsMixin<loan_contract>;
+  setUpdated_by_loan_contracts!: Sequelize.HasManySetAssociationsMixin<loan_contract, loan_contractId>;
+  addUpdated_by_loan_contract!: Sequelize.HasManyAddAssociationMixin<loan_contract, loan_contractId>;
+  addUpdated_by_loan_contracts!: Sequelize.HasManyAddAssociationsMixin<loan_contract, loan_contractId>;
+  createUpdated_by_loan_contract!: Sequelize.HasManyCreateAssociationMixin<loan_contract>;
+  removeUpdated_by_loan_contract!: Sequelize.HasManyRemoveAssociationMixin<loan_contract, loan_contractId>;
+  removeUpdated_by_loan_contracts!: Sequelize.HasManyRemoveAssociationsMixin<loan_contract, loan_contractId>;
+  hasUpdated_by_loan_contract!: Sequelize.HasManyHasAssociationMixin<loan_contract, loan_contractId>;
+  hasUpdated_by_loan_contracts!: Sequelize.HasManyHasAssociationsMixin<loan_contract, loan_contractId>;
+  countUpdated_by_loan_contracts!: Sequelize.HasManyCountAssociationsMixin;
   // users hasMany loan_field_visits via visited_by
   loan_field_visits!: loan_field_visits[];
   getLoan_field_visits!: Sequelize.HasManyGetAssociationsMixin<loan_field_visits>;
@@ -225,6 +302,30 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   hasPromotion!: Sequelize.HasManyHasAssociationMixin<promotions, promotionsId>;
   hasPromotions!: Sequelize.HasManyHasAssociationsMixin<promotions, promotionsId>;
   countPromotions!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany repayment_schedules via approved_by
+  repayment_schedules!: repayment_schedules[];
+  getRepayment_schedules!: Sequelize.HasManyGetAssociationsMixin<repayment_schedules>;
+  setRepayment_schedules!: Sequelize.HasManySetAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  addRepayment_schedule!: Sequelize.HasManyAddAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  addRepayment_schedules!: Sequelize.HasManyAddAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  createRepayment_schedule!: Sequelize.HasManyCreateAssociationMixin<repayment_schedules>;
+  removeRepayment_schedule!: Sequelize.HasManyRemoveAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  removeRepayment_schedules!: Sequelize.HasManyRemoveAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  hasRepayment_schedule!: Sequelize.HasManyHasAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  hasRepayment_schedules!: Sequelize.HasManyHasAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  countRepayment_schedules!: Sequelize.HasManyCountAssociationsMixin;
+  // users hasMany repayment_schedules via created_by
+  created_by_repayment_schedules!: repayment_schedules[];
+  getCreated_by_repayment_schedules!: Sequelize.HasManyGetAssociationsMixin<repayment_schedules>;
+  setCreated_by_repayment_schedules!: Sequelize.HasManySetAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  addCreated_by_repayment_schedule!: Sequelize.HasManyAddAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  addCreated_by_repayment_schedules!: Sequelize.HasManyAddAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  createCreated_by_repayment_schedule!: Sequelize.HasManyCreateAssociationMixin<repayment_schedules>;
+  removeCreated_by_repayment_schedule!: Sequelize.HasManyRemoveAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  removeCreated_by_repayment_schedules!: Sequelize.HasManyRemoveAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  hasCreated_by_repayment_schedule!: Sequelize.HasManyHasAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  hasCreated_by_repayment_schedules!: Sequelize.HasManyHasAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  countCreated_by_repayment_schedules!: Sequelize.HasManyCountAssociationsMixin;
   // users hasMany user_permissions via user_id
   user_permissions!: user_permissions[];
   getUser_permissions!: Sequelize.HasManyGetAssociationsMixin<user_permissions>;

@@ -1,53 +1,19 @@
-
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import loanAppRepo from '../repositories/loan_application.repo';
 import repaymentRepo from '../repositories/repayment.repo';
-import delivery_receiptRepo from '../repositories/delivery_receipt.repo';
+// import delivery_receiptRepo from '../repositories/delivery_receipt.repo'; // ไม่เห็นได้ใช้ในไฟล์นี้ แนะนำให้เอาออกถ้าไม่ได้ใช้
 import customerRepo from '../repositories/customer.repo';
-import { NotFoundError, ValidationError, handleErrorResponse } from '../utils/errors';
-import { customers, customersAttributes } from '../models/init-models';
+import { generateSignatureSlots } from '../utils/signatureGenerator';
+
+// 👉 1. Import Custom Errors
+import { NotFoundError, ValidationError, BadRequestError, UnauthorizedError } from '../utils/errors';
 import { db } from '../models/init-models';
 import { otpService } from '../services/otp.service';
 import { Transaction } from 'sequelize';
 import { logAudit } from '../utils/auditLogger';
+import { logApprovalAction } from '../utils/approvalLogger';
 
-// ==========================================
-// 🟢 HELPER FUNCTION: ສຳລັບບັນທຶກ Audit Log ໃນ Controller
-// ==========================================
-// const logAuditHelper = async (
-//     tableName: string,
-//     recordId: number,
-//     action: 'CREATE' | 'UPDATE' | 'DELETE',
-//     oldValues: any,
-//     newValues: any,
-//     performedBy: number,
-//     t: Transaction
-// ) => {
-//     let changedColumns: any = undefined;
-
-//     if (action === 'UPDATE' && oldValues && newValues) {
-//         const changes: string[] = [];
-//         for (const key in newValues) {
-//             if (newValues[key] !== undefined && oldValues[key] != newValues[key]) {
-//                 changes.push(key);
-//             }
-//         }
-//         if (changes.length === 0) return;
-//         changedColumns = changes;
-//     }
-
-//     await db.audit_logs.create({
-//         table_name: tableName,
-//         record_id: recordId,
-//         action: action,
-//         old_values: oldValues || undefined,
-//         new_values: newValues || undefined,
-//         changed_columns: changedColumns,
-//         performed_by: performedBy
-//     }, { transaction: t });
-// };
-
-export const createLoanApplication = async (req: Request, res: Response) => {
+export const createLoanApplication = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = req.body;
     // Optional: เช็คสิทธิ์ staff จาก req.user.permissions
@@ -57,20 +23,48 @@ export const createLoanApplication = async (req: Request, res: Response) => {
       requester_id: req.userPayload?.userId || null, // จาก middleware auth
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Loan application created',
       data: application
     });
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Internal Server Error'
-    });
+  } catch (error) {
+    next(error); // โยนให้ Global Error Handler
   }
 };
 
-export const updateLoanApplication = async (req: Request, res: Response) => {
+//---------------- customer-portal ----------------
+export const cancelLoanApplicationbyCustomer = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const loanId = req.params.application_id;
+    const customerId = req.customerPayload?.userId;
+
+    if (!customerId) {
+      throw new UnauthorizedError('Unauthorized');
+    }
+
+    let loanData: any = {
+      status: 'cancelled',
+      customer_id: customerId
+    }
+
+    const updated = await loanAppRepo.updateLoanApplication(Number(loanId), loanData);
+    
+    if (!updated) {
+        throw new NotFoundError('Application not found');
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Loan application cancelled',
+      data: updated
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateLoanApplication = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const userId = req.userPayload?.userId;
@@ -82,115 +76,166 @@ export const updateLoanApplication = async (req: Request, res: Response) => {
       ...data,
       approver_id: userId, // บันทึกผู้อนุมัติ
     }
+    
     const updated = await loanAppRepo.updateLoanApplication(Number(id), loanData);
 
-    if (!updated) return res.status(404).json({ message: 'Application not found' });
+    if (!updated) {
+        throw new NotFoundError('Application not found');
+    }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Loan application updated',
       data: updated
     });
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Internal Server Error'
-    });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const updateDraftLoanApplication = async (req: Request, res: Response) => {
+export const updateDraftLoanApplication = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const userId = req.userPayload?.userId;
     console.log('Draft loan data :', req.body)
+
     let loanData: any = {
       ...req.body,
       performed_by: userId, // บันทึกผู้แก้ไข
     }
+    
     const updated = await loanAppRepo.updateDraftLoanApplication(Number(id), loanData);
 
-    if (!updated) return res.status(404).json({ message: 'Application not found' });
+    if (!updated) {
+        throw new NotFoundError('Application not found');
+    }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Draft Loan application updated',
       data: updated
     });
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Internal Server Error'
-    });
+  } catch (error) {
+    next(error);
   }
 };
 
-export const changeStatus = async (req: Request, res: Response) => {
+export const changeStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
     const userId = req.userPayload?.userId;
+    
     console.log('function changeStatus ', req.body)
+    
+    if (!status) {
+        throw new BadRequestError('Status is required');
+    }
+
     const updated = await loanAppRepo.updateLoanApplicationStatus(Number(id), status, Number(userId));
 
-    if (!updated) return res.status(404).json({ message: 'Application not found' });
+    if (!updated) {
+        throw new NotFoundError('Application not found');
+    }
 
-    res.status(200).json({ success: true, message: `Status changed to ${status}`, data: updated });
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Internal Server Error'
+    return res.status(200).json({ 
+        success: true, 
+        message: `Status changed to ${status}`, 
+        data: updated 
     });
+  } catch (error) {
+    next(error);
   }
 };
 
-
-export const getLoanByLoanID = async (req: Request, res: Response) => {
+export const getLoanByLoanID = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { LoanId } = req.body
+    const { LoanId } = req.body;
+    
+    if(!LoanId) throw new BadRequestError('LoanId is required');
+
     const data = await loanAppRepo.findLoanApplicationByLoanId(LoanId);
-    res.status(200).json({ success: true, message: `get Loan Data by ${LoanId}`, data: data })
-  } catch (error: any) {
-    res.status(400).json({ message: error.message });
+    
+    if(!data) throw new NotFoundError('Application not found');
+
+    return res.status(200).json({ 
+        success: true, 
+        message: `get Loan Data by ${LoanId}`, 
+        data: data 
+    });
+  } catch (error) {
+    next(error);
   }
 }
 
-export const getLoanById = async (req: Request, res: Response) => {
+export const getLoanById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const Id = parseInt(req.params.id, 10)
-    const data = await loanAppRepo.findLoanApplicationById(Id)
-    res.status(200).json({ success: true, message: `get Loan Data by ${Id}`, data: data })
-  } catch (error: any) {
-    res.status(400).json({ message: error.message });
+    const Id = parseInt(req.params.id, 10);
+    
+    if (isNaN(Id)) throw new BadRequestError('Invalid ID format');
+
+    const data = await loanAppRepo.findLoanApplicationById(Id);
+    
+    if(!data) throw new NotFoundError('Application not found');
+
+    return res.status(200).json({ 
+        success: true, 
+        message: `get Loan Data by ${Id}`, 
+        data: data 
+    });
+  } catch (error) {
+    next(error);
   }
 }
 
-export const getAllLoanByCustomerId = async (req: Request, res: Response) => {
+export const getLoanbyCusIDandLoanID = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const loanId = req.params.application_id;
+    const CustomerId = req.customerPayload?.userId;
+
+    if (!CustomerId) throw new UnauthorizedError('Unauthorized');
+
+    const data = await loanAppRepo.findLoanApplicationByCusIDandLoanId(Number(CustomerId), Number(loanId));
+    
+    if (!data) {
+        throw new NotFoundError('Application not found');
+    }
+    
+    return res.status(200).json({ 
+        success: true, 
+        message: `get Loan Data by ${CustomerId} and ${loanId}`, 
+        data: data 
+    });
+
+  } catch (error) {
+    console.error('Error fetching loan:', error);
+    next(error);
+  }
+}
+
+export const getAllLoanByCustomerId = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status, min, max, is_confirmed, page, limit } = req.query
-    const CustomerId = req.customerPayload?.userId; // ดึง CustomerId จาก Token ของลูกค้า
+    const CustomerId = req.customerPayload?.userId;
     console.log('Request query:', req.query);
 
-    // 🟢 ດຶງຄ່າ status ອອກມາ ໂດຍເຊັກທັງ Key 'status' ທຳມະດາ ແລະ 'status[]'
     const actualStatus = status || req.query['status[]'];
-
     const pageNum = page ? parseInt(page as string, 10) : 1;
     const limitNum = limit ? parseInt(limit as string, 10) : 10;
 
-    // 🟢 1. ຮັບຄ່າ result ທີ່ສົ່ງມາຈາກ Repository
     const result = await loanAppRepo.findLoanApplicationsByCustomerId({
       customerId: CustomerId ? Number(CustomerId) : undefined,
-      status: actualStatus, // ສົ່ງໄປເລີຍ ບໍ່ຕ້ອງຄອບ String() ເພາະ Repository ຈັດການ Array/String ໃຫ້ແລ້ວ
+      status: actualStatus, 
       min: min ? Number(min) : undefined,
       max: max ? Number(max) : undefined,
-      is_confirmed: is_confirmed !== undefined ? Number(is_confirmed) : undefined, // ໃຊ້ !== undefined ກັນໜຽວກໍລະນີສົ່ງເລກ 0 ມາ
+      is_confirmed: is_confirmed !== undefined ? Number(is_confirmed) : undefined,
       page: pageNum,
       limit: limitNum
     });
 
-    // 🟢 2. ສົ່ງ Response ກັບໄປຫາ Frontend (ສຳຄັນຫຼາຍ ຫ້າມລືມ)
     return res.status(200).json({
       success: true,
+      message: 'get all Loan Data by Customer',
       data: result.data,
       total: result.total,
       counts: result.counts,
@@ -198,24 +243,18 @@ export const getAllLoanByCustomerId = async (req: Request, res: Response) => {
       totalPages: result.totalPages
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching loans:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Internal Server Error'
-    });
+    next(error);
   }
 }
 
-export const getAllLoan = async (req: Request, res: Response) => {
+export const getAllLoan = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { CustomerId, requesterId, productId, status, min, max, is_confirmed, page, limit } = req.query
-    // Log เพื่อ debug
     console.log('Request query:', req.query);
 
-    // 🟢 ดึงค่า status ออกมา โดยเช็คทั้ง Key 'status' ธรรมดา และ Key 'status[]' ที่ Axios ชอบแอบแปลงมาให้
     const actualStatus = status || req.query['status[]'];
-
     const pageNum = page ? parseInt(page as string, 10) : 1;
     const limitNum = limit ? parseInt(limit as string, 10) : 10;
 
@@ -226,7 +265,7 @@ export const getAllLoan = async (req: Request, res: Response) => {
       status: actualStatus ? String(actualStatus) : undefined,
       min: min ? Number(min) : undefined,
       max: max ? Number(max) : undefined,
-      is_confirmed: is_confirmed ? Number(is_confirmed as string) : undefined,  // ✅ เพิ่มถ้าต้องการ
+      is_confirmed: is_confirmed ? Number(is_confirmed as string) : undefined,
       page: pageNum,
       limit: limitNum
     });
@@ -243,100 +282,81 @@ export const getAllLoan = async (req: Request, res: Response) => {
       }
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching loans:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Internal Server Error'
-    });
+    next(error);
   }
 }
 
-export const sentApplyDraft = async (req: Request, res: Response) => {
+export const sentApplyDraft = async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await db.sequelize.transaction();
     try {
         const { id } = req.params;
-        const { is_confirmed, otp, phone } = req.body;
+        const { is_confirmed, otp, phone } = req.body; // otp, phone ไม่ได้ใช้แล้ว?
         console.log('check before sent to Apply ', req.body);
         
-        // 🟢 ດຶງ ID ຜູ້ໃຊ້ທີ່ເຮັດລາຍການ (ຖ້າບໍ່ມີໃຫ້ເປັນ 1 ຫຼື ID ຂອງລະບົບ)
         const performedBy = req.userPayload?.userId || 1;
-
-        // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
-        // if (!await otpService.verifyOTP({ phoneNumber: phone, otp })) {
-        //     throw new ValidationError('OTP ບໍ່ຖືກຕ້ອງ ຫລື ຫມົດອາຍຸ');
-        // }
 
         const loanApp = await loanAppRepo.findLoanApplicationById(Number(id));
 
-        if (!loanApp) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຂໍສິນເຊຶ່ອຂອງລູກຄ້າ');
+        if (!loanApp) {
+            throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຂໍສິນເຊຶ່ອຂອງລູກຄ້າ');
+        }
 
-        // 🟢 ເກັບຂໍ້ມູນເກົ່າໄວ້ກ່ອນການອັບເດດ
         const oldLoanData = loanApp.toJSON();
         const updateData = { is_confirmed };
 
         const updatedLoan = await loanApp.update(updateData, { transaction });
-        if (!updatedLoan) return res.status(404).json({ message: 'Loan Application not found' });
+        
+        // ถ้า update ไม่ผ่าน ปกติ Sequelize จะโยน Error เอง แต่เขียนดักไว้ก็ดีครับ
+        if (!updatedLoan) {
+             throw new NotFoundError('Loan Application not found or could not be updated');
+        }
 
-        // 🟢 ບັນທຶກ Audit Log ສຳລັບການ Update ສະຖານະ
         await logAudit('loan_applications', loanApp.id, 'UPDATE', oldLoanData, updateData, performedBy, transaction);
 
         await transaction.commit();
-        res.status(200).json({ success: true, message: `Sent Draft to Apply Completed`, data: updatedLoan });
+        return res.status(200).json({ success: true, message: `Sent Draft to Apply Completed`, data: updatedLoan });
 
-    } catch (error: any) {
-        await transaction.rollback();
-        return res.status(500).json({
-            success: false,
-            message: error.message || 'Internal Server Error'
-        });
+    } catch (error) {
+        await transaction.rollback(); // คืนค่า Database ก่อน
+        next(error); // โยนเข้า Error Handler
     }
 };
 
-// // POST /api/loan-applications/create-with-customer
-
-// POST /api/loan-applications/create-with-customer
-export const createWithCustomer = async (req: Request, res: Response) => {
+export const createWithCustomer = async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await db.sequelize.transaction();
     try {
         const {
-            phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month,
+            phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month, other_debt,
             product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay,
             interest_type, interest_rate_type, 
             existing_customer_id 
         } = req.body;
 
-        // 🟢 Check if request is from an authenticated staff member
         const isStaffRequest = !!req.userPayload;
         const staffId = req.userPayload?.userId || null;
-        
-        // For audit logs: Use staff ID if available, otherwise use a generic System ID (e.g., 1) or null
         const performedBy = staffId || 1; 
 
-        // 1. Verify OTP (ทุกช่องทางต้องผ่าน)
+        // 1. Verify OTP
         if (!phone || !otp) {
-      throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
-    }
+            throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
+        }
 
-    const verificationResult = await otpService.verifyOTP({
-      phoneNumber: phone,
-      otp
-    });
+        const verificationResult = await otpService.verifyOTP({
+            phoneNumber: phone,
+            otp
+        });
 
-         // 🟢 ชี้ไปที่ .success แบบนี้เลยครับ
-    if (!verificationResult.success) {
-      return res.status(400).json({ 
-        message: verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ',
-        data: verificationResult.data // ส่งจำนวนครั้งที่เหลือกลับไปให้ Frontend ด้วยก็ได้ครับ
-      });
-    }
+        if (!verificationResult.success) {
+             throw new BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
+        }
 
         // 2. Get or Create Customer
         let customer;
-        const customerPayload = { phone, identity_number, first_name, last_name, address, age, occupation, income_per_month };
-        const customerUpdatePayload = { first_name, last_name, address, age, occupation, income_per_month };
+        const customerPayload = { phone, identity_number, first_name, last_name, address, age, occupation, income_per_month, other_debt };
+        const customerUpdatePayload = { first_name, last_name, address, age, occupation, income_per_month, other_debt };
 
-        // 🟢 Logic split based on authentication status
         if (isStaffRequest && req.userPayload?.role === 'staff') {
             // STAFF FLOW
             if (existing_customer_id) {
@@ -381,7 +401,6 @@ export const createWithCustomer = async (req: Request, res: Response) => {
             monthly_pay: monthly_pay,
             is_confirmed: 0,
             status: 'pending',
-            // 🟢 Set requester_id ONLY if it's a staff member. If public customer, it remains null.
             requester_id: staffId || null
         };
 
@@ -402,7 +421,7 @@ export const createWithCustomer = async (req: Request, res: Response) => {
 
         await transaction.commit();
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: 'ສ້າງຮ່າງຄຳຂໍຜ່ອນຮຽບຮ້ອຍ',
             data: {
@@ -413,8 +432,8 @@ export const createWithCustomer = async (req: Request, res: Response) => {
                 total_amount: total_amount,
                 loan_period: loan_period,
                 interest_rate_at_apply: interest_rate_at_apply,
-                interest_type: application.interest_type,           // 🟢 รีเทิร์นค่ากลับไปให้ชัวร์
-                interest_rate_type: application.interest_rate_type, // 🟢 รีเทิร์นค่ากลับไปให้ชัวร์
+                interest_type: application.interest_type,           
+                interest_rate_type: application.interest_rate_type, 
                 monthly_pay: monthly_pay,
                 is_confirmed: application.is_confirmed,
                 status: application.status,
@@ -435,7 +454,8 @@ export const createWithCustomer = async (req: Request, res: Response) => {
                     address: address,
                     age: age,
                     occupation: occupation,
-                    income_per_month: income_per_month
+                    income_per_month: income_per_month,
+                    other_debt: other_debt
                 },
                 product: {
                     id: product_id,
@@ -452,38 +472,109 @@ export const createWithCustomer = async (req: Request, res: Response) => {
         });
     } catch (error) {
         await transaction.rollback();
-        const err = handleErrorResponse(error);
-        res.status(err.status).json(err);
+        next(error); // 👈 แค่โยน error ก็พอ Global Handler จะใช้ handleErrorResponse จัดการให้เอง!
     }
 };
 
-export const createRepaymentSchedule = async (req: Request, res: Response) => {
+export const createRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
   const transaction = await db.sequelize.transaction();
     try {
         const { scheduleData } = req.body;
         const application_id = parseInt(req.params.application_id);
         const userId = req.userPayload?.userId;
+        
+        if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
+        if (!scheduleData) throw new BadRequestError('scheduleData is required');
+
         console.log('Creating repayment schedule for application_id:', application_id);
-        console.log('Schedule data:', scheduleData);
+        
         const result = await repaymentRepo.saveRepaymentSchedule(application_id, scheduleData, Number(userId), transaction);
+        
         await transaction.commit();
-        res.status(201).json({ success: true, message: 'Repayment schedule created', data: result });
-    } catch (error: any) {
+        
+        return res.status(201).json({ 
+            success: true, 
+            message: 'Repayment schedule created', 
+            data: result 
+        });
+    } catch (error) {
         await transaction.rollback();
-        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+        next(error);
     }
   }
 
-  export const getRepaymentSchedule = async (req: Request, res: Response) => {
+  export const getRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const application_id = parseInt(req.params.application_id);
+        
+        if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
+
         console.log('Fetching repayment schedule for application_id:', application_id);
+        
         const schedule = await repaymentRepo.findRepaymentsByApplicationId(application_id);
-        res.status(200).json({ success: true, message: 'Repayment schedule fetched', data: schedule });
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message || 'Internal Server Error' });
+        
+        if(!schedule) throw new NotFoundError('Schedule not found');
+
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Repayment schedule fetched', 
+            data: schedule 
+        });
+    } catch (error) {
+        next(error);
     } 
+
+
   }
 
-  
 
+  // =======================================================
+// 🟢 ຟັງຊັນໃໝ່: ບັນທຶກປະຫວັດການພິມໃບ Approval Summary
+// =======================================================
+export const markApprovalSummaryPrinted = async (req: Request, res: Response, next: NextFunction) => {
+    const t = await db.sequelize.transaction();
+    try {
+        const loanId = parseInt(req.params.id, 10);
+        const userId = (req as any).userPayload?.userId;
+
+        const loan = await db.loan_applications.findByPk(loanId);
+        if (!loan) throw new Error('ບໍ່ພົບຂໍ້ມູນສິນເຊື່ອ');
+
+        // 1. ບັນທຶກລົງ Audit Log ວ່າຜູ້ໃຊ້ຄົນນີ້ໄດ້ພິມເອກະສານ
+        await logApprovalAction(
+            loanId,
+            'printed_approval_summary',
+            loan.status,
+            loan.status,
+            'ພິມໃບສະຫຼຸບການປະເມີນສິນເຊື່ອ (Hard Copy Generated)',
+            userId,
+            t
+        );
+
+        // 2. 🌟 ເອີ້ນໃຊ້ Utility ເພື່ອສ້າງຊ່ອງລາຍເຊັນ (ມັນຈະສ້າງໃຫ້ຄົບທັງ 5 ຄົນອັດຕະໂນມັດ)
+        await generateSignatureSlots(
+            loanId,
+            'approval_summary',
+            loanId, // ໃຊ້ loanId ເປັນ reference_id ເພາະ approval_summary ບໍ່ມີຕາຕະລາງແຍກ
+            t
+        );
+
+        // 3. 🟢 ອັບເດດລາຍເຊັນຂອງ "ພະນັກງານສິນເຊື່ອ (Credit Staff)" ໃຫ້ເປັນ signed ທັນທີ 
+        // ເພາະຄົນທີ່ກົດພິມ ແມ່ນຄົນທີ່ປະເມີນເອງ
+        await db.document_signatures.update(
+            { status: 'signed', user_id: userId, signed_at: new Date() },
+            { 
+                where: { application_id: loanId, document_type: 'approval_summary', role_type: 'credit_staff' },
+                transaction: t
+            }
+        );
+
+        await t.commit();
+        res.status(200).json({ success: true, message: 'ບັນທຶກປະຫວັດການພິມສຳເລັດ' });
+
+    } catch (error) {
+        await t.rollback();
+        next(error);
+    }
+}
+  

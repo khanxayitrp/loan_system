@@ -13,6 +13,9 @@ import redisService from './services/redis.service';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import indexRoutes from './routes/index';
+// app.ts (ด้านบนสุด)
+import { errorHandler } from './middlewares/errorHandler'; // <-- Import middleware ของเรา
+import { NotFoundError } from './utils/errors'; // <-- Import Error Class สำหรับทำ 404
 dotenv.config();
 
 
@@ -50,7 +53,7 @@ class App {
                     description: 'Development server',
                 },
                 {
-                    url: 'http://192.168.101.118:15520/api', // 🟢 เพิ่ม IP วง LAN ของเครื่องเซิร์ฟเวอร์คุณเข้าไป
+                    url: 'http://192.168.101.89:15520/api', // 🟢 เพิ่ม IP วง LAN ของเครื่องเซิร์ฟเวอร์คุณเข้าไป
                     description: 'LAN Server'
                 }
             ], components: {
@@ -237,22 +240,30 @@ this.app.use('/api/pdf', heavyTaskLimiter);
         });
 
         // // 404 handler
-        this.app.use((req: Request, res: Response) => {
-            res.status(404).json({
-                success: false,
-                message: `Route ${req.originalUrl} not found`
-            });
+        // this.app.use((req: Request, res: Response) => {
+        //     res.status(404).json({
+        //         success: false,
+        //         message: `Route ${req.originalUrl} not found`
+        //     });
+        // });
+
+        // // Global error handler
+        // this.app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+        //     console.error('Global error handler:', error);
+        //     res.status(500).json({
+        //         success: false,
+        //         message: 'Internal server error',
+        //         error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+        //     });
+        // });
+        // ✅ 404 Handler แบบใหม่ (โยนเข้า Error Handler)
+        this.app.use((req: Request, res: Response, next: NextFunction) => {
+            // โยน NotFoundError ไปให้ Global Error Handler จัดการ
+            next(new NotFoundError(`Route ${req.originalUrl} not found`));
         });
 
-        // Global error handler
-        this.app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
-            console.error('Global error handler:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-                error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
-            });
-        });
+        // ✅ Global error handler ตัวใหม่ที่เราเขียนไว้! (ต้องอยู่ล่างสุดเสมอ)
+        this.app.use(errorHandler);
 
 
 

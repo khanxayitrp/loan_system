@@ -2,6 +2,7 @@ import { db } from '../models/init-models';
 import { logger } from '../utils/logger';
 import { Transaction } from "sequelize";
 import { logAudit } from '../utils/auditLogger';
+import { generateSignatureSlots } from '../utils/signatureGenerator';
 
 class LoanContractService {
 
@@ -58,7 +59,7 @@ class LoanContractService {
                 transaction: t
             });
 
-            // 🟢 Mapping ຂໍ້ມູນຫຼັກ
+            // 🟢 Mapping ຂໍ້ມູນຫຼັກທັງໝົດ
             const loanContractData: any = {
                 loan_id: data.loan_id,
                 cus_full_name: data.cusFullName,
@@ -153,6 +154,7 @@ class LoanContractService {
                 await existingContract.update(loanContractData, { transaction: t });
                 loan_contract = existingContract;
 
+                // (ສົມມຸດວ່າມີການ Import logAudit ມາໃຊ້ງານແລ້ວ)
                 await logAudit('loan_contract', existingContract.id, 'UPDATE', oldContractData, loanContractData, performedBy, t);
 
             } else {
@@ -185,6 +187,16 @@ class LoanContractService {
                 loan_contract = await db.loan_contract.create(loanContractData, { transaction: t });
 
                 await logAudit('loan_contract', loan_contract.id, 'CREATE', null, loanContractData, performedBy, t);
+
+                // ==========================================
+                // 🌟 🟢 ສ້າງຊ່ອງລາຍເຊັນລໍຖ້າໄວ້ (Pending Signatures) ສຳລັບສັນຍາໃໝ່
+                // ==========================================
+                await generateSignatureSlots(
+                    data.loan_id, 
+                    'contract', 
+                    loan_contract.id, // ໃຊ້ ID ຂອງສັນຍາທີ່ຫາກໍ່ສ້າງສຳເລັດເປັນ Reference
+                    t
+                );
             }
 
             await t.commit();

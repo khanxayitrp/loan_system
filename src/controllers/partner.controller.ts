@@ -1,20 +1,19 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import partnerRepo from '../repositories/partner.repo';
-import { NotFoundError, ValidationError, handleErrorResponse } from '../utils/errors';
+// 👉 1. Import Custom Errors ให้ครบ
+import { NotFoundError, ValidationError, BadRequestError, UnauthorizedError } from '../utils/errors';
 import { logger } from '../utils/logger';
 import redisService from '../services/redis.service'; // 🟢 1. Import Redis
 
 class PartnerController {
-    public async createShop(req: Request, res: Response) {
+    public async createShop(req: Request, res: Response, next: NextFunction) {
         try {
-            if (!req.userPayload) {
-                return res.status(401).json({ error: 'Authentication required', message: 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນດຳເນີນການຕໍ່' });
-            }
             const userId = req.userPayload?.userId;
 
             if (!userId) {
-                return res.status(401).json({ message: 'ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ' });
+                throw new UnauthorizedError('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນດຳເນີນການຕໍ່ (Authentication required)');
             }
+
             const data = req.body;
             const mapData = {
                 user_id: userId,
@@ -28,29 +27,30 @@ class PartnerController {
             };
             const shop = await partnerRepo.createPartner(mapData);
 
-            // 🟢 2. ล้างแคชรายชื่อ Partner ทิ้งเมื่อมีคนสร้างร้านใหม่
+            // 🟢 ล้างแคชรายชื่อ Partner ทิ้งเมื่อมีคนสร้างร้านใหม่
             await redisService.delByPattern('cache:partner:*');
 
-            res.status(201).json({ message: 'Shop partnership created', shop });
-        } catch (error: any) {
-            res.status(400).json({ message: error.message });
+            return res.status(201).json({ 
+                success: true, 
+                message: 'Shop partnership created', 
+                data: shop // 👉 เปลี่ยนคีย์เป็น data ให้เป็นมาตรฐาน
+            });
+        } catch (error) {
+            next(error); // 👉 โยนให้ Global Handler จัดการ
         }
     }
 
-    public async getShop(req: Request, res: Response) {
+    public async getShop(req: Request, res: Response, next: NextFunction) {
         try {
-            if (!req.userPayload) {
-                return res.status(401).json({ error: 'Authentication required', message: 'ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນດຳເນີນການຕໍ່' });
-            }
-
             const userId = req.userPayload?.userId;
+            
             if (!userId) {
-                return res.status(401).json({ message: 'ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ' });
+                throw new UnauthorizedError('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນດຳເນີນການຕໍ່ (Authentication required)');
             }
 
             const cacheKey = `cache:partner:user:${userId}`;
 
-            // 🟢 3. ดึงจาก Redis ก่อน (ช่วยลดโหลดตอนสร้างสินค้าได้ดีมาก)
+            // 🟢 ดึงจาก Redis ก่อน
             const cachedShop = await redisService.get(cacheKey);
             if (cachedShop) {
                 return res.status(200).json(JSON.parse(cachedShop));
@@ -59,12 +59,14 @@ class PartnerController {
             const partner = await partnerRepo.findPartnerByUserId(userId!);
 
             if (!partner) {
-                return res.status(404).json({ message: 'ບໍ່ພົບຂໍ້ມູນຮ້ານຄ້າ' });
+                throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຮ້ານຄ້າ');
             }
 
+            // 👉 จัดฟอร์แมต Response ให้เป็นมาตรฐาน { success, message, data }
             const responseData = {
+                success: true,
                 message: 'ພົບຂໍ້ມູນແລ້ວ',
-                shop: {
+                data: {
                     id: partner.id,
                     user_id: partner.user_id,
                     shop_name: partner.shop_name,
@@ -78,87 +80,104 @@ class PartnerController {
                 }
             };
 
-            // 🟢 4. เซฟลง Redis (เก็บไว้ 1 วัน)
+            // 🟢 เซฟลง Redis (เก็บไว้ 1 วัน)
             await redisService.set(cacheKey, JSON.stringify(responseData), 86400);
 
             return res.status(200).json(responseData);
-
-        } catch (error: any) {
-            logger.error('Error in getShop controller', { error: error.message });
-            return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດພາຍໃນລະບົບ' });
+        } catch (error) {
+            // ไม่ต้องใส่ res.status(500) แล้ว ให้ next(error) รับจบ และมันจะไป log ให้เอง
+            logger.error('Error in getShop controller', { error: (error as Error).message });
+            next(error);
         }
     }
 
-    public async updateShop(req: Request, res: Response) {
+    public async updateShop(req: Request, res: Response, next: NextFunction) {
         try {
             const partnerId = parseInt(req.params.id, 10);
+            
+            if (isNaN(partnerId)) throw new BadRequestError('ID ຮ້ານຄ້າບໍ່ຖືກຕ້ອງ');
+
             const updateData = req.body;
             const updatedPartner = await partnerRepo.updatePartner(partnerId, updateData);
             
             if (!updatedPartner) {
-                return res.status(404).json({ message: 'ບໍ່ພົບຮ້ານຄ້າທີ່ຕ້ອງການອັບເດດ' });
+                throw new NotFoundError('ບໍ່ພົບຮ້ານຄ້າທີ່ຕ້ອງການອັບເດດ');
             }
 
-            // 🟢 5. ล้างแคชทั้งหมดเมื่อมีการอัปเดตร้านค้า
+            // 🟢 ล้างแคชทั้งหมดเมื่อมีการอัปเดตร้านค้า
             await redisService.delByPattern('cache:partner:*');
 
-            return res.status(200).json({ message: 'ອັບເດດຂໍ້ມູນຮ້ານຄ້າສຳເລັດ', shop: updatedPartner });
-        } catch (error: any) {
-            logger.error('Error in updateShop controller', { error: error.message });
-            return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດພາຍໃນລະບົບ' });
+            return res.status(200).json({ 
+                success: true, 
+                message: 'ອັບເດດຂໍ້ມູນຮ້ານຄ້າສຳເລັດ', 
+                data: updatedPartner 
+            });
+        } catch (error) {
+            logger.error('Error in updateShop controller', { error: (error as Error).message });
+            next(error);
         }
     }
 
-    public async getAllShop(req: Request, res: Response) {
+    public async getAllShop(req: Request, res: Response, next: NextFunction) {
         try {
             const cacheKey = 'cache:partner:all';
 
-            // 🟢 6. ดึงรายชื่อจาก Redis
+            // 🟢 ดึงรายชื่อจาก Redis
             const cachedAllShop = await redisService.get(cacheKey);
             if (cachedAllShop) {
                 return res.status(200).json(JSON.parse(cachedAllShop));
             }
 
             const allShop = await partnerRepo.findAllPartner();
-            if (!allShop) {
-                return res.status(404).json({ message: 'ບໍ່ພົບຂໍ້ມູນຮ້ານຄ້າ' });
+            if (!allShop || allShop.length === 0) {
+                // ถ้าไม่มีข้อมูล อาจจะไม่ error ก็ได้ แต่ส่งอาเรย์ว่างกลับไป (หรือจะ throw 404 แบบเดิมก็ได้)
+                throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຮ້ານຄ້າ');
             }
 
-            const responseData = { message: 'ພົບຂໍ້ມູນແລ້ວ', shop: allShop };
+            const responseData = { 
+                success: true, 
+                message: 'ພົບຂໍ້ມູນແລ້ວ', 
+                data: allShop 
+            };
 
-            // 🟢 7. เซฟลง Redis (เก็บไว้ 1 วัน)
+            // 🟢 เซฟลง Redis (เก็บไว้ 1 วัน)
             await redisService.set(cacheKey, JSON.stringify(responseData), 86400);
 
             return res.status(200).json(responseData);
-        } catch (error: any) {
-            logger.error('Error in getAllShop controller', { error: error.message });
-            return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດພາຍໃນລະບົບ' });
+        } catch (error) {
+            logger.error('Error in getAllShop controller', { error: (error as Error).message });
+            next(error);
         }
     }
 
-    public async changeStatusShop(req: Request, res: Response) {
+    public async changeStatusShop(req: Request, res: Response, next: NextFunction) {
         try {
             const partnerId = parseInt(req.params.id, 10);
             if (isNaN(partnerId) || partnerId <= 0) {
-                throw new ValidationError('ID ຮ້ານຄ້າບໍ່ຖືກຕ້ອງ');
+                throw new BadRequestError('ID ຮ້ານຄ້າບໍ່ຖືກຕ້ອງ');
             }
+            
             const { is_active } = req.body;
             if (is_active === undefined || is_active === null) {
-                throw new ValidationError('ກະລຸນາລະບູສະຖານະ is_active');
+                throw new BadRequestError('ກະລຸນາລະບູສະຖານະ is_active');
             }
+            
             const success = await partnerRepo.SwitchStatusPartner(partnerId, is_active);
 
             if (!success) {
-                throw new NotFoundError(is_active === 1 ? 'ບໍ່ພົບຮ້ານຄ້າທີ່ຕ້ອງການປິດໃຊ້ງານ' : 'ບໍ່ພົບຮ້ານຄ້າທີ່ຕ້ອງການເປີດໃຊ້ງານ');
+                throw new NotFoundError(is_active === 1 ? 'ບໍ່ພົບຮ້ານຄ້າທີ່ຕ້ອງການເປີດໃຊ້ງານ' : 'ບໍ່ພົບຮ້ານຄ້າທີ່ຕ້ອງການປິດໃຊ້ງານ');
             }
 
-            // 🟢 8. ล้างแคชทั้งหมดเมื่อมีร้านถูกระงับ/เปิดใช้
+            // 🟢 ล้างแคชทั้งหมดเมื่อมีร้านถูกระงับ/เปิดใช้
             await redisService.delByPattern('cache:partner:*');
 
-            return res.status(200).json({ success: true, message: is_active === 1 ? 'ປິດໃຊ້ງານຮ້ານຄ້າສຳເລັດ' : 'ເປີດໃຊ້ງານຮ້ານຄ້າສຳເລັດ' });
-        } catch (error: any) {
-            logger.error('Error in changeStatusShop controller', { error: error.message });
-            return res.status(500).json({ message: 'ເກີດຂໍ້ຜິດພາດພາຍໃນລະບົບ' });
+            return res.status(200).json({ 
+                success: true, 
+                message: is_active === 1 ? 'ເປີດໃຊ້ງານຮ້ານຄ້າສຳເລັດ' : 'ປິດໃຊ້ງານຮ້ານຄ້າສຳເລັດ' 
+            });
+        } catch (error) {
+            logger.error('Error in changeStatusShop controller', { error: (error as Error).message });
+            next(error);
         }
     }
 }

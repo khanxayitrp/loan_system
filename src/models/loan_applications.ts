@@ -3,7 +3,8 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import type { application_documents, application_documentsId } from './application_documents';
 import type { cus_requestform, cus_requestformId } from './cus_requestform';
 import type { customers, customersId } from './customers';
-import type { delivery_receipts, delivery_receiptsId } from './delivery_receipts';
+import type { delivery_receipts, delivery_receiptsCreationAttributes, delivery_receiptsId } from './delivery_receipts';
+import type { document_signatures, document_signaturesId } from './document_signatures';
 import type { loan_approval_logs, loan_approval_logsId } from './loan_approval_logs';
 import type { loan_basic_verifications, loan_basic_verificationsId } from './loan_basic_verifications';
 import type { loan_call_verifications, loan_call_verificationsId } from './loan_call_verifications';
@@ -14,15 +15,19 @@ import type { loan_field_visits, loan_field_visitsId } from './loan_field_visits
 import type { loan_guarantors, loan_guarantorsId } from './loan_guarantors';
 import type { loan_income_assessments, loan_income_assessmentsCreationAttributes, loan_income_assessmentsId } from './loan_income_assessments';
 import type { loan_payments, loan_paymentsId } from './loan_payments';
+import type { orders, ordersId } from './orders';
 import type { payment_transactions, payment_transactionsId } from './payment_transactions';
 import type { products, productsId } from './products';
+import type { repayment_schedules, repayment_schedulesId } from './repayment_schedules';
 import type { repayments, repaymentsId } from './repayments';
 import type { users, usersId } from './users';
 
 export interface loan_applicationsAttributes {
   id: number;
+  loan_flow_type: 'single_item' | 'bnpl_cart';
   customer_id: number;
   product_id: number;
+  order_id?: number;
   loan_id: string;
   total_amount: number;
   loan_period: number;
@@ -31,7 +36,7 @@ export interface loan_applicationsAttributes {
   interest_rate_type: 'monthly' | 'yearly';
   monthly_pay: number;
   is_confirmed?: number;
-  status?: 'pending' | 'verifying' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
+  status?: 'pending' | 'verifying' | 'verified' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
   requester_id?: number;
   approver_id?: number;
   applied_at?: Date;
@@ -51,13 +56,15 @@ export interface loan_applicationsAttributes {
 
 export type loan_applicationsPk = "id";
 export type loan_applicationsId = loan_applications[loan_applicationsPk];
-export type loan_applicationsOptionalAttributes = "id" | "interest_type" | "interest_rate_type" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at" | "down_payment" | "fee" | "first_installment_amount" | "payment_day" | "borrower_signature_date" | "guarantor_signature_date" | "staff_signature_date";
+export type loan_applicationsOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "interest_type" | "interest_rate_type" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at" | "down_payment" | "fee" | "first_installment_amount" | "payment_day" | "borrower_signature_date" | "guarantor_signature_date" | "staff_signature_date";
 export type loan_applicationsCreationAttributes = Optional<loan_applicationsAttributes, loan_applicationsOptionalAttributes>;
 
 export class loan_applications extends Model<loan_applicationsAttributes, loan_applicationsCreationAttributes> implements loan_applicationsAttributes {
   id!: number;
+  loan_flow_type!: 'single_item' | 'bnpl_cart';
   customer_id!: number;
   product_id!: number;
+  order_id?: number;
   loan_id!: string;
   total_amount!: number;
   loan_period!: number;
@@ -66,7 +73,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   interest_rate_type!: 'monthly' | 'yearly';
   monthly_pay!: number;
   is_confirmed?: number;
-  status?: 'pending' | 'verifying' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
+  status?: 'pending' | 'verifying' | 'verified' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
   requester_id?: number;
   approver_id?: number;
   applied_at?: Date;
@@ -112,18 +119,23 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasCus_requestform!: Sequelize.HasManyHasAssociationMixin<cus_requestform, cus_requestformId>;
   hasCus_requestforms!: Sequelize.HasManyHasAssociationsMixin<cus_requestform, cus_requestformId>;
   countCus_requestforms!: Sequelize.HasManyCountAssociationsMixin;
-  // loan_applications hasMany delivery_receipts via application_id
-  delivery_receipts!: delivery_receipts[];
-  getDelivery_receipts!: Sequelize.HasManyGetAssociationsMixin<delivery_receipts>;
-  setDelivery_receipts!: Sequelize.HasManySetAssociationsMixin<delivery_receipts, delivery_receiptsId>;
-  addDelivery_receipt!: Sequelize.HasManyAddAssociationMixin<delivery_receipts, delivery_receiptsId>;
-  addDelivery_receipts!: Sequelize.HasManyAddAssociationsMixin<delivery_receipts, delivery_receiptsId>;
-  createDelivery_receipt!: Sequelize.HasManyCreateAssociationMixin<delivery_receipts>;
-  removeDelivery_receipt!: Sequelize.HasManyRemoveAssociationMixin<delivery_receipts, delivery_receiptsId>;
-  removeDelivery_receipts!: Sequelize.HasManyRemoveAssociationsMixin<delivery_receipts, delivery_receiptsId>;
-  hasDelivery_receipt!: Sequelize.HasManyHasAssociationMixin<delivery_receipts, delivery_receiptsId>;
-  hasDelivery_receipts!: Sequelize.HasManyHasAssociationsMixin<delivery_receipts, delivery_receiptsId>;
-  countDelivery_receipts!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasOne delivery_receipts via application_id
+  delivery_receipt!: delivery_receipts;
+  getDelivery_receipt!: Sequelize.HasOneGetAssociationMixin<delivery_receipts>;
+  setDelivery_receipt!: Sequelize.HasOneSetAssociationMixin<delivery_receipts, delivery_receiptsId>;
+  createDelivery_receipt!: Sequelize.HasOneCreateAssociationMixin<delivery_receipts>;
+  // loan_applications hasMany document_signatures via application_id
+  document_signatures!: document_signatures[];
+  getDocument_signatures!: Sequelize.HasManyGetAssociationsMixin<document_signatures>;
+  setDocument_signatures!: Sequelize.HasManySetAssociationsMixin<document_signatures, document_signaturesId>;
+  addDocument_signature!: Sequelize.HasManyAddAssociationMixin<document_signatures, document_signaturesId>;
+  addDocument_signatures!: Sequelize.HasManyAddAssociationsMixin<document_signatures, document_signaturesId>;
+  createDocument_signature!: Sequelize.HasManyCreateAssociationMixin<document_signatures>;
+  removeDocument_signature!: Sequelize.HasManyRemoveAssociationMixin<document_signatures, document_signaturesId>;
+  removeDocument_signatures!: Sequelize.HasManyRemoveAssociationsMixin<document_signatures, document_signaturesId>;
+  hasDocument_signature!: Sequelize.HasManyHasAssociationMixin<document_signatures, document_signaturesId>;
+  hasDocument_signatures!: Sequelize.HasManyHasAssociationsMixin<document_signatures, document_signaturesId>;
+  countDocument_signatures!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasMany loan_approval_logs via application_id
   loan_approval_logs!: loan_approval_logs[];
   getLoan_approval_logs!: Sequelize.HasManyGetAssociationsMixin<loan_approval_logs>;
@@ -242,6 +254,18 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasPayment_transaction!: Sequelize.HasManyHasAssociationMixin<payment_transactions, payment_transactionsId>;
   hasPayment_transactions!: Sequelize.HasManyHasAssociationsMixin<payment_transactions, payment_transactionsId>;
   countPayment_transactions!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany repayment_schedules via application_id
+  repayment_schedules!: repayment_schedules[];
+  getRepayment_schedules!: Sequelize.HasManyGetAssociationsMixin<repayment_schedules>;
+  setRepayment_schedules!: Sequelize.HasManySetAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  addRepayment_schedule!: Sequelize.HasManyAddAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  addRepayment_schedules!: Sequelize.HasManyAddAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  createRepayment_schedule!: Sequelize.HasManyCreateAssociationMixin<repayment_schedules>;
+  removeRepayment_schedule!: Sequelize.HasManyRemoveAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  removeRepayment_schedules!: Sequelize.HasManyRemoveAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  hasRepayment_schedule!: Sequelize.HasManyHasAssociationMixin<repayment_schedules, repayment_schedulesId>;
+  hasRepayment_schedules!: Sequelize.HasManyHasAssociationsMixin<repayment_schedules, repayment_schedulesId>;
+  countRepayment_schedules!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasMany repayments via application_id
   repayments!: repayments[];
   getRepayments!: Sequelize.HasManyGetAssociationsMixin<repayments>;
@@ -254,6 +278,11 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasRepayment!: Sequelize.HasManyHasAssociationMixin<repayments, repaymentsId>;
   hasRepayments!: Sequelize.HasManyHasAssociationsMixin<repayments, repaymentsId>;
   countRepayments!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications belongsTo orders via order_id
+  order!: orders;
+  getOrder!: Sequelize.BelongsToGetAssociationMixin<orders>;
+  setOrder!: Sequelize.BelongsToSetAssociationMixin<orders, ordersId>;
+  createOrder!: Sequelize.BelongsToCreateAssociationMixin<orders>;
   // loan_applications belongsTo products via product_id
   product!: products;
   getProduct!: Sequelize.BelongsToGetAssociationMixin<products>;
@@ -278,6 +307,11 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       allowNull: false,
       primaryKey: true
     },
+    loan_flow_type: {
+      type: DataTypes.ENUM('single_item','bnpl_cart'),
+      allowNull: false,
+      defaultValue: "single_item"
+    },
     customer_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -291,6 +325,14 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       allowNull: false,
       references: {
         model: 'products',
+        key: 'id'
+      }
+    },
+    order_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'orders',
         key: 'id'
       }
     },
@@ -332,7 +374,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       defaultValue: 0
     },
     status: {
-      type: DataTypes.ENUM('pending','verifying','approved','rejected','cancelled','completed','closed_early'),
+      type: DataTypes.ENUM('pending','verifying','verified','approved','rejected','cancelled','completed','closed_early'),
       allowNull: true,
       defaultValue: "pending"
     },
@@ -439,6 +481,13 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
         using: "BTREE",
         fields: [
           { name: "approver_id" },
+        ]
+      },
+      {
+        name: "fk_loan_order",
+        using: "BTREE",
+        fields: [
+          { name: "order_id" },
         ]
       },
     ]

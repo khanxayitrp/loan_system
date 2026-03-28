@@ -6,7 +6,7 @@ import type { users, usersId } from './users';
 export interface document_signaturesAttributes {
   id: number;
   application_id: number;
-  document_type: 'contract' | 'delivery_note' | 'repayment_schedule';
+  document_type: 'contract' | 'delivery_note' | 'repayment_schedule' | 'approval_summary';
   reference_id: number;
   role_type: 'borrower' | 'guarantor' | 'sales_staff' | 'credit_staff' | 'credit_head' | 'approver_1' | 'approver_2' | 'approver_3' | 'partner_shop' | 'village_chief';
   user_id?: number;
@@ -25,7 +25,7 @@ export type document_signaturesCreationAttributes = Optional<document_signatures
 export class document_signatures extends Model<document_signaturesAttributes, document_signaturesCreationAttributes> implements document_signaturesAttributes {
   id!: number;
   application_id!: number;
-  document_type!: 'contract' | 'delivery_note' | 'repayment_schedule';
+  document_type!: 'contract' | 'delivery_note' | 'repayment_schedule' | 'approval_summary';
   reference_id!: number;
   role_type!: 'borrower' | 'guarantor' | 'sales_staff' | 'credit_staff' | 'credit_head' | 'approver_1' | 'approver_2' | 'approver_3' | 'partner_shop' | 'village_chief';
   user_id?: number;
@@ -64,7 +64,7 @@ export class document_signatures extends Model<document_signaturesAttributes, do
       }
     },
     document_type: {
-      type: DataTypes.ENUM('contract','delivery_note','repayment_schedule'),
+      type: DataTypes.ENUM('contract','delivery_note','repayment_schedule','approval_summary'),
       allowNull: false
     },
     reference_id: {

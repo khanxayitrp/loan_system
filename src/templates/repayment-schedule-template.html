@@ -170,7 +170,7 @@
         </tbody>
     </table>
 
-    <div class="notes">
+    <!-- <div class="notes">
         <p class="bold">ໝາຍເຫດ:</p>
         <p>1. ສະຖານທີ່ຊຳລະແມ່ນຢູ່ຫ້ອງການຂອງສະຖາບັນการเງິນຈຸລະພາກທີ່ບໍ່ຮັບເງິນຝາກ ອິນຊີ</p>
         <p>2. ໃນນີຸ້້າບໍ່ມາຊຳລະແມ່ນຕາມຕາຕະລາງຂ້າງເທິງນີ້ ມັນຈະຖືກປະຕິບັດຕາມສັນຍາການກູ້ຍືມ</p>
@@ -181,7 +181,33 @@
             - ຊື່ບັນຊີ: MP AUTO SERVICE SOLE CO.,LTD<br>
             - ເລກບັນຊີ: 013110000588191001
         </p>
-    </div>
+    </div> -->
+    <table style="width: 100%; border: none; margin-top: 10px;">
+        <tr>
+            <td style="width: 70%; vertical-align: top;">
+                <div class="notes" style="margin-top: 0;">
+                    <p class="bold">ໝາຍເຫດ:</p>
+                    <p>1. ສະຖານທີ່ຊຳລະແມ່ນຢູ່ຫ້ອງການຂອງສະຖາບັນການເງິນຈຸລະພາກທີ່ບໍ່ຮັບເງິນຝາກ ອິນຊີ</p>
+                    <p>2. ໃນກໍລະນີທີ່ບໍ່ມາຊຳລະແມ່ນຕາມຕາຕະລາງຂ້າງເທິງນີ້ ມັນຈະຖືກປະຕິບັດຕາມສັນຍາການກູ້ຍືມ</p>
+                    <p>3. ການກຳນົດເວລາໃນການຊຳລະແມ່ນ 8:00-17:00 ໂມງ</p>
+                    <p>4. ທ່ານສາມາດຊຳລະດ້ວຍຊ່ອງທາງອື່ນ ຄື: ໂອນເຂົ້າບັນຊີຂອງສະຖາບັນພວກເຮົາ ດ້ວຍ:</p>
+                    <p style="margin-left: 20px;">
+                        - ຊື່ທະນາຄານ: ທະນາຄານການຄ້າຕ່າງປະເທດລາວ<br>
+                        - ຊື່ບັນຊີ: MP AUTO SERVICE SOLE CO.,LTD<br>
+                        - ເລກບັນຊີ: 013110000588191001
+                    </p>
+                </div>
+            </td>
+            <td style="width: 30%; vertical-align: top; text-align: center;">
+                {{#if qrCodeBase64}}
+                <div style="margin-top: 10px; padding-right: 15px;">
+                    <img src="{{qrCodeBase64}}" alt="QR Code" style="width: 100px; height: 100px; border: 1px solid #ccc; border-radius: 6px; padding: 3px;">
+                    <p style="font-size: 10px; margin-top: 5px; font-weight: bold; color: #333;">ສະແກນເພື່ອຊຳລະຜ່ານ BCEL One</p>
+                </div>
+                {{/if}}
+            </td>
+        </tr>
+    </table>
 
     <table class="signatures">
         <tr>

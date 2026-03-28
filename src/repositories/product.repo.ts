@@ -62,18 +62,23 @@ class ProductRepository {
                 throw new Error('Product with ID already exists');
             }
 
+            // 🟢 อัปเดต MapData ให้ตรงกับตารางจริงใน Database 100%
             const mapData: any = {
                 partner_id: cleanProduct.partner_id,
                 productType_id: cleanProduct.productType_id,
+                global_category_id: cleanProduct.global_category_id || null, // เพิ่ม
                 product_name: cleanProduct.product_name,
+                description: cleanProduct.description || null,
                 brand: cleanProduct.brand || null,
                 model: cleanProduct.model || null,
                 price: cleanProduct.price,
-                interest_rate: cleanProduct.interest_rate,
-                interest_rate_type: cleanProduct.interest_rate_type || 'monthly',
-                description: cleanProduct.description || null,
                 image_url: cleanProduct.image_url || null,
-                is_active: 1,
+                is_active: cleanProduct.is_active !== undefined ? cleanProduct.is_active : 1,
+                system_sku: cleanProduct.system_sku || null, // เพิ่ม (ปกติ Gen จาก Controller)
+                merchant_sku: cleanProduct.merchant_sku || null, // เพิ่ม
+                stock_quantity: cleanProduct.stock_quantity || 0, // เพิ่ม
+                reserved_stock: cleanProduct.reserved_stock || 0, // เพิ่ม
+                allowed_loan_type: cleanProduct.allowed_loan_type || 'both' // เพิ่ม
             };
 
             const newProduct = await db.products.create(mapData, { transaction: t });
@@ -109,6 +114,16 @@ class ProductRepository {
                     model: db.product_gallery,
                     as: 'product_galleries',
                     attributes: ['id', 'image_url']
+                },
+                {
+                    model: db.global_categories,
+                    as: 'global_category',
+                    attributes: ['id', 'category_name', 'prefix_code']
+                },
+                {
+                    model: db.product_variants,
+                    as: 'product_variants',
+                    attributes: ['id', 'merchant_sku', 'color', 'size_or_capacity', 'weight_gram', 'price', 'stock_quantity', 'image_url']
                 }
             ]
         });
@@ -152,7 +167,11 @@ class ProductRepository {
             
             // ກອງເອົາແຕ່ຂໍ້ມູນທີ່ຈະອັບເດດແທ້ໆ
             const updateData: any = {};
-            const allowedFields = ['productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate', 'image_url', 'description', 'interest_rate_type'];
+            const allowedFields = [
+                'productType_id', 'global_category_id', 'product_name', 
+                'description', 'brand', 'model', 'price', 'image_url', 
+                'merchant_sku', 'stock_quantity', 'reserved_stock', 'allowed_loan_type'
+            ];
             for (const field of allowedFields) {
                 if (data[field] !== undefined) {
                     updateData[field] = data[field];

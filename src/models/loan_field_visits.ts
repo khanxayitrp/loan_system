@@ -52,95 +52,95 @@ export class loan_field_visits extends Model<loan_field_visitsAttributes, loan_f
 
   static initModel(sequelize: Sequelize.Sequelize): typeof loan_field_visits {
     return loan_field_visits.init({
-      id: {
-        autoIncrement: true,
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        primaryKey: true
-      },
-      application_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'loan_applications',
-          key: 'id'
-        }
-      },
-      visit_type: {
-        type: DataTypes.ENUM('home', 'workplace', 'other'),
-        allowNull: false
-      },
-      visit_date: {
-        type: DataTypes.DATE,
-        allowNull: false
-      },
-      latitude: {
-        type: DataTypes.DECIMAL(10, 8),
-        allowNull: true
-      },
-      longitude: {
-        type: DataTypes.DECIMAL(11, 8),
-        allowNull: true
-      },
-      living_condition: {
-        type: DataTypes.STRING(255),
-        allowNull: true
-      },
-      is_address_correct: {
-        type: DataTypes.BOOLEAN,
-        allowNull: true,
-        defaultValue: 1
-      },
-      photo_url_1: {
-        type: DataTypes.STRING(255),
-        allowNull: true
-      },
-      photo_url_2: {
-        type: DataTypes.STRING(255),
-        allowNull: true
-      },
-      remarks: {
-        type: DataTypes.TEXT,
-        allowNull: true
-      },
-      visited_by: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'users',
-          key: 'id'
-        }
+    id: {
+      autoIncrement: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      primaryKey: true
+    },
+    application_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'loan_applications',
+        key: 'id'
       }
-    }, {
-      sequelize,
-      tableName: 'loan_field_visits',
-      timestamps: true,
-      createdAt: 'created_at',  // Maps to your column name
-      updatedAt: false,
-      indexes: [
-        {
-          name: "PRIMARY",
-          unique: true,
-          using: "BTREE",
-          fields: [
-            { name: "id" },
-          ]
-        },
-        {
-          name: "application_id",
-          using: "BTREE",
-          fields: [
-            { name: "application_id" },
-          ]
-        },
-        {
-          name: "visited_by",
-          using: "BTREE",
-          fields: [
-            { name: "visited_by" },
-          ]
-        },
-      ]
-    });
+    },
+    visit_type: {
+      type: DataTypes.ENUM('home','workplace','other'),
+      allowNull: false
+    },
+    visit_date: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    latitude: {
+      type: DataTypes.DECIMAL(10,8),
+      allowNull: true
+    },
+    longitude: {
+      type: DataTypes.DECIMAL(11,8),
+      allowNull: true
+    },
+    living_condition: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    is_address_correct: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: 1
+    },
+    photo_url_1: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    photo_url_2: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    remarks: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    visited_by: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'users',
+        key: 'id'
+      }
+    }
+  }, {
+    sequelize,
+    tableName: 'loan_field_visits',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+    indexes: [
+      {
+        name: "PRIMARY",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "id" },
+        ]
+      },
+      {
+        name: "application_id",
+        using: "BTREE",
+        fields: [
+          { name: "application_id" },
+        ]
+      },
+      {
+        name: "visited_by",
+        using: "BTREE",
+        fields: [
+          { name: "visited_by" },
+        ]
+      },
+    ]
+  });
   }
 }

@@ -2,6 +2,7 @@ import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
 import type { loan_contract, loan_contractId } from './loan_contract';
 import type { loan_payments, loan_paymentsId } from './loan_payments';
+import type { order_items, order_itemsId } from './order_items';
 import type { product_types, product_typesId } from './product_types';
 import type { products, productsId } from './products';
 import type { users, usersId } from './users';
@@ -60,6 +61,18 @@ export class partners extends Model<partnersAttributes, partnersCreationAttribut
   hasLoan_payment!: Sequelize.HasManyHasAssociationMixin<loan_payments, loan_paymentsId>;
   hasLoan_payments!: Sequelize.HasManyHasAssociationsMixin<loan_payments, loan_paymentsId>;
   countLoan_payments!: Sequelize.HasManyCountAssociationsMixin;
+  // partners hasMany order_items via partner_id
+  order_items!: order_items[];
+  getOrder_items!: Sequelize.HasManyGetAssociationsMixin<order_items>;
+  setOrder_items!: Sequelize.HasManySetAssociationsMixin<order_items, order_itemsId>;
+  addOrder_item!: Sequelize.HasManyAddAssociationMixin<order_items, order_itemsId>;
+  addOrder_items!: Sequelize.HasManyAddAssociationsMixin<order_items, order_itemsId>;
+  createOrder_item!: Sequelize.HasManyCreateAssociationMixin<order_items>;
+  removeOrder_item!: Sequelize.HasManyRemoveAssociationMixin<order_items, order_itemsId>;
+  removeOrder_items!: Sequelize.HasManyRemoveAssociationsMixin<order_items, order_itemsId>;
+  hasOrder_item!: Sequelize.HasManyHasAssociationMixin<order_items, order_itemsId>;
+  hasOrder_items!: Sequelize.HasManyHasAssociationsMixin<order_items, order_itemsId>;
+  countOrder_items!: Sequelize.HasManyCountAssociationsMixin;
   // partners hasMany product_types via partner_id
   product_types!: product_types[];
   getProduct_types!: Sequelize.HasManyGetAssociationsMixin<product_types>;

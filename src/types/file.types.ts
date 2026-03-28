@@ -74,6 +74,19 @@ export const FILE_UPLOAD_CONFIG = {
     uploadDir: 'uploads/products'
   },
 
+  // Variant images
+  VARIANT_IMAGES: {
+    maxFileSize: 3 * 1024 * 1024, // 3MB
+    allowedMimeTypes: [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif'
+    ],
+    uploadDir: 'uploads/variants'
+  },
+
   // Shop logos
   SHOP_LOGOS: {
     maxFileSize: 2 * 1024 * 1024, // 2MB

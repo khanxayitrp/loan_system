@@ -126,6 +126,72 @@ class LoanContractController {
             });
         }
     }
+
+
+    // =======================================================
+    // 🟢 ดึงข้อมูลสัญญาเช่าซื้อจากฝั่งลูกค้า (Read)
+    // =======================================================
+    public async getLoanContractFromCustomer(req: Request, res: Response) {
+        try {
+            const loan_id = parseInt(req.params.application_id, 10);
+            const custID = req.customerPayload?.userId;
+
+            if (!custID) {
+                return res.status(401).json({ 
+                    success: false, 
+                    message: 'Unauthorized: Customer ID not found in token' 
+                });
+            }
+
+            if (!loan_id || isNaN(loan_id)) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'loan_id ບໍ່ຖືກຕ້ອງ' 
+                });
+            }
+
+            // =========================================================
+            // 🟢 1. ตรวจสอบข้อมูลใน Redis Cache ก่อน (ความเร็วแสง)
+            // =========================================================
+            const cacheKey = `cache:loan_contract:${loan_id}`;
+            const cachedContract = await redisService.get(cacheKey);
+
+            if (cachedContract) {
+                console.log(`[Cache Hit] Fetching Loan Contract ${loan_id} from Redis.`);
+                return res.status(200).json({ 
+                    success: true, 
+                    message: 'ດຶງ Loan Contract ສຳເລັດແລ້ວ (From Cache)',
+                    data: JSON.parse(cachedContract) 
+                });
+            }
+
+            // =========================================================
+            // 🔴 2. ถ้าไม่พบในแคช ไปดึงจากฐานข้อมูล
+            // =========================================================
+            console.log(`[Cache Miss] Fetching Loan Contract ${loan_id} from MySQL.`);
+            const result = await loan_contractService.getLoanContract(loan_id);
+
+            // =========================================================
+            // 🟢 3. บันทึกข้อมูลที่ได้ลงใน Redis (ตั้งอายุไว้ 15 นาที หรือ 900 วินาที)
+            // =========================================================
+            if (result) {
+                // เก็บเฉพาะข้อมูลที่มีอยู่จริง เพื่อลดขยะใน Redis
+                await redisService.set(cacheKey, JSON.stringify(result), 900); 
+            }
+
+            res.status(200).json({ 
+                success: true, 
+                message: 'ດຶງ Loan Contract ສຳເລັດແລ້ວ',
+                data: result 
+            });
+        } catch (error: any) {
+            console.error('Error fetching loan contract:', error);
+            res.status(500).json({ 
+                success: false, 
+                message: error.message || 'Internal Server Error' 
+            });
+        }
+    }
 }
 
 export default new LoanContractController();

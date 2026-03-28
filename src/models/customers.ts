@@ -1,10 +1,19 @@
 import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
+import type { carts, cartsCreationAttributes, cartsId } from './carts';
+import type { credit_ledgers, credit_ledgersId } from './credit_ledgers';
 import type { cus_requestform, cus_requestformId } from './cus_requestform';
+import type { customer_credits, customer_creditsCreationAttributes, customer_creditsId } from './customer_credits';
 import type { customer_locations, customer_locationsId } from './customer_locations';
+import type { customer_points, customer_pointsCreationAttributes, customer_pointsId } from './customer_points';
+import type { customer_vouchers, customer_vouchersId } from './customer_vouchers';
 import type { customer_work_info, customer_work_infoId } from './customer_work_info';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
+import type { orders, ordersId } from './orders';
+import type { point_ledgers, point_ledgersId } from './point_ledgers';
+import type { product_reviews, product_reviewsId } from './product_reviews';
 import type { users, usersId } from './users';
+import type { wishlists, wishlistsId } from './wishlists';
 
 export interface customersAttributes {
   id: number;
@@ -18,17 +27,21 @@ export interface customersAttributes {
   age?: number;
   occupation?: string;
   income_per_month?: number;
+  other_debt?: number;
   user_id?: number;
   created_at?: Date;
   updated_at?: Date;
   unit?: string;
   issue_place?: string;
   issue_date?: string;
+  kyc_status?: 'unverified' | 'verified' | 'expired' | 'rejected';
+  kyc_verified_at?: Date;
+  income_verified_at?: Date;
 }
 
 export type customersPk = "id";
 export type customersId = customers[customersPk];
-export type customersOptionalAttributes = "id" | "census_number" | "date_of_birth" | "address" | "age" | "occupation" | "income_per_month" | "user_id" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date";
+export type customersOptionalAttributes = "id" | "census_number" | "date_of_birth" | "address" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at";
 export type customersCreationAttributes = Optional<customersAttributes, customersOptionalAttributes>;
 
 export class customers extends Model<customersAttributes, customersCreationAttributes> implements customersAttributes {
@@ -43,13 +56,34 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   age?: number;
   occupation?: string;
   income_per_month?: number;
+  other_debt?: number;
   user_id?: number;
   created_at?: Date;
   updated_at?: Date;
   unit?: string;
   issue_place?: string;
   issue_date?: string;
+  kyc_status?: 'unverified' | 'verified' | 'expired' | 'rejected';
+  kyc_verified_at?: Date;
+  income_verified_at?: Date;
 
+  // customers hasOne carts via customer_id
+  cart!: carts;
+  getCart!: Sequelize.HasOneGetAssociationMixin<carts>;
+  setCart!: Sequelize.HasOneSetAssociationMixin<carts, cartsId>;
+  createCart!: Sequelize.HasOneCreateAssociationMixin<carts>;
+  // customers hasMany credit_ledgers via customer_id
+  credit_ledgers!: credit_ledgers[];
+  getCredit_ledgers!: Sequelize.HasManyGetAssociationsMixin<credit_ledgers>;
+  setCredit_ledgers!: Sequelize.HasManySetAssociationsMixin<credit_ledgers, credit_ledgersId>;
+  addCredit_ledger!: Sequelize.HasManyAddAssociationMixin<credit_ledgers, credit_ledgersId>;
+  addCredit_ledgers!: Sequelize.HasManyAddAssociationsMixin<credit_ledgers, credit_ledgersId>;
+  createCredit_ledger!: Sequelize.HasManyCreateAssociationMixin<credit_ledgers>;
+  removeCredit_ledger!: Sequelize.HasManyRemoveAssociationMixin<credit_ledgers, credit_ledgersId>;
+  removeCredit_ledgers!: Sequelize.HasManyRemoveAssociationsMixin<credit_ledgers, credit_ledgersId>;
+  hasCredit_ledger!: Sequelize.HasManyHasAssociationMixin<credit_ledgers, credit_ledgersId>;
+  hasCredit_ledgers!: Sequelize.HasManyHasAssociationsMixin<credit_ledgers, credit_ledgersId>;
+  countCredit_ledgers!: Sequelize.HasManyCountAssociationsMixin;
   // customers hasMany cus_requestform via customer_id
   cus_requestforms!: cus_requestform[];
   getCus_requestforms!: Sequelize.HasManyGetAssociationsMixin<cus_requestform>;
@@ -62,6 +96,11 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   hasCus_requestform!: Sequelize.HasManyHasAssociationMixin<cus_requestform, cus_requestformId>;
   hasCus_requestforms!: Sequelize.HasManyHasAssociationsMixin<cus_requestform, cus_requestformId>;
   countCus_requestforms!: Sequelize.HasManyCountAssociationsMixin;
+  // customers hasOne customer_credits via customer_id
+  customer_credit!: customer_credits;
+  getCustomer_credit!: Sequelize.HasOneGetAssociationMixin<customer_credits>;
+  setCustomer_credit!: Sequelize.HasOneSetAssociationMixin<customer_credits, customer_creditsId>;
+  createCustomer_credit!: Sequelize.HasOneCreateAssociationMixin<customer_credits>;
   // customers hasMany customer_locations via customer_id
   customer_locations!: customer_locations[];
   getCustomer_locations!: Sequelize.HasManyGetAssociationsMixin<customer_locations>;
@@ -74,6 +113,23 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   hasCustomer_location!: Sequelize.HasManyHasAssociationMixin<customer_locations, customer_locationsId>;
   hasCustomer_locations!: Sequelize.HasManyHasAssociationsMixin<customer_locations, customer_locationsId>;
   countCustomer_locations!: Sequelize.HasManyCountAssociationsMixin;
+  // customers hasOne customer_points via customer_id
+  customer_point!: customer_points;
+  getCustomer_point!: Sequelize.HasOneGetAssociationMixin<customer_points>;
+  setCustomer_point!: Sequelize.HasOneSetAssociationMixin<customer_points, customer_pointsId>;
+  createCustomer_point!: Sequelize.HasOneCreateAssociationMixin<customer_points>;
+  // customers hasMany customer_vouchers via customer_id
+  customer_vouchers!: customer_vouchers[];
+  getCustomer_vouchers!: Sequelize.HasManyGetAssociationsMixin<customer_vouchers>;
+  setCustomer_vouchers!: Sequelize.HasManySetAssociationsMixin<customer_vouchers, customer_vouchersId>;
+  addCustomer_voucher!: Sequelize.HasManyAddAssociationMixin<customer_vouchers, customer_vouchersId>;
+  addCustomer_vouchers!: Sequelize.HasManyAddAssociationsMixin<customer_vouchers, customer_vouchersId>;
+  createCustomer_voucher!: Sequelize.HasManyCreateAssociationMixin<customer_vouchers>;
+  removeCustomer_voucher!: Sequelize.HasManyRemoveAssociationMixin<customer_vouchers, customer_vouchersId>;
+  removeCustomer_vouchers!: Sequelize.HasManyRemoveAssociationsMixin<customer_vouchers, customer_vouchersId>;
+  hasCustomer_voucher!: Sequelize.HasManyHasAssociationMixin<customer_vouchers, customer_vouchersId>;
+  hasCustomer_vouchers!: Sequelize.HasManyHasAssociationsMixin<customer_vouchers, customer_vouchersId>;
+  countCustomer_vouchers!: Sequelize.HasManyCountAssociationsMixin;
   // customers hasMany customer_work_info via customer_id
   customer_work_infos!: customer_work_info[];
   getCustomer_work_infos!: Sequelize.HasManyGetAssociationsMixin<customer_work_info>;
@@ -98,6 +154,54 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   hasLoan_application!: Sequelize.HasManyHasAssociationMixin<loan_applications, loan_applicationsId>;
   hasLoan_applications!: Sequelize.HasManyHasAssociationsMixin<loan_applications, loan_applicationsId>;
   countLoan_applications!: Sequelize.HasManyCountAssociationsMixin;
+  // customers hasMany orders via customer_id
+  orders!: orders[];
+  getOrders!: Sequelize.HasManyGetAssociationsMixin<orders>;
+  setOrders!: Sequelize.HasManySetAssociationsMixin<orders, ordersId>;
+  addOrder!: Sequelize.HasManyAddAssociationMixin<orders, ordersId>;
+  addOrders!: Sequelize.HasManyAddAssociationsMixin<orders, ordersId>;
+  createOrder!: Sequelize.HasManyCreateAssociationMixin<orders>;
+  removeOrder!: Sequelize.HasManyRemoveAssociationMixin<orders, ordersId>;
+  removeOrders!: Sequelize.HasManyRemoveAssociationsMixin<orders, ordersId>;
+  hasOrder!: Sequelize.HasManyHasAssociationMixin<orders, ordersId>;
+  hasOrders!: Sequelize.HasManyHasAssociationsMixin<orders, ordersId>;
+  countOrders!: Sequelize.HasManyCountAssociationsMixin;
+  // customers hasMany point_ledgers via customer_id
+  point_ledgers!: point_ledgers[];
+  getPoint_ledgers!: Sequelize.HasManyGetAssociationsMixin<point_ledgers>;
+  setPoint_ledgers!: Sequelize.HasManySetAssociationsMixin<point_ledgers, point_ledgersId>;
+  addPoint_ledger!: Sequelize.HasManyAddAssociationMixin<point_ledgers, point_ledgersId>;
+  addPoint_ledgers!: Sequelize.HasManyAddAssociationsMixin<point_ledgers, point_ledgersId>;
+  createPoint_ledger!: Sequelize.HasManyCreateAssociationMixin<point_ledgers>;
+  removePoint_ledger!: Sequelize.HasManyRemoveAssociationMixin<point_ledgers, point_ledgersId>;
+  removePoint_ledgers!: Sequelize.HasManyRemoveAssociationsMixin<point_ledgers, point_ledgersId>;
+  hasPoint_ledger!: Sequelize.HasManyHasAssociationMixin<point_ledgers, point_ledgersId>;
+  hasPoint_ledgers!: Sequelize.HasManyHasAssociationsMixin<point_ledgers, point_ledgersId>;
+  countPoint_ledgers!: Sequelize.HasManyCountAssociationsMixin;
+  // customers hasMany product_reviews via customer_id
+  product_reviews!: product_reviews[];
+  getProduct_reviews!: Sequelize.HasManyGetAssociationsMixin<product_reviews>;
+  setProduct_reviews!: Sequelize.HasManySetAssociationsMixin<product_reviews, product_reviewsId>;
+  addProduct_review!: Sequelize.HasManyAddAssociationMixin<product_reviews, product_reviewsId>;
+  addProduct_reviews!: Sequelize.HasManyAddAssociationsMixin<product_reviews, product_reviewsId>;
+  createProduct_review!: Sequelize.HasManyCreateAssociationMixin<product_reviews>;
+  removeProduct_review!: Sequelize.HasManyRemoveAssociationMixin<product_reviews, product_reviewsId>;
+  removeProduct_reviews!: Sequelize.HasManyRemoveAssociationsMixin<product_reviews, product_reviewsId>;
+  hasProduct_review!: Sequelize.HasManyHasAssociationMixin<product_reviews, product_reviewsId>;
+  hasProduct_reviews!: Sequelize.HasManyHasAssociationsMixin<product_reviews, product_reviewsId>;
+  countProduct_reviews!: Sequelize.HasManyCountAssociationsMixin;
+  // customers hasMany wishlists via customer_id
+  wishlists!: wishlists[];
+  getWishlists!: Sequelize.HasManyGetAssociationsMixin<wishlists>;
+  setWishlists!: Sequelize.HasManySetAssociationsMixin<wishlists, wishlistsId>;
+  addWishlist!: Sequelize.HasManyAddAssociationMixin<wishlists, wishlistsId>;
+  addWishlists!: Sequelize.HasManyAddAssociationsMixin<wishlists, wishlistsId>;
+  createWishlist!: Sequelize.HasManyCreateAssociationMixin<wishlists>;
+  removeWishlist!: Sequelize.HasManyRemoveAssociationMixin<wishlists, wishlistsId>;
+  removeWishlists!: Sequelize.HasManyRemoveAssociationsMixin<wishlists, wishlistsId>;
+  hasWishlist!: Sequelize.HasManyHasAssociationMixin<wishlists, wishlistsId>;
+  hasWishlists!: Sequelize.HasManyHasAssociationsMixin<wishlists, wishlistsId>;
+  countWishlists!: Sequelize.HasManyCountAssociationsMixin;
   // customers belongsTo users via user_id
   user!: users;
   getUser!: Sequelize.BelongsToGetAssociationMixin<users>;
@@ -155,6 +259,10 @@ export class customers extends Model<customersAttributes, customersCreationAttri
       type: DataTypes.DECIMAL(15,2),
       allowNull: true
     },
+    other_debt: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true
+    },
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -173,6 +281,19 @@ export class customers extends Model<customersAttributes, customersCreationAttri
     },
     issue_date: {
       type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    kyc_status: {
+      type: DataTypes.ENUM('unverified','verified','expired','rejected'),
+      allowNull: true,
+      defaultValue: "unverified"
+    },
+    kyc_verified_at: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    income_verified_at: {
+      type: DataTypes.DATE,
       allowNull: true
     }
   }, {

@@ -7,7 +7,9 @@ import type { users, usersId } from './users';
 
 export interface loan_contractAttributes {
   id: number;
+  loan_flow_type: 'single_item' | 'bnpl_cart';
   loan_id: number;
+  order_id?: number;
   loan_contract_number: string;
   cus_full_name: string;
   cus_sex: string;
@@ -36,10 +38,10 @@ export interface loan_contractAttributes {
   cus_company_emp_number: number;
   cus_income_other?: number;
   cus_income_other_source: string;
-  product_detail: string;
+  product_detail?: string;
   producttype_id?: number;
-  product_brand: string;
-  product_model: string;
+  product_brand?: string;
+  product_model?: string;
   product_price?: number;
   product_down_payment?: number;
   total_amount?: number;
@@ -55,8 +57,8 @@ export interface loan_contractAttributes {
   tank_number?: string;
   motor_warranty?: number;
   partner_id?: number;
-  shop_branch: string;
-  shop_id: string;
+  shop_branch?: string;
+  shop_id?: string;
   ref_name: string;
   ref_date_of_birth?: string;
   ref_phone: string;
@@ -95,12 +97,14 @@ export interface loan_contractAttributes {
 
 export type loan_contractPk = "id";
 export type loan_contractId = loan_contract[loan_contractPk];
-export type loan_contractOptionalAttributes = "id" | "cus_date_of_birth" | "cus_id_pass_date" | "cus_census_number" | "cus_census_created" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "producttype_id" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "ref_date_of_birth" | "ref_id_pass_date" | "ref_census_number" | "ref_census_created" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
+export type loan_contractOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "cus_date_of_birth" | "cus_id_pass_date" | "cus_census_number" | "cus_census_created" | "cus_occupation" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "product_detail" | "producttype_id" | "product_brand" | "product_model" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "shop_branch" | "shop_id" | "ref_date_of_birth" | "ref_id_pass_date" | "ref_census_number" | "ref_census_created" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
 export type loan_contractCreationAttributes = Optional<loan_contractAttributes, loan_contractOptionalAttributes>;
 
 export class loan_contract extends Model<loan_contractAttributes, loan_contractCreationAttributes> implements loan_contractAttributes {
   id!: number;
+  loan_flow_type!: 'single_item' | 'bnpl_cart';
   loan_id!: number;
+  order_id?: number;
   loan_contract_number!: string;
   cus_full_name!: string;
   cus_sex!: string;
@@ -129,10 +133,10 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   cus_company_emp_number!: number;
   cus_income_other?: number;
   cus_income_other_source!: string;
-  product_detail!: string;
+  product_detail?: string;
   producttype_id?: number;
-  product_brand!: string;
-  product_model!: string;
+  product_brand?: string;
+  product_model?: string;
   product_price?: number;
   product_down_payment?: number;
   total_amount?: number;
@@ -148,8 +152,8 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   tank_number?: string;
   motor_warranty?: number;
   partner_id?: number;
-  shop_branch!: string;
-  shop_id!: string;
+  shop_branch?: string;
+  shop_id?: string;
   ref_name!: string;
   ref_date_of_birth?: string;
   ref_phone!: string;
@@ -219,6 +223,11 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
       allowNull: false,
       primaryKey: true
     },
+    loan_flow_type: {
+      type: DataTypes.ENUM('single_item','bnpl_cart'),
+      allowNull: false,
+      defaultValue: "single_item"
+    },
     loan_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -226,6 +235,10 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
         model: 'loan_applications',
         key: 'id'
       }
+    },
+    order_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     },
     loan_contract_number: {
       type: DataTypes.STRING(100),
@@ -299,7 +312,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     cus_occupation: {
       type: DataTypes.STRING(100),
       allowNull: true,
-      comment: "ອາຊີບລູກຄ້າ (ຖ້າມີ)",
+      comment: "อาชีพของลูกค้า"
     },
     cus_company_name: {
       type: DataTypes.STRING(255),
@@ -345,7 +358,7 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     product_detail: {
       type: DataTypes.STRING(100),
-      allowNull: false
+      allowNull: true
     },
     producttype_id: {
       type: DataTypes.INTEGER,
@@ -357,11 +370,11 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     product_brand: {
       type: DataTypes.STRING(100),
-      allowNull: false
+      allowNull: true
     },
     product_model: {
       type: DataTypes.STRING(100),
-      allowNull: false
+      allowNull: true
     },
     product_price: {
       type: DataTypes.DECIMAL(15,2),
@@ -434,11 +447,11 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     },
     shop_branch: {
       type: DataTypes.STRING(100),
-      allowNull: false
+      allowNull: true
     },
     shop_id: {
       type: DataTypes.STRING(20),
-      allowNull: false
+      allowNull: true
     },
     ref_name: {
       type: DataTypes.STRING(255),

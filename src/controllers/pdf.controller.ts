@@ -4,6 +4,12 @@ import path from 'path';
 import fs from 'fs';
 import handlebars from 'handlebars';
 import redisService from '../services/redis.service'; // 🟢 1. Import Redis
+import { db } from '../models/init-models'; // 🟢 2. Import DB Models
+import { generatePdfBufferFromData } from '../services/pdf.service';
+import { 
+    formatDate, formatCurrency, mapGender, 
+    mapMaritalStatus, mapResidenceStatus, getProductTypeName 
+} from '../utils/formatters';
 
 export const generateLoanPDF = async (req: Request, res: Response) => {
     let browser = null;
@@ -207,6 +213,166 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, message: 'Failed to generate PDF', error: error.message });
     } finally {
         if (browser) await browser.close();
+    }
+};
+
+export const getCustomerLoanContractPDF = async (req: Request, res: Response) => {
+    try {
+        const contractId = parseInt(req.params.contractId, 10);
+        const loanId = parseInt(req.params.application_id, 10);
+
+        if (!contractId || !loanId) {
+            return res.status(400).json({ success: false, message: 'Missing contractId or loanId' });
+        }
+
+        // 1. Check Redis Cache
+        const cacheKey = `cache:pdf:contract:${contractId}`;
+        const cachedPdfBase64 = await redisService.get(cacheKey);
+
+        if (cachedPdfBase64) {
+            console.log(`[PDF] 🚀 Serving from Redis Cache for Contract ID: ${contractId}`);
+            const pdfBuffer = Buffer.from(cachedPdfBase64, 'base64');
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="loan-contract-${contractId}.pdf"`);
+            return res.send(pdfBuffer);
+        }
+
+        // 2. Fetch Data from Database
+        // สมมติใช้ ORM ดึงข้อมูลจากตาราง loan_contract
+        const contractDataFromDB = await db.loan_contract.findOne({ 
+            where: { id: contractId, loan_id: loanId },
+            include: [
+                { model: db.product_types, as: 'producttype', attributes: ['id','type_name'] }, 
+            ],
+                raw: true, nest: true
+        });
+
+        if (!contractDataFromDB) {
+            return res.status(404).json({ success: false, message: 'Contract not found' });
+        }
+
+        const dbData = contractDataFromDB;
+        const contractDateObj = dbData.created_at ? new Date(dbData.created_at) : new Date();
+
+        // 3. Mapping Data (ใช้ Helper ของคุณ)
+        const templateData = {
+            // -- ข้อมูลสัญญา --
+            contractNumber: dbData.loan_contract_number || '________________',
+            contractDay: String(contractDateObj.getDate()).padStart(2, '0'),
+            contractMonth: String(contractDateObj.getMonth() + 1).padStart(2, '0'),
+            contractYear: String(contractDateObj.getFullYear()),
+
+            // -- ประเภทสินค้า (สมมติ DB เก็บ 1=Gold, 2=General, 3=Motorcycle) --
+            checkGold: dbData.producttype_id === 1 ? 'checked' : '',
+            checkGeneral: dbData.producttype_id === 2 ? 'checked' : '',
+            checkMotorcycle: dbData.producttype_id === 3 ? 'checked' : '',
+
+            // -- ข้อมูลลูกค้า --
+            cusName: dbData.cus_full_name || '________________',
+            cusDob: formatDate(dbData.cus_date_of_birth),
+            cusPhone: dbData.cus_phone || '________________',
+            cusGender: mapGender(dbData.cus_sex),
+            cusMarital: mapMaritalStatus(dbData.cus_marital_status),
+            cusOccupation: dbData.cus_occupation || '________________',
+            cusIdCard: dbData.cus_id_pass_number || '________________',
+            cusIdIssueDate: formatDate(dbData.cus_id_pass_date),
+            cusCensus: dbData.cus_census_number || '________________',
+            cusIssuePlace: dbData.cus_census_authorize_by || '________________', 
+            cusHouseNo: dbData.cus_house_number || '_____',
+            cusUnit: dbData.cus_unit ? String(dbData.cus_unit) : '_____',
+            cusVillage: dbData.cus_address || '________________', 
+            cusLivedYears: dbData.cus_lived_year ? String(dbData.cus_lived_year) : '___',
+            cusLiveWith: dbData.cus_lived_with || '________________',
+            cusResStatus: mapResidenceStatus(dbData.cus_lived_situation), // ใช้ Helper ของคุณ
+
+            // -- ข้อมูลที่ทำงานลูกค้า --
+            workName: dbData.cus_company_name || '________________',
+            workType: dbData.cus_company_businessType || '________________',
+            workVillage: dbData.cus_company_location || '________________',
+            workYears: dbData.cus_company_workYear ? String(dbData.cus_company_workYear) : '___',
+            workPosition: dbData.cus_position || '________________',
+            workSalary: formatCurrency(dbData.cus_income), // ใช้ Helper ของคุณ
+            workSalaryDay: dbData.cus_payroll_date || '___',
+            workTotalEmp: dbData.cus_company_emp_number ? String(dbData.cus_company_emp_number) : '___',
+            workOtherIncome: formatCurrency(dbData.cus_income_other),
+            workOtherSource: dbData.cus_income_other_source || '________________',
+
+            // -- ข้อมูลสินเชื่อและสินค้า --
+            prodDesc: dbData.product_detail || '________________',
+            prodType: getProductTypeName(dbData.producttype?.type_name), // ใช้ Helper ของคุณ
+            prodBrand: dbData.product_brand || '________________',
+            prodModel: dbData.product_model || '________________',
+            prodPrice: formatCurrency(dbData.product_price),
+            prodDown: formatCurrency(dbData.product_down_payment),
+            prodApprove: formatCurrency(dbData.total_amount),
+            prodInterest: dbData.interest_rate_at_apply ? String(dbData.interest_rate_at_apply) : '___',
+            prodTerm: dbData.loan_period ? String(dbData.loan_period) : '___',
+            prodTotalInt: formatCurrency(dbData.total_interest),
+            prodFee: formatCurrency(dbData.fee),
+            prodMonthly: formatCurrency(dbData.monthly_pay),
+            prodFirstInst: formatCurrency(dbData.first_installment_amount),
+            prodPayDay: dbData.payment_day ? String(dbData.payment_day) : '___',
+            
+            // -- ข้อมูลรถจักรยานยนต์ --
+            isMotorcycle: dbData.producttype_id === 3,
+            motorId: dbData.motor_id || '________________',
+            motorColor: dbData.motor_color || '________________',
+            tankNum: dbData.tank_number || '________________',
+            motorWarranty: dbData.motor_warranty ? String(dbData.motor_warranty) : '___',
+
+            // -- ข้อมูลร้านค้า --
+            shopBranch: dbData.shop_branch || '________________',
+            shopCode: dbData.shop_id || '________________',
+
+            // -- ผู้ค้ำประกัน (Guarantor / Reference) --
+            hasGuarantor: !!dbData.ref_name,
+            checkGuarantor: !!dbData.ref_name ? 'checked' : '',
+            
+            guaName: dbData.ref_name || '________________',
+            guaDob: formatDate(dbData.ref_date_of_birth),
+            guaPhone: dbData.ref_phone || '________________',
+            guaGender: mapGender(dbData.ref_sex),
+            guaMarital: mapMaritalStatus(dbData.ref_marital_status),
+            guaOccupation: dbData.ref_occupation || '________________',
+            guaRelation: dbData.ref_relationship || '________________',
+            guaIdCard: dbData.ref_id_pass_number || '________________',
+            guaIdIssueDate: formatDate(dbData.ref_id_pass_date),
+            guaCensus: dbData.ref_census_number || '________________',
+            guaCensusIssue: formatDate(dbData.ref_census_created),
+            guaIssuePlace: dbData.ref_census_authorize_by || '________________',
+            guaHouseNo: dbData.ref_house_number || '_____',
+            guaUnit: dbData.ref_unit ? String(dbData.ref_unit) : '_____',
+            guaVillage: dbData.ref_address || '________________',
+            guaLivedYears: dbData.ref_lived_year ? String(dbData.ref_lived_year) : '___',
+            guaLiveWith: dbData.ref_lived_with || '________________',
+            guaResStatus: mapResidenceStatus(dbData.ref_lived_situation),
+
+            // -- ข้อมูลที่ทำงานผู้ค้ำประกัน --
+            guaWorkName: dbData.ref_company_name || '________________',
+            guaWorkType: dbData.ref_company_businessType || '________________',
+            guaWorkVillage: dbData.ref_company_location || '________________',
+            guaWorkYears: dbData.ref_company_workYear ? String(dbData.ref_company_workYear) : '___',
+            guaWorkPos: dbData.ref_position || '________________',
+            guaWorkSalary: formatCurrency(dbData.ref_income),
+            guaWorkSalaryDay: dbData.ref_payroll_date || '___',
+            guaWorkTotalEmp: dbData.ref_company_emp_number ? String(dbData.ref_company_emp_number) : '___',
+            guaWorkOtherInc: formatCurrency(dbData.ref_income_other),
+            guaWorkOtherSource: dbData.ref_income_other_source || '________________',
+        };
+
+        // 4. Generate PDF
+        const pdfBuffer = await generatePdfBufferFromData(templateData);
+
+        // 5. Cache & Send Response
+        await redisService.set(cacheKey, pdfBuffer.toString('base64'), 900);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="loan-contract-${contractId}.pdf"`);
+        res.send(pdfBuffer);
+
+    } catch (error: any) {
+        console.error('❌ Database Contract PDF Generation Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate DB PDF', error: error.message });
     }
 };
 
@@ -440,6 +606,20 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
 
         let htmlContent = templateSource.replace('{{fontPath}}', fontUrl);
 
+        // =========================================================
+        // 🟢 2. ໂຫຼດຮູບ QR Code ແປງເປັນ Base64
+        // =========================================================
+        // ໝາຍເຫດ: ປັບ path ໃຫ້ກົງກັບທີ່ຢູ່ຈິງຂອງໂຟນເດີ public ຂອງທ່ານ
+        const qrPath = path.resolve(__dirname, '../../public/image/qr_code.jpeg'); 
+        let qrCodeBase64 = '';
+        if (fs.existsSync(qrPath)) {
+            const qrBuffer = fs.readFileSync(qrPath);
+            qrCodeBase64 = `data:image/jpeg;base64,${qrBuffer.toString('base64')}`;
+        } else {
+            console.warn(`⚠️ ບໍ່ພົບໄຟລ໌ QR Code ຢູ່ທີ່: ${qrPath}`);
+        }
+        // =========================================================
+
         const data = {
             interestTypeName: loanData.interest_type === 'effective_rate' ? 'ຫຼຸດຕົ້ນຫຼຸດດອກ' : 'ສະເໝີຕົວ',
             contractNumber: loanData.loan_contract_number || loanData.loan_id || '________________',
@@ -469,7 +649,10 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
 
             totalPrincipal: formatCurrency(totals.principal),
             totalInterest: formatCurrency(totals.interest),
-            totalAmount: formatCurrency(totals.amount)
+            totalAmount: formatCurrency(totals.amount),
+            
+            // 🟢 ສົ່ງ Base64 ຂອງ QR Code ໄປໃຫ້ HTML Template ໃຊ້ງານ
+            qrCodeBase64: qrCodeBase64 
         };
 
         const templateCompiled = handlebars.compile(htmlContent);
@@ -731,42 +914,42 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
     }
 };
 
-// ==========================================
-// Helper Functions
-// ==========================================
-function mapGender(gender: string | undefined): string {
-    if (gender === 'male') return 'ຊາຍ';
-    if (gender === 'female') return 'ຍິງ';
-    return '________________';
-}
-function mapMaritalStatus(status: string | undefined): string {
-    if (status === 'single') return 'ໂສດ';
-    if (status === 'married') return 'ແຕ່ງງານແລ້ວ';
-    if (status === 'divorced') return 'ຢ່າຮ້າງ';
-    return '________________';
-}
-function mapResidenceStatus(status: string | undefined): string {
-    if (status === 'own') return 'ເຮືອນຕົວເອງ';
-    if (status === 'rent') return 'ເຊົ່າ';
-    if (status === 'family') return 'ຢູ່ກັບຄອບຄົວ';
-    return '________________';
-}
-function formatDate(dateStr: string | null): string {
-    if (!dateStr) return '___/___/____';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return '___/___/____';
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-}
-function formatCurrency(amount: number | null | string): string {
-    if (!amount && amount !== 0) return '________________';
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(num)) return '________________';
-    return num.toLocaleString('lo-LA') + ' ກີບ';
-}
-function getProductTypeName(type: string): string {
-    const types: Record<string, string> = { gold: 'ສິນຄ້າຄຳ', general: 'ສິນຄ້າທົ່ວໄປ', motorcycle: 'ສິນຄ້າລົດຈັກ' };
-    return types[type] || '________________';
-}
+// // ==========================================
+// // Helper Functions
+// // ==========================================
+// function mapGender(gender: string | undefined): string {
+//     if (gender === 'male') return 'ຊາຍ';
+//     if (gender === 'female') return 'ຍິງ';
+//     return '________________';
+// }
+// function mapMaritalStatus(status: string | undefined): string {
+//     if (status === 'single') return 'ໂສດ';
+//     if (status === 'married') return 'ແຕ່ງງານແລ້ວ';
+//     if (status === 'divorced') return 'ຢ່າຮ້າງ';
+//     return '________________';
+// }
+// function mapResidenceStatus(status: string | undefined): string {
+//     if (status === 'own') return 'ເຮືອນຕົວເອງ';
+//     if (status === 'rent') return 'ເຊົ່າ';
+//     if (status === 'family') return 'ຢູ່ກັບຄອບຄົວ';
+//     return '________________';
+// }
+// function formatDate(dateStr: string | null): string {
+//     if (!dateStr) return '___/___/____';
+//     const date = new Date(dateStr);
+//     if (isNaN(date.getTime())) return '___/___/____';
+//     const day = date.getDate().toString().padStart(2, '0');
+//     const month = (date.getMonth() + 1).toString().padStart(2, '0');
+//     const year = date.getFullYear();
+//     return `${day}/${month}/${year}`;
+// }
+// function formatCurrency(amount: number | null | string): string {
+//     if (!amount && amount !== 0) return '________________';
+//     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+//     if (isNaN(num)) return '________________';
+//     return num.toLocaleString('lo-LA') + ' ກີບ';
+// }
+// function getProductTypeName(type: string): string {
+//     const types: Record<string, string> = { gold: 'ສິນຄ້າຄຳ', general: 'ສິນຄ້າທົ່ວໄປ', motorcycle: 'ສິນຄ້າລົດຈັກ' };
+//     return types[type] || '________________';
+// }

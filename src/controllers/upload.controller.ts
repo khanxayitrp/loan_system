@@ -645,6 +645,63 @@ class UploadController {
     }
   }
 
+  async uploadVariantImage(req: Request, res: Response): Promise<void> {
+    try {
+      // 🟢 1. รับไฟล์เดียว (Single File) ไม่ต้องใช้ product_id เพราะเป็น Pre-upload
+      const file = req.file as Express.Multer.File;
+
+      if (!file) {
+        throw new ValidationError('No file uploaded');
+      }
+
+      // 🟢 2. Log ข้อมูลไฟล์สำหรับ debug
+      logger.info('Uploading variant image:', {
+        originalName: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        hasBuffer: !!file.buffer,
+        bufferPreview: file.buffer ? file.buffer.slice(0, 20).toString('hex') : null
+      });
+
+      // 🟢 3. สร้าง Prefix โดยใช้ Timestamp เพื่อให้ชื่อไฟล์ไม่ซ้ำกัน
+      const timestamp = Date.now();
+      const prefix = `variant_${timestamp}`;
+
+      // 🟢 4. เรียกใช้ Service อัปโหลด (ถ้าคุณมี uploadSingleFile ใช้ตัวนั้นได้เลย 
+      // แต่ถ้ามีแค่ uploadMultipleFiles ก็สามารถส่งไฟล์ใส่ Array เข้าไปแบบนี้ได้ครับ)
+      // const results = await fileUploadService.uploadMultipleFiles(
+      //   [file] as UploadedFile[], // ส่งเข้าไปเป็น Array ที่มี 1 ไฟล์
+      //   FILE_UPLOAD_CONFIG.PRODUCT_IMAGES, // หรือสร้าง config ใหม่เป็น VARIANT_IMAGES ก็ได้
+      //   prefix
+      // );
+       const results = await fileUploadService.uploadSingleFile(
+        req.file as UploadedFile,
+        FILE_UPLOAD_CONFIG.VARIANT_IMAGES,
+        prefix
+      );
+
+      
+
+      if (!results || !results.success) {
+        throw new Error(results?.error || 'Failed to upload variant image');
+      }
+
+      // 🟢 5. ตอบกลับด้วยโครงสร้างที่ตรงกับที่ Frontend (ProductPage.vue) คาดหวัง
+      res.status(201).json({
+        success: true,
+        message: 'Variant image uploaded successfully',
+        file_url: results.fileUrl, // ส่ง URL ออกไปตรงๆ ชั้นนอก
+        data: {
+          file_url: results.fileUrl,
+          file_name: results.fileName
+        }
+      });
+    } catch (error) {
+      const errResp = handleErrorResponse(error);
+      res.status(errResp.status || 500).json(errResp);
+    }
+  }
+
   async uploadLocationImage(req: Request, res: Response): Promise<void> {
     try {
       const { customer_id } = req.params;
