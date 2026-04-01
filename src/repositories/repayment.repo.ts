@@ -20,9 +20,14 @@ class RepaymentRepository {
             }
 
             // 2. ตรวจสอบว่ามี Loan Application นี้หรือไม่
-            const loanExist = await db.loan_applications.findOne({
-                where: { id: application_id },
-                transaction
+            // const loanExist = await db.loan_applications.findOne({
+            //     where: { id: application_id },
+            //     transaction
+            // });
+            // ປ້ອງກັນບໍ່ໃຫ້ໃຜມາແກ້ໄຂຄຳຂໍນີ້ ໃນຂະນະທີ່ເຮົາກຳລັງສ້າງຕາຕະລາງຜ່ອນ
+            const loanExist = await db.loan_applications.findByPk(application_id, {
+                transaction,
+                lock: transaction.LOCK.UPDATE // SELECT ... FOR UPDATE
             });
 
             if (!loanExist) {
@@ -41,7 +46,8 @@ class RepaymentRepository {
                     application_id: application_id,
                     status: 'draft' // หาเฉพาะฉบับร่าง
                 },
-                transaction
+                transaction,
+                lock: transaction.LOCK.UPDATE // SELECT ... FOR UPDATE เพื่อป้องกันการแก้ไขพร้อมกัน
             });
 
             if (existingDraftSchedule) {
@@ -173,9 +179,12 @@ class RepaymentRepository {
         });
     }
 
-    async updateRepayment(repaymentId: number, data: Partial<repaymentsAttributes>): Promise<repayments | null> {
+    async updateRepayment(repaymentId: number, data: Partial<repaymentsAttributes>, transaction?: any): Promise<repayments | null> {
         try {
-            const repayment = await db.repayments.findByPk(repaymentId);
+            const repayment = await db.repayments.findByPk(repaymentId, {
+                transaction,
+                lock: transaction ? transaction.LOCK.UPDATE : undefined // 🟢 เพิ่ม Lock เฉพาะตอนมี Transaction
+            });
             if (!repayment) {
                 logger.error(`Repayment with ID: ${repaymentId} not found`);
                 return null;

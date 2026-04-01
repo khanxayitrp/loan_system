@@ -14,7 +14,7 @@ import {
   uploadLocationImage
 } from '../middlewares/upload.middleware';
 import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
-import { PERMISSIONS } from '@/types/permissions';
+import { PERMISSIONS } from '../types/permissions';
 
 const router = Router();
 
@@ -276,7 +276,7 @@ router.post(
  *         description: Location image uploaded
  */
 router.post(
-  '/location/:customer_id/image',
+  '/location/:customer_id/image/:application_id',
   uploadLocationImage.array('files', 2),
   uploadController.uploadLocationImage
 );

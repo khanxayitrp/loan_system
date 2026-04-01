@@ -56,7 +56,8 @@ class LoanContractService {
 
             const existingContract = await db.loan_contract.findOne({
                 where: { loan_id: data.loan_id },
-                transaction: t
+                transaction: t,
+                lock: t.LOCK.UPDATE // 🔒 Lock ຂໍ້ມູນແລະສະແດງວ່າກຳລັງແກ້ໄຂ
             });
 
             // 🟢 Mapping ຂໍ້ມູນຫຼັກທັງໝົດ
@@ -167,7 +168,8 @@ class LoanContractService {
                 const lastloanContract = await db.loan_contract.findOne({
                     order: [['id', 'DESC']],
                     attributes: ['loan_contract_number'],
-                    transaction: t
+                    transaction: t,
+                    lock: t.LOCK.UPDATE // 🔒 Lock ຂໍ້ມູນແລະສະແດງວ່າກຳລັງແກ້ໄຂ
                 });
 
                 let contractNumber = 1;

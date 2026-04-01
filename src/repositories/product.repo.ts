@@ -97,8 +97,10 @@ class ProductRepository {
         }
     }
 
-    async findProductById(productId: number): Promise<products | null> {
+    async findProductById(productId: number, options?: { transaction?: Transaction, lock?: any }): Promise<products | null> {
         return await db.products.findByPk(productId, {
+            transaction: options?.transaction,
+            lock: options?.lock,
             include: [
                 {
                     model: db.product_types,
@@ -149,7 +151,10 @@ class ProductRepository {
     async updateProduct(productId: number, partnerId: number, data: any): Promise<products | null> {
         const t = await db.sequelize.transaction();
         try {
-            const product = await this.findProductById(productId);
+            const product = await this.findProductById(productId, {
+                transaction: t,
+                lock: t.LOCK.UPDATE, // 🟢 เพิ่ม Lock เพื่อ
+            });
             if (!product) {
                 logger.error(`Product with ID: ${productId} not found`);
                 await t.rollback();

@@ -10,6 +10,7 @@ class CustomerRepository {
     async createCustomer(data: customersCreationAttributes, options: { transaction?: any } = {}): Promise<customers> {
         try {
             const cleanCustomer = { ...data };
+            const { transaction } = options;
             if (!cleanCustomer.first_name || cleanCustomer.first_name.trim() === '') {
                 throw new Error('First name is required');
             }
@@ -32,7 +33,7 @@ class CustomerRepository {
                 throw new Error('Income per month is required');
             }
 
-            const existCustomer = await db.customers.findOne({ where: { identity_number: cleanCustomer.identity_number }, transaction: options.transaction });
+            const existCustomer = await db.customers.findOne({ where: { identity_number: cleanCustomer.identity_number }, transaction, lock: transaction?.LOCK.UPDATE });
             if (existCustomer) {
                 logger.error(`Identity number already exists: ${cleanCustomer.identity_number}`);
                 throw new Error('Identity number already exists');
@@ -64,8 +65,8 @@ class CustomerRepository {
         }
     }
 
-    async findCustomerById(customerId: number, options: { transaction?: any } = {}): Promise<customers | null> {
-        return await db.customers.findByPk(customerId, { transaction: options.transaction });
+    async findCustomerById(customerId: number, options: { transaction?: any, lock?: any } = {}): Promise<customers | null> {
+        return await db.customers.findByPk(customerId, { transaction: options.transaction, lock: options.lock });
     }
 
     async findCustomerByIdentityNumber(identityNumber: string): Promise<customers | null> {
@@ -100,7 +101,8 @@ class CustomerRepository {
 
     async updateCustomer(customerId: number, data: Partial<customersAttributes>, options: { transaction?: any } = {}): Promise<customers | null> {
         try {
-            const customer = await this.findCustomerById(customerId, options);
+            const { transaction } = options;
+            const customer = await this.findCustomerById(customerId, { transaction, lock: transaction?.LOCK.UPDATE });
             if (!customer) {
                 logger.error(`Customer with ID: ${customerId} not found`);
                 return null;

@@ -297,7 +297,11 @@ export const sentApplyDraft = async (req: Request, res: Response, next: NextFunc
         
         const performedBy = req.userPayload?.userId || 1;
 
-        const loanApp = await loanAppRepo.findLoanApplicationById(Number(id));
+        // const loanApp = await loanAppRepo.findLoanApplicationById(Number(id));
+        const loanApp = await db.loan_applications.findByPk(Number(id), { 
+            transaction, 
+            lock: transaction.LOCK.UPDATE 
+        });
 
         if (!loanApp) {
             throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຂໍສິນເຊຶ່ອຂອງລູກຄ້າ');
@@ -360,7 +364,11 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
         if (isStaffRequest && req.userPayload?.role === 'staff') {
             // STAFF FLOW
             if (existing_customer_id) {
-                customer = await customerRepo.findCustomerById(existing_customer_id);
+                // customer = await customerRepo.findCustomerById(existing_customer_id);
+                customer = await db.customers.findByPk(existing_customer_id, { 
+                transaction, 
+                lock: transaction.LOCK.UPDATE // 🔒 Lock ລູກຄ້າໄວ້ກ່ອນອັບເດດ
+            });
                 if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
                 
                 const oldCustomerData = customer.toJSON();
@@ -384,7 +392,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
         }
 
         // 3. Validate product
-        const product = await db.products.findByPk(product_id, { transaction });
+        const product = await db.products.findByPk(product_id, { transaction, lock: transaction.LOCK.UPDATE });
         if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
 
         const final_total = total_amount || (product.price * quantity);
@@ -537,7 +545,7 @@ export const markApprovalSummaryPrinted = async (req: Request, res: Response, ne
         const loanId = parseInt(req.params.id, 10);
         const userId = (req as any).userPayload?.userId;
 
-        const loan = await db.loan_applications.findByPk(loanId);
+        const loan = await db.loan_applications.findByPk(loanId, { transaction: t, lock: t.LOCK.UPDATE });
         if (!loan) throw new Error('ບໍ່ພົບຂໍ້ມູນສິນເຊື່ອ');
 
         // 1. ບັນທຶກລົງ Audit Log ວ່າຜູ້ໃຊ້ຄົນນີ້ໄດ້ພິມເອກະສານ

@@ -40,7 +40,8 @@ class LoanApplicationRepository {
                 where: { customer_id: cleanLoanApplication.customer_id },
                 order: [['created_at', 'DESC']],
                 attributes: ['loan_id'],
-                transaction
+                transaction,
+                lock: transaction.LOCK.UPDATE // 🟢 เพิ่ม Lock เพื่อป้องกันการสร้าง loan_id ซ้ำในกรณีที่มีการสร้างพร้อมกันหลายคำขอ
             });
 
             let newSequence = 1;
@@ -416,7 +417,7 @@ class LoanApplicationRepository {
     async updateDraftLoanApplication(loanApplicationId: number, data: any): Promise<loan_applications | null> {
         const transaction = await db.sequelize.transaction();
         try {
-            const loanApplication = await loan_applications.findByPk(loanApplicationId, { transaction });
+            const loanApplication = await loan_applications.findByPk(loanApplicationId, { transaction, lock: transaction.LOCK.UPDATE });
             if (!loanApplication) {
                 logger.error(`Loan application with ID: ${loanApplicationId} not found`);
                 await transaction.rollback();
@@ -436,7 +437,7 @@ class LoanApplicationRepository {
             }
 
             // 🟢 1. ย้ายการดึงข้อมูล Customer ขึ้นมาก่อน เพื่อให้มีข้อมูลเก่าไว้เทียบ
-            const customer = await db.customers.findByPk(customerId, { transaction });
+            const customer = await db.customers.findByPk(customerId, { transaction, lock: transaction.LOCK.UPDATE });
             if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
 
             // 🟢 2. ใช้สูตร !== undefined ถังค่าไม่ได้ส่งมา ให้ดึงของเก่าจาก DB มาใส่กลับคืน
@@ -730,7 +731,10 @@ async updateLoanApplication(loanApplicationId: number, data: Partial<any>): Prom
             // ==========================================
             // STEP 1: ຄົ້ນຫາຂໍ້ມູນເດີມ & ກຽມ Payload
             // ==========================================
-            const loanApplication = await this.findLoanApplicationById(loanApplicationId);
+            const loanApplication = await db.loan_applications.findByPk(loanApplicationId, {
+                transaction: t,
+                lock: t.LOCK.UPDATE
+            });
             if (!loanApplication) {
                 throw new Error(`Loan application with ID: ${loanApplicationId} not found`);
             }

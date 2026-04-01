@@ -62,7 +62,7 @@ class CustomerLocationService {
         
         try {
             // 🟢 ดึงข้อมูลเดิมก่อนอัปเดตเพื่อทำ Audit Log
-            const currentLocation = await customer_locations.findByPk(id, { transaction: t });
+            const currentLocation = await customer_locations.findByPk(id, { transaction: t, lock: t.LOCK.UPDATE });
             
             if (!currentLocation) {
                 await t.rollback();
@@ -108,7 +108,8 @@ class CustomerLocationService {
         // หา Location ที่กำลังเป็น Primary อยู่
         const primaryLocation = await customer_locations.findOne({
             where: { customer_id: customerId, is_primary: 1 },
-            transaction: t
+            transaction: t,
+            lock: t.LOCK.UPDATE // 🔒 Lock ข้อมูลเพื่อป้องกันการแก้ไขพร้อมกันจากหลาย Transaction
         });
 
         // ถ้ามี ให้เปลี่ยนสถานะและบันทึก Log
@@ -140,7 +141,7 @@ class CustomerLocationService {
     public async deleteLocation(id: number, performedBy: number = 1): Promise<boolean> {
         const t = await db.sequelize.transaction();
         try {
-            const location = await customer_locations.findByPk(id, { transaction: t });
+            const location = await customer_locations.findByPk(id, { transaction: t, lock: t.LOCK.UPDATE });
             
             if (!location) {
                 await t.rollback();

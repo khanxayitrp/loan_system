@@ -129,6 +129,8 @@ export class repayment_schedules extends Model<repayment_schedulesAttributes, re
     sequelize,
     tableName: 'repayment_schedules',
     timestamps: true,
+    createdAt: 'created_at',    // แมปชื่อให้ตรงกับใน DB
+    updatedAt: false,
     indexes: [
       {
         name: "PRIMARY",

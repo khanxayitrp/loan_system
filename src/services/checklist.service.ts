@@ -33,15 +33,16 @@ class CheckListService {
             let basic_verification = null;
             let customer_info = null;
 
-            const checkLoanApp = await db.loan_applications.findByPk(loan_id, { transaction: t });
+            const checkLoanApp = await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
             if (!checkLoanApp) {
                 throw new Error('Loan application not found');
             }
-            const existingCustomer = await db.customers.findByPk(checkLoanApp.customer_id, { transaction: t });
+            const existingCustomer = await db.customers.findByPk(checkLoanApp.customer_id, { transaction: t, lock: t.LOCK.UPDATE });
 
             const existingBasicVerification = await db.loan_basic_verifications.findOne({
                 where: { application_id: loan_id },
-                transaction: t
+                transaction: t,
+                lock: t.LOCK.UPDATE
             });
 
             const basicVerificationData: any = {
@@ -157,6 +158,8 @@ class CheckListService {
             // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.called_by || data.calledBy || data.user_id || 1;
 
+            await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
+
             let callsData = [];
             if (data.calls && Array.isArray(data.calls)) {
                 callsData = data.calls;
@@ -189,7 +192,7 @@ class CheckListService {
                 };
 
                 if (call.id) {
-                    const existingCall = await db.loan_call_verifications.findByPk(call.id, { transaction: t });
+                    const existingCall = await db.loan_call_verifications.findByPk(call.id, { transaction: t, lock: t.LOCK.UPDATE });
                     if(existingCall){
                         const oldCallData = existingCall.toJSON();
                         await existingCall.update(payload, { transaction: t });
@@ -254,6 +257,8 @@ class CheckListService {
             // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.checked_by || data.checkedBy || data.user_id || 1;
 
+            await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
+
             let cibDetails = [];
             if (data.cib_details && Array.isArray(data.cib_details)) {
                 cibDetails = data.cib_details;
@@ -283,7 +288,7 @@ class CheckListService {
                 };
 
                 if (detail.id) {
-                    const existingRecord = await db.loan_cib_history_details.findByPk(detail.id, { transaction: t });
+                    const existingRecord = await db.loan_cib_history_details.findByPk(detail.id, { transaction: t, lock: t.LOCK.UPDATE });
                     if (existingRecord) {
                         const oldDetailData = existingRecord.toJSON();
                         await existingRecord.update(payloadDetail, { transaction: t });
@@ -331,7 +336,8 @@ class CheckListService {
             let cibMain = null;
             const existingMain = await db.loan_cib_checks.findOne({
                 where: { application_id: loan_id },
-                transaction: t
+                transaction: t,
+                lock: t.LOCK.UPDATE // 🔒 Lock ข้อมูลเพื่อป้องกันการแก้ไขพร้อมกันจากหลาย Transaction
             });
 
             if (existingMain) {
@@ -480,6 +486,8 @@ class CheckListService {
             // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.visited_by || data.visitedBy || data.user_id || 1;
 
+            await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
+
             let field_visit = [];
             if (data.visits && Array.isArray(data.visits)) {
                 field_visit = data.visits;
@@ -509,11 +517,12 @@ class CheckListService {
 
                 let existingRecord = null;
                 if (field.id) {
-                    existingRecord = await db.loan_field_visits.findByPk(field.id, { transaction: t });
+                    existingRecord = await db.loan_field_visits.findByPk(field.id, { transaction: t, lock: t.LOCK.UPDATE });
                 } else {
                     existingRecord = await db.loan_field_visits.findOne({
                         where: { application_id: loan_id, visit_type: payload.visit_type },
-                        transaction: t
+                        transaction: t,
+                        lock: t.LOCK.UPDATE
                     });
                 }
 
@@ -585,11 +594,14 @@ class CheckListService {
             // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.assessed_by || data.user_id || 1;
 
+            await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
+
             let income_assessment = null;
 
             const existingIncomeAssessment = await db.loan_income_assessments.findOne({
                 where: { application_id: loan_id },
-                transaction: t
+                transaction: t,
+                lock: t.LOCK.UPDATE
             });
             
             const incomeAssessmentData: any = {
