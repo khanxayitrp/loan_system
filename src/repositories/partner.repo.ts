@@ -155,7 +155,7 @@ class PartnerRepository {
     }
 
     // 🟢 ອັບເດດໃຫ້ຮັບ performedBy ມານຳ ເພື່ອບັນທຶກ Log (ປ່ຽນ data เป็น any เพื่อให้รับข้อมูลอิสระได้)
-    async updatePartner(partnerId: number, data: any): Promise<partners | null> {
+    async updatePartner(partnerId: number, data: any = {}): Promise<partners | null> {
         const t = await db.sequelize.transaction();
         try {
             const partner = await this.findPartnerById(partnerId);

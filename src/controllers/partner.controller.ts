@@ -98,6 +98,7 @@ class PartnerController {
             if (isNaN(partnerId)) throw new BadRequestError('ID ຮ້ານຄ້າບໍ່ຖືກຕ້ອງ');
 
             const updateData = req.body;
+            console.log('Received update data:', updateData); // Debug log
             const updatedPartner = await partnerRepo.updatePartner(partnerId, updateData);
             
             if (!updatedPartner) {
