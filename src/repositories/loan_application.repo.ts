@@ -62,6 +62,7 @@ class LoanApplicationRepository {
                 interest_type: cleanLoanApplication.interest_type || 'flat_rate',
                 interest_rate_type: cleanLoanApplication.interest_rate_type || 'monthly',
                 loan_period: cleanLoanApplication.loan_period,
+                down_payment: cleanLoanApplication.down_payment || 0,
                 monthly_pay: cleanLoanApplication.monthly_pay,
                 is_confirmed: cleanLoanApplication.is_confirmed || 0,
                 status: cleanLoanApplication.status || 'pending',

@@ -333,7 +333,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
     try {
         const {
             phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month, other_debt,
-            product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay,
+            product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
             interest_type, interest_rate_type, 
             existing_customer_id 
         } = req.body;
@@ -406,6 +406,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
             interest_rate_at_apply: interest_rate_at_apply || 0,
             interest_type: interest_type || 'flat_rate',       
             interest_rate_type: interest_rate_type || 'monthly', 
+            down_payment: down_payment || 0,
             monthly_pay: monthly_pay,
             is_confirmed: 0,
             status: 'pending',
