@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'apiserver',
-      script: 'src/server.ts',
-      interpreter: 'tsx',
+      script: './dist/server.js',
+      // interpreter: 'tsx',
       cwd: '/home/prod/external_apiserver',
       env: {
         NODE_ENV: 'production',

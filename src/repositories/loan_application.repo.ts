@@ -2,7 +2,7 @@ import { loan_applications, loan_applicationsAttributes, loan_applicationsCreati
 import { db } from '../models/init-models';
 import { logger } from '../utils/logger';
 import { Op, Transaction } from 'sequelize';
-import { NotFoundError, ValidationError, handleErrorResponse } from '../utils/errors';
+import { NotFoundError, ValidationError, handleErrorResponse, BadRequestError, ForbiddenError } from '../utils/errors';
 import { logAudit } from "../utils/auditLogger";
 
 export type action = "submitted" | "verified_basic" | "verified_call" | "verified_cib" | "verified_field" | "assessed_income" | "verified_delivery_receipt" | "approved" | "rejected" | "returned_for_edit" | "cancelled";
@@ -15,19 +15,19 @@ class LoanApplicationRepository {
             const cleanLoanApplication = { ...data };
 
             if (!cleanLoanApplication.customer_id || cleanLoanApplication.customer_id === 0) {
-                throw new Error('Customer ID is required');
+                throw new ValidationError('Customer ID is required');
             }
             if (!cleanLoanApplication.product_id || cleanLoanApplication.product_id === 0) {
-                throw new Error('Product ID is required');
+                throw new ValidationError('Product ID is required');
             }
             if (!cleanLoanApplication.total_amount || cleanLoanApplication.total_amount === 0) {
-                throw new Error('Total amount is required');
+                throw new ValidationError('Total amount is required');
             }
             if (!cleanLoanApplication.interest_rate_at_apply || cleanLoanApplication.interest_rate_at_apply === 0) {
-                throw new Error('Interest rate at apply is required');
+                throw new ValidationError('Interest rate at apply is required');
             }
             if (!cleanLoanApplication.loan_period || cleanLoanApplication.loan_period === 0) {
-                throw new Error('Loan period is required');
+                throw new ValidationError('Loan period is required');
             }
 
             if (cleanLoanApplication.customer_id && typeof cleanLoanApplication.customer_id === 'object') {
@@ -737,7 +737,7 @@ async updateLoanApplication(loanApplicationId: number, data: Partial<any>): Prom
                 lock: t.LOCK.UPDATE
             });
             if (!loanApplication) {
-                throw new Error(`Loan application with ID: ${loanApplicationId} not found`);
+                throw new NotFoundError(`Loan application with ID: ${loanApplicationId} not found`);
             }
 
             const oldLoanData = loanApplication.toJSON();
@@ -761,7 +761,7 @@ async updateLoanApplication(loanApplicationId: number, data: Partial<any>): Prom
                 const staffLevel = approverUser?.staff_level ?? '';
 
                 if (approverUser?.role !== 'admin' && !['approver', 'credit_manager', 'deputy_director', 'director'].includes(staffLevel)) {
-                    throw new Error('ທ່ານບໍ່ມີສິດໃນການອະນຸມັດ ຫຼື ກວດກາສິນເຊື່ອ');
+                    throw new ForbiddenError('ທ່ານບໍ່ມີສິດໃນການອະນຸມັດ ຫຼື ກວດກາສິນເຊື່ອ');
                 }
 
                 // 🟢 2.1 ຈັດການ Role ຕາມຕຳແໜ່ງ (Mapping & Dynamic Assign)
@@ -775,7 +775,7 @@ async updateLoanApplication(loanApplicationId: number, data: Partial<any>): Prom
                         transaction: t
                     });
                     if (mySignature) {
-                        throw new Error('ທ່ານໄດ້ກວດກາ ແລະ ຢືນຢັນເອກະສານນີ້ໄປແລ້ວ!');
+                        throw new BadRequestError('ທ່ານໄດ້ກວດກາ ແລະ ຢືນຢັນເອກະສານນີ້ໄປແລ້ວ!');
                     }
 
                     // ກວດສອບວ່າ ຕຳແໜ່ງ approver_2 ມີຮອງຜູ້ອຳນວຍການທ່ານອື່ນເຊັນແລ້ວຫຼືຍັງ?
@@ -819,7 +819,7 @@ async updateLoanApplication(loanApplicationId: number, data: Partial<any>): Prom
 
                     // ຖ້ານັບແລ້ວໄດ້ໜ້ອຍກວ່າ 3 ແປວ່າຍັງມີຄົນບໍ່ເຊັນ (ເຊັ່ນ Deputy ເຊັນແຄ່ຄົນດຽວ)
                     if (signedCount < 3) {
-                        throw new Error('ບໍ່ສາມາດອະນຸມັດໄດ້! ຕ້ອງລໍຖ້າໃຫ້ "ຫົວໜ້າສິນເຊື່ອ" ແລະ "ຮອງຜູ້ອຳນວຍການ (ທັງ 2 ທ່ານ)" ກວດກາໃຫ້ຄົບຖ້ວນກ່ອນ.');
+                        throw new BadRequestError('ບໍ່ສາມາດອະນຸມັດໄດ້! ຕ້ອງລໍຖ້າໃຫ້ "ຫົວໜ້າສິນເຊື່ອ" ແລະ "ຮອງຜູ້ອຳນວຍການ (ທັງ 2 ທ່ານ)" ກວດກາໃຫ້ຄົບຖ້ວນກ່ອນ.');
                     }
                 }
 

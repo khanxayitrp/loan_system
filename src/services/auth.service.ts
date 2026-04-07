@@ -9,6 +9,7 @@ import { Transaction } from 'sequelize';
 
 // 🟢 1. Import Helper ของเราเข้ามา
 import { logAudit } from '../utils/auditLogger';
+import { BadRequestError, NotFoundError, ConflictError, UnauthorizedError } from '../utils/errors';
 
 class AuthService {
 
@@ -78,7 +79,7 @@ class AuthService {
       // 1. ตรวจสอบว่า Username ซ้ำหรือไม่
       const existingUser = await db.users.findOne({ where: { username: userData.username }, transaction });
       if (existingUser) {
-        throw new Error('Username already exists');
+        throw new ConflictError('ຊື່ຜູ້ໃຊ້ງານນີ້ຖືກໃຊ້ແລ້ວ');
       }
 
       // 2. Hash Password
@@ -205,7 +206,7 @@ class AuthService {
       });
 
       if (existingUser) {
-        throw new Error('ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
+        throw new ConflictError('ຊື່ຜູ້ໃຊ້ງານນີ້ຖືກໃຊ້ແລ້ວ');
       }
       console.log('Creating user with data:', userData);
 
@@ -229,7 +230,8 @@ class AuthService {
       return newUser;
     } catch (error: any) {
       await transaction.rollback();
-      throw new Error(error.message);
+      // throw new Error(error.message);
+      throw error;
     }
   }
 
@@ -241,11 +243,11 @@ class AuthService {
     const transaction = await db.sequelize.transaction();
     try {
       const user = await db.users.findByPk(userId, { transaction });
-      if (!user) throw new Error('ไม่พบผู้ใช้งาน');
+      if (!user) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ');
 
       const isMatch = await bcrypt.compare(oldPass, user.password);
       if (!isMatch) {
-        throw new Error('รหัสผ่านเดิมไม่ถูกต้อง');
+        throw new UnauthorizedError('ລະຫັດຜ່ານເກົ່າບໍ່ຖືກຕ້ອງ');
       }
 
       const hashedNewPassword = await bcrypt.hash(newPass, 10);
@@ -270,7 +272,8 @@ class AuthService {
       return true;
     } catch (error: any) {
       await transaction.rollback();
-      throw new Error(error.message);
+      // throw new Error(error.message);
+      throw error; // ส่ง error ตรงๆ เพื่อให้ controller จัดการและส่ง response ที่เหมาะสม
     }
   }
 

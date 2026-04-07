@@ -24,6 +24,7 @@ export const errorHandler = (
   res.status(status).json({
     success: false,       // บอก Frontend ชัดเจนว่า Request นี้ "ไม่สำเร็จ"
     status_code: status,  // ส่งตัวเลขกลับไปด้วยเผื่อ Frontend เอาไปเช็คต่อ
+    message: message,    // ข้อความที่อธิบายว่าเกิดอะไรขึ้น (เช่น Validation Failed, Not Found, etc.)
     error: {
       message: message,
       ...(details && { details }), // ถ้ามี details (เช่น validation แจ้งเตือนรายช่อง) ก็ให้แนบไปด้วย

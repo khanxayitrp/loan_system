@@ -13,6 +13,8 @@ import { Transaction } from 'sequelize';
 import { logAudit } from '../utils/auditLogger';
 import { logApprovalAction } from '../utils/approvalLogger';
 
+import redisService from '../services/redis.service';
+
 export const createLoanApplication = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = req.body;
@@ -501,6 +503,13 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
         
         await transaction.commit();
         
+        // =========================================================
+        // 🟢 THE ULTIMATE CACHE INVALIDATION (ລ້າງແຄຊຖິ້ມຫຼັງຈາກສ້າງໃໝ່!)
+        // =========================================================
+        await redisService.del(`cache:repayment_schedule:${application_id}`);
+        // ລ້າງແຄຊ PDF ຕາຕະລາງຜ່ອນນຳ (ຖ້າມີການ Gen PDF)
+        await redisService.del(`cache:pdf:schedule:${application_id}`);
+        
         return res.status(201).json({ 
             success: true, 
             message: 'Repayment schedule created', 
@@ -510,7 +519,7 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
         await transaction.rollback();
         next(error);
     }
-  }
+}
 
   export const getRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -518,11 +527,33 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
         
         if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
 
-        console.log('Fetching repayment schedule for application_id:', application_id);
-        
+        // =========================================================
+        // 🟢 1. ກວດສອບຂໍ້ມູນໃນ Redis Cache ກ່ອນ
+        // =========================================================
+        const cacheKey = `cache:repayment_schedule:${application_id}`;
+        const cachedSchedule = await redisService.get(cacheKey);
+
+        if (cachedSchedule) {
+            console.log(`[Cache Hit] Fetching Repayment Schedule ${application_id} from Redis.`);
+            return res.status(200).json({ 
+                success: true, 
+                message: 'Repayment schedule fetched (From Cache)', 
+                data: JSON.parse(cachedSchedule) 
+            });
+        }
+
+        // =========================================================
+        // 🔴 2. ຖ້າບໍ່ພົບໃນ Cache ໃຫ້ດຶງຈາກ Database
+        // =========================================================
+        console.log(`[Cache Miss] Fetching Repayment Schedule ${application_id} from MySQL.`);
         const schedule = await repaymentRepo.findRepaymentsByApplicationId(application_id);
         
         if(!schedule) throw new NotFoundError('Schedule not found');
+
+        // =========================================================
+        // 🟢 3. ບັນທຶກຂໍ້ມູນທີ່ໄດ້ລົງໃນ Redis (ຕັ້ງອາຍຸໄວ້ 15 ນາທີ ຫຼື 900 ວິນາທີ)
+        // =========================================================
+        await redisService.set(cacheKey, JSON.stringify(schedule), 900); 
 
         return res.status(200).json({ 
             success: true, 
@@ -532,9 +563,7 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
     } catch (error) {
         next(error);
     } 
-
-
-  }
+}
 
 
   // =======================================================
