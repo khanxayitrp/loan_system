@@ -565,7 +565,6 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
     } 
 }
 
-
   // =======================================================
 // 🟢 ຟັງຊັນໃໝ່: ບັນທຶກປະຫວັດການພິມໃບ Approval Summary
 // =======================================================

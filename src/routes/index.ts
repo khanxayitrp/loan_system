@@ -18,6 +18,7 @@ import checklistRouter from './checklist.routes';
 import deliveryRouter from './delivery_receipt.routes';
 import custPortalRouter from './customer-portal.routes';
 import globalCategoriesRouter from './global_categories.routes';
+import repaymentRouter from './repayment.routes';
 
 const router = express.Router();
 
@@ -60,6 +61,7 @@ router.use('/portal', custPortalRouter);
 
 router.use('/global-categories', globalCategoriesRouter);
 
+router.use('/repayments', repaymentRouter);
 
 
 export default router;

@@ -251,6 +251,32 @@ class ProductController {
         } catch (error: any) {
             await t.rollback();
             logger.error('Import Product Error:', error);
+
+            // ====================================================================
+            // 🌟 ดักจับ Error รหัส SKU ซ้ำกัน (ครอบคลุมทั้งตารางหลัก และ ตารางย่อย)
+            // ====================================================================
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                const duplicateError = error.errors?.find((e: any) => 
+                    e.path === 'unique_merchant_sku' || // ของตาราง variants
+                    e.path === 'product_variants.unique_merchant_sku' || // ของตาราง variants (บางเวอร์ชัน)
+                    e.path === 'unique_product_merchant_sku' || // 🟢 เพิ่มของตาราง products
+                    e.path === 'products.unique_product_merchant_sku' // 🟢 เพิ่มของตาราง products (บางเวอร์ชัน)
+                );
+                
+                if (duplicateError) {
+                    // ตัดเอาเฉพาะรหัส SKU มาแสดง (เอาตัวเลข ID ด้านหน้าออก)
+                    const rawValue = duplicateError.value || '';
+                    const skuOnly = rawValue.includes('-') ? rawValue.split('-').slice(1).join('-') : rawValue;
+
+                    // ส่ง Status 400 พร้อมข้อความแจ้งเตือนภาษาลาว
+                    return res.status(400).json({
+                        success: false,
+                        message: `ພົບລະຫັດສິນຄ້າຊ້ຳກັນ: '${skuOnly}' ໃນຖານຂໍ້ມູນ ຫຼື ໄຟລ໌ Excel. ກະລຸນາກວດສອບ ແລະ ແກ້ໄຂລະຫັດ Merchant SKU ບໍ່ໃຫ້ຊ້ຳກັນ.`
+                    });
+                }
+            }
+
+            // ถ้าเป็น Error อื่นๆ ให้โยนไปหา Error Handler หลัก
             next(error);
         }
     }

@@ -498,11 +498,18 @@ class DocumentService {
 
       // 2. อัปโหลดไฟล์ไปที่ MinIO Storage
       // เราดึงเฉพาะโฟลเดอร์จาก Config เช่น 'documents' มาสร้างเป็น Prefix
-      const folderPrefix = FILE_UPLOAD_CONFIG.DOCUMENTS.uploadDir.replace('uploads/', '').replace('uploads\\', '');
+      // const folderPrefix = FILE_UPLOAD_CONFIG.DOCUMENTS.uploadDir.replace('uploads/', '').replace('uploads\\', '');
+      // const uploadResult = await fileUploadService.uploadSingleFile(
+      //   data.file,
+      //   FILE_UPLOAD_CONFIG.DOCUMENTS,
+      //   `${folderPrefix}/app_${data.application_id}_${data.doc_type}_${Date.now()}` // สร้าง Path สวยๆ บน MinIO
+      // );
+
+      // ✅ โค้ดที่แก้ไขแล้ว (ลบ folderPrefix ออกไปเลย ส่งแค่ชื่อไฟล์เพียวๆ)
       const uploadResult = await fileUploadService.uploadSingleFile(
         data.file,
         FILE_UPLOAD_CONFIG.DOCUMENTS,
-        `${folderPrefix}/app_${data.application_id}_${data.doc_type}_${Date.now()}` // สร้าง Path สวยๆ บน MinIO
+        `app_${data.application_id}_${data.doc_type}_${Date.now()}` 
       );
 
       if (!uploadResult.success) {
@@ -683,11 +690,18 @@ class DocumentService {
       const plainDoc = document.get({ plain: true });
 
       // อัปโหลดไฟล์ใหม่ขึ้น MinIO
-      const folderPrefix = FILE_UPLOAD_CONFIG.DOCUMENTS.uploadDir.replace('uploads/', '').replace('uploads\\', '');
+      // const folderPrefix = FILE_UPLOAD_CONFIG.DOCUMENTS.uploadDir.replace('uploads/', '').replace('uploads\\', '');
+      // const uploadResult = await fileUploadService.uploadSingleFile(
+      //   new_file,
+      //   FILE_UPLOAD_CONFIG.DOCUMENTS,
+      //   `${folderPrefix}/app_${plainDoc.application_id}_${plainDoc.doc_type}_${Date.now()}`
+      // );
+
+      // ✅ โค้ดที่แก้ไขแล้ว
       const uploadResult = await fileUploadService.uploadSingleFile(
         new_file,
         FILE_UPLOAD_CONFIG.DOCUMENTS,
-        `${folderPrefix}/app_${plainDoc.application_id}_${plainDoc.doc_type}_${Date.now()}`
+        `app_${plainDoc.application_id}_${plainDoc.doc_type}_${Date.now()}`
       );
 
       if (!uploadResult.success) {

@@ -271,4 +271,5 @@ router.post('/repayment-schedule/:application_id', verifyToken, loanCtrl.createR
  */
 router.get('/repayment-schedule/:application_id/all', verifyToken, loanCtrl.getRepaymentSchedule);
 
+
 export default router;

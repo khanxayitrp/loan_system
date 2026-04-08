@@ -166,6 +166,52 @@ class RepaymentRepository {
         });
     }
 
+    async calculateEarlyPayoff(applicationId: number): Promise<{ remaining_principal: number; calculated_interest: number; total_penalty: number; total_payoff_amount: number } | null> {
+    
+    // 1. ດຶງສະເພາະງວດທີ່ "ຍັງບໍ່ທັນຈ່າຍ" ຫຼື "ຊັກຊ້າ" ອອກມາ ແລະ ລຽງລຳດັບງວດກ່ອນ-ຫຼັງ
+    const unpaidSchedules = await db.repayments.findAll({
+        where: { 
+            application_id: applicationId,
+            payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } // 🟢 ດຶງສະເພາະງວດທີ່ຍັງຄ້າງ
+        },
+        order: [['installment_no', 'ASC']], // ລຽງຈາກງວດປະຈຸບັນ ໄປຫາງວດອະນາຄົດ
+        raw: true
+    });
+
+    if (!unpaidSchedules || unpaidSchedules.length === 0) {
+        return null; // ປິດບັນຊີແລ້ວ ຫຼື ບໍ່ມີຕາຕະລາງ
+    }
+
+    let total_principal = 0;
+    let total_interest = 0;
+    let total_penalty = 0;
+
+    // 2. ວົນ Loop ເພື່ອບວກຕົວເລກຕາມໂລຈິກ
+    unpaidSchedules.forEach((sch, index) => {
+        // ຕົ້ນທຶນ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ
+        total_principal += Number(sch.principal_amount) || 0;
+        
+        // ຄ່າປັບໃໝ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ (ຖ້າມີ)
+        total_penalty += Number(sch.penalty) || 0;
+
+        // 🟢 ດອກເບ້ຍ (Option 2): ຄິດໄລ່ດອກເບ້ຍເຕັມເດືອນ ສະເພາະ "ງວດປະຈຸບັນ" (index === 0)
+        // ສ່ວນງວດອະນາຄົດ (index > 0) ຈະຖືວ່າໄດ້ຮັບການ "ຍົກເວັ້ນດອກເບ້ຍ (0 ກີບ)" ອັດຕະໂນມັດ
+        if (index === 0) {
+            total_interest += Number(sch.interest_amount) || 0;
+        }
+    });
+
+    // 3. ຄຳນວນຍອດປິດບັນຊີລວມ
+    const total_payoff_amount = total_principal + total_interest + total_penalty;
+
+    return {
+        remaining_principal: total_principal,
+        calculated_interest: total_interest,
+        total_penalty: total_penalty,
+        total_payoff_amount: total_payoff_amount
+    };
+}  
+
     async findRepaymentById(repaymentId: number): Promise<repayments | null> {
         return await db.repayments.findByPk(repaymentId, {
             include: [
@@ -211,6 +257,38 @@ class RepaymentRepository {
             throw error;
 
         }
+    }
+
+    // ==========================================
+    // 🟢 ສ່ວນທີ່ເພີ່ມໃໝ່ ສຳລັບການຮັບຊຳລະເງິນ (Payment Processing)
+    // ==========================================
+
+    // 1. ສ້າງໃບບິນຮັບເງິນ (Receipt / Transaction Log)
+    // ໝາຍເຫດ: ປ່ຽນ db.payment_receipts ເປັນຊື່ Table ທີ່ທ່ານມີສຳລັບເກັບໃບບິນ
+    async createReceipt(data: any, transaction?: any): Promise<any> {
+        return await db.payment_transactions.create(data, { transaction });
+    }
+
+    // 2. ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid'
+    async markAllRemainingAsPaid(applicationId: number, transaction?: any): Promise<any> {
+        return await db.repayments.update(
+            { payment_status: 'paid', paid_at: new Date() },
+            { 
+                where: { 
+                    application_id: applicationId, 
+                    payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } 
+                },
+                transaction 
+            }
+        );
+    }
+
+    // 3. ອັບເດດສະຖານະຂອງສັນຍາ (ເຊັ່ນ: ປ່ຽນເປັນ 'completed' ຕອນປິດບັນຊີ)
+    async updateLoanStatus(applicationId: number, status: string, transaction?: any): Promise<any> {
+        return await db.loan_applications.update(
+            { status: status as any },
+            { where: { id: applicationId }, transaction }
+        );
     }
 }
 
