@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUploadMiddleware = exports.uploadPaymentProof = exports.uploadShopLogo = exports.uploadProductImage = exports.uploadLocationImage = exports.uploadDocument = void 0;
+exports.createUploadMiddleware = exports.uploadPaymentProof = exports.uploadShopLogo = exports.uploadProductImage = exports.uploadVariantImage = exports.uploadLocationImage = exports.uploadDocument = void 0;
 const multer_1 = __importDefault(require("multer"));
 const file_types_1 = require("../types/file.types");
 /**
@@ -43,6 +43,15 @@ exports.uploadLocationImage = (0, multer_1.default)({
         files: 2 // จำกัดไม่เกิน 2 รูป
     },
     fileFilter: createFileFilter(file_types_1.FILE_UPLOAD_CONFIG.LOCATION_IMAGES.allowedMimeTypes)
+});
+// สำหรับรูปสินค้าย่อย
+exports.uploadVariantImage = (0, multer_1.default)({
+    storage: memoryStorage,
+    limits: {
+        fileSize: file_types_1.FILE_UPLOAD_CONFIG.VARIANT_IMAGES.maxFileSize,
+        files: 2 // จำกัดไม่เกิน 2 รูป
+    },
+    fileFilter: createFileFilter(file_types_1.FILE_UPLOAD_CONFIG.VARIANT_IMAGES.allowedMimeTypes)
 });
 // สำหรับรูปสินค้า
 exports.uploadProductImage = (0, multer_1.default)({

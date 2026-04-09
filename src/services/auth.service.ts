@@ -215,7 +215,7 @@ class AuthService {
       const newUser = await db.users.create({
         ...userData,
         password: hashedPassword,
-        is_active: 1,
+        is_active: Number(userData.is_active) === 0 ? 0 : 1 // กำหนดค่า is_active ตาม input หรือ default เป็น 1
       }, { transaction });
 
       // 🟢 บันทึก Audit Log (ลบ Password ออกก่อนเก็บ)

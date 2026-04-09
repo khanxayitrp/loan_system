@@ -54,18 +54,23 @@ class ProductRepository {
                 logger_1.logger.error(`Product with This Partner product already exists: ${cleanProduct.product_name}`);
                 throw new Error('Product with ID already exists');
             }
+            // 🟢 อัปเดต MapData ให้ตรงกับตารางจริงใน Database 100%
             const mapData = {
                 partner_id: cleanProduct.partner_id,
                 productType_id: cleanProduct.productType_id,
+                global_category_id: cleanProduct.global_category_id || null, // เพิ่ม
                 product_name: cleanProduct.product_name,
+                description: cleanProduct.description || null,
                 brand: cleanProduct.brand || null,
                 model: cleanProduct.model || null,
                 price: cleanProduct.price,
-                interest_rate: cleanProduct.interest_rate,
-                interest_rate_type: cleanProduct.interest_rate_type || 'monthly',
-                description: cleanProduct.description || null,
                 image_url: cleanProduct.image_url || null,
-                is_active: 1,
+                is_active: cleanProduct.is_active !== undefined ? cleanProduct.is_active : 1,
+                system_sku: cleanProduct.system_sku || null, // เพิ่ม (ปกติ Gen จาก Controller)
+                merchant_sku: cleanProduct.merchant_sku || null, // เพิ่ม
+                stock_quantity: cleanProduct.stock_quantity || 0, // เพิ่ม
+                reserved_stock: cleanProduct.reserved_stock || 0, // เพิ่ม
+                allowed_loan_type: cleanProduct.allowed_loan_type || 'both' // เพิ่ม
             };
             const newProduct = await init_models_1.db.products.create(mapData, { transaction: t });
             // 🟢 ບັນທຶກ Audit Log (CREATE)
@@ -81,8 +86,10 @@ class ProductRepository {
             throw error;
         }
     }
-    async findProductById(productId) {
+    async findProductById(productId, options) {
         return await init_models_1.db.products.findByPk(productId, {
+            transaction: options?.transaction,
+            lock: options?.lock,
             include: [
                 {
                     model: init_models_1.db.product_types,
@@ -98,6 +105,16 @@ class ProductRepository {
                     model: init_models_1.db.product_gallery,
                     as: 'product_galleries',
                     attributes: ['id', 'image_url']
+                },
+                {
+                    model: init_models_1.db.global_categories,
+                    as: 'global_category',
+                    attributes: ['id', 'category_name', 'prefix_code']
+                },
+                {
+                    model: init_models_1.db.product_variants,
+                    as: 'product_variants',
+                    attributes: ['id', 'merchant_sku', 'color', 'size_or_capacity', 'weight_gram', 'price', 'stock_quantity', 'image_url']
                 }
             ]
         });
@@ -121,7 +138,10 @@ class ProductRepository {
     async updateProduct(productId, partnerId, data) {
         const t = await init_models_1.db.sequelize.transaction();
         try {
-            const product = await this.findProductById(productId);
+            const product = await this.findProductById(productId, {
+                transaction: t,
+                lock: t.LOCK.UPDATE, // 🟢 เพิ่ม Lock เพื่อ
+            });
             if (!product) {
                 logger_1.logger.error(`Product with ID: ${productId} not found`);
                 await t.rollback();
@@ -136,7 +156,11 @@ class ProductRepository {
             const oldData = product.toJSON();
             // ກອງເອົາແຕ່ຂໍ້ມູນທີ່ຈະອັບເດດແທ້ໆ
             const updateData = {};
-            const allowedFields = ['productType_id', 'product_name', 'brand', 'model', 'price', 'interest_rate', 'image_url', 'description', 'interest_rate_type'];
+            const allowedFields = [
+                'productType_id', 'global_category_id', 'product_name',
+                'description', 'brand', 'model', 'price', 'image_url',
+                'merchant_sku', 'stock_quantity', 'reserved_stock', 'allowed_loan_type'
+            ];
             for (const field of allowedFields) {
                 if (data[field] !== undefined) {
                     updateData[field] = data[field];

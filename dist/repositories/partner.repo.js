@@ -132,7 +132,7 @@ class PartnerRepository {
         return await init_models_1.db.partners.findOne({ where: { shop_name: shopName } });
     }
     // 🟢 ອັບເດດໃຫ້ຮັບ performedBy ມານຳ ເພື່ອບັນທຶກ Log (ປ່ຽນ data เป็น any เพื่อให้รับข้อมูลอิสระได้)
-    async updatePartner(partnerId, data) {
+    async updatePartner(partnerId, data = {}) {
         const t = await init_models_1.db.sequelize.transaction();
         try {
             const partner = await this.findPartnerById(partnerId);

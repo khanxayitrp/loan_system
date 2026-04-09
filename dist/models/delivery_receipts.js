@@ -14,11 +14,11 @@ class delivery_receipts extends sequelize_1.Model {
             application_id: {
                 type: sequelize_1.DataTypes.INTEGER,
                 allowNull: false,
-                unique: "unique_application_id",
                 references: {
                     model: 'loan_applications',
                     key: 'id'
-                }
+                },
+                unique: "fk_delivery_application"
             },
             receipts_id: {
                 type: sequelize_1.DataTypes.STRING(20),
@@ -71,7 +71,8 @@ class delivery_receipts extends sequelize_1.Model {
                     ]
                 },
                 {
-                    name: "fk_delivery_application",
+                    name: "unique_application_id",
+                    unique: true,
                     using: "BTREE",
                     fields: [
                         { name: "application_id" },

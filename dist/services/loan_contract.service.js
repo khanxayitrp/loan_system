@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const init_models_1 = require("../models/init-models");
 const logger_1 = require("../utils/logger");
 const auditLogger_1 = require("../utils/auditLogger");
+const signatureGenerator_1 = require("../utils/signatureGenerator");
 class LoanContractService {
     // ==========================================
     // 🟢 HELPER FUNCTION: ສຳລັບບັນທຶກ Audit Log
@@ -48,9 +49,10 @@ class LoanContractService {
             let loan_contract = null;
             const existingContract = await init_models_1.db.loan_contract.findOne({
                 where: { loan_id: data.loan_id },
-                transaction: t
+                transaction: t,
+                lock: t.LOCK.UPDATE // 🔒 Lock ຂໍ້ມູນແລະສະແດງວ່າກຳລັງແກ້ໄຂ
             });
-            // 🟢 Mapping ຂໍ້ມູນຫຼັກ
+            // 🟢 Mapping ຂໍ້ມູນຫຼັກທັງໝົດ
             const loanContractData = {
                 loan_id: data.loan_id,
                 cus_full_name: data.cusFullName,
@@ -140,6 +142,7 @@ class LoanContractService {
                 loanContractData.updated_by = performedBy;
                 await existingContract.update(loanContractData, { transaction: t });
                 loan_contract = existingContract;
+                // (ສົມມຸດວ່າມີການ Import logAudit ມາໃຊ້ງານແລ້ວ)
                 await (0, auditLogger_1.logAudit)('loan_contract', existingContract.id, 'UPDATE', oldContractData, loanContractData, performedBy, t);
             }
             else {
@@ -150,7 +153,8 @@ class LoanContractService {
                 const lastloanContract = await init_models_1.db.loan_contract.findOne({
                     order: [['id', 'DESC']],
                     attributes: ['loan_contract_number'],
-                    transaction: t
+                    transaction: t,
+                    lock: t.LOCK.UPDATE // 🔒 Lock ຂໍ້ມູນແລະສະແດງວ່າກຳລັງແກ້ໄຂ
                 });
                 let contractNumber = 1;
                 if (lastloanContract?.loan_contract_number) {
@@ -166,6 +170,11 @@ class LoanContractService {
                 loanContractData.version = 1;
                 loan_contract = await init_models_1.db.loan_contract.create(loanContractData, { transaction: t });
                 await (0, auditLogger_1.logAudit)('loan_contract', loan_contract.id, 'CREATE', null, loanContractData, performedBy, t);
+                // ==========================================
+                // 🌟 🟢 ສ້າງຊ່ອງລາຍເຊັນລໍຖ້າໄວ້ (Pending Signatures) ສຳລັບສັນຍາໃໝ່
+                // ==========================================
+                await (0, signatureGenerator_1.generateSignatureSlots)(data.loan_id, 'contract', loan_contract.id, // ໃຊ້ ID ຂອງສັນຍາທີ່ຫາກໍ່ສ້າງສຳເລັດເປັນ Reference
+                t);
             }
             await t.commit();
             console.log('✅ Loan Contract created/updated successfully:', loan_contract.id);
@@ -190,6 +199,10 @@ class LoanContractService {
                         model: init_models_1.db.partners,
                         as: 'partner',
                         attributes: ['id', 'shop_name']
+                    }, {
+                        model: init_models_1.db.product_types,
+                        as: 'producttype',
+                        attributes: ['id', 'type_name']
                     }],
                 raw: true
             });

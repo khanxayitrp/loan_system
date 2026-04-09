@@ -16,6 +16,7 @@ class ServerApp {
         this.portService = new Port_Service_1.default();
         this.httpServer = (0, http_1.createServer)((req, res) => (0, app_1.default)(req, res));
         this.io = new socket_io_1.Server(this.httpServer, { cors: { origin: "*" } });
+        this.setupGracefulShutdown();
         this.InitializeServer();
     }
     async InitializeServer() {
@@ -54,9 +55,11 @@ class ServerApp {
             this.httpServer.timeout = 120000; // 120 ວິນາທີ
             this.httpServer.keepAliveTimeout = 120000;
             this.httpServer.headersTimeout = 120000;
-            this.httpServer.listen(availablePort, () => {
+            this.httpServer.listen(availablePort, '0.0.0.0', () => {
                 const HOST = process.env.HOST || 'localhost';
                 logger_1.logger.info(`🚀 Server running on: ➜ \u001b[34mhttp://${HOST}:${availablePort}\u001b[0m`);
+                // แนะนำให้พิมพ์ IP ของวง LAN ออกมาดูด้วยเลย จะได้ก๊อปปี้ไปวางเครื่องอื่นง่ายๆ
+                logger_1.logger.info(`🌐 Network access: ➜ \u001b[34mhttp://0.0.0.0:${availablePort}\u001b[0m`);
                 logger_1.logger.info(`📊 Redis status: ${redis_service_1.default.isClientConnected() ? '✅ Connected' : '❌ Disconnected'}`);
             });
         });

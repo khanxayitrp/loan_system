@@ -48,6 +48,7 @@ class UserController {
         try {
             const userId = parseInt(req.params.id, 10);
             const updateData = req.body;
+            console.log('Received update data for user:', { userId, updateData });
             const updatedUser = await userRepo.updateUser(userId, updateData);
             if (!updatedUser) {
                 return res.status(404).json({ message: 'ไม่พบผู้ใช้งานที่ต้องการอัปเดต' });

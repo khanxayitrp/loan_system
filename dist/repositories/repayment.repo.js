@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const init_models_1 = require("../models/init-models");
 const logger_1 = require("@/utils/logger");
+const sequelize_1 = require("sequelize");
 const auditLogger_1 = require("../utils/auditLogger");
+const signatureGenerator_1 = require("../utils/signatureGenerator");
 class RepaymentRepository {
     // ในไฟล์ RepaymentRepository.ts (หรือไฟล์ Repo ของคุณ)
     async saveRepaymentSchedule(application_id, scheduleData, performedBy, transaction) {
@@ -15,9 +17,14 @@ class RepaymentRepository {
                 throw new Error('performedBy (user ID) is required for audit logging');
             }
             // 2. ตรวจสอบว่ามี Loan Application นี้หรือไม่
-            const loanExist = await init_models_1.db.loan_applications.findOne({
-                where: { id: application_id },
-                transaction
+            // const loanExist = await db.loan_applications.findOne({
+            //     where: { id: application_id },
+            //     transaction
+            // });
+            // ປ້ອງກັນບໍ່ໃຫ້ໃຜມາແກ້ໄຂຄຳຂໍນີ້ ໃນຂະນະທີ່ເຮົາກຳລັງສ້າງຕາຕະລາງຜ່ອນ
+            const loanExist = await init_models_1.db.loan_applications.findByPk(application_id, {
+                transaction,
+                lock: transaction.LOCK.UPDATE // SELECT ... FOR UPDATE
             });
             if (!loanExist) {
                 throw new Error('ບໍ່ພົບຂໍ້ມູນຄຳຂໍສິນເຊື່ອ (Loan application does not exist)');
@@ -32,7 +39,8 @@ class RepaymentRepository {
                     application_id: application_id,
                     status: 'draft' // หาเฉพาะฉบับร่าง
                 },
-                transaction
+                transaction,
+                lock: transaction.LOCK.UPDATE // SELECT ... FOR UPDATE เพื่อป้องกันการแก้ไขพร้อมกัน
             });
             if (existingDraftSchedule) {
                 // ==========================================
@@ -84,6 +92,11 @@ class RepaymentRepository {
                 }, { transaction });
                 scheduleId = newRepaymentSchedule.id;
                 await (0, auditLogger_1.logAudit)('repayment_schedules', application_id, 'CREATE', null, newRepaymentSchedule.toJSON(), performedBy, transaction);
+                // ==========================================
+                // 🌟 🟢 ເພີ່ມໃໝ່: ສ້າງຊ່ອງລາຍເຊັນລໍຖ້າໄວ້ ສຳລັບຕາຕະລາງຜ່ອນຊຳລະ
+                // ==========================================
+                await (0, signatureGenerator_1.generateSignatureSlots)(application_id, 'repayment_schedule', scheduleId, // ໃຊ້ ID ຂອງຕາຕະລາງ Header ເປັນ reference
+                transaction);
             }
             // ==========================================
             // 4. 📝 เตรียมข้อมูล และ บันทึก Detail (Repayments)
@@ -114,14 +127,74 @@ class RepaymentRepository {
         }
     }
     async findRepaymentsByApplicationId(applicationId) {
-        return await init_models_1.db.repayments.findAll({ where: { application_id: applicationId } });
+        return await init_models_1.db.repayments.findAll({
+            where: { application_id: applicationId, },
+            include: [
+                {
+                    model: init_models_1.db.repayment_schedules,
+                    as: 'schedule',
+                    attributes: ['id', 'version', 'status'],
+                    // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+                    // where: { status: 'approved' }
+                }
+            ],
+        });
+    }
+    async calculateEarlyPayoff(applicationId) {
+        // 1. ດຶງສະເພາະງວດທີ່ "ຍັງບໍ່ທັນຈ່າຍ" ຫຼື "ຊັກຊ້າ" ອອກມາ ແລະ ລຽງລຳດັບງວດກ່ອນ-ຫຼັງ
+        const unpaidSchedules = await init_models_1.db.repayments.findAll({
+            where: {
+                application_id: applicationId,
+                payment_status: { [sequelize_1.Op.in]: ['unpaid', 'overdue', 'partial'] } // 🟢 ດຶງສະເພາະງວດທີ່ຍັງຄ້າງ
+            },
+            order: [['installment_no', 'ASC']], // ລຽງຈາກງວດປະຈຸບັນ ໄປຫາງວດອະນາຄົດ
+            raw: true
+        });
+        if (!unpaidSchedules || unpaidSchedules.length === 0) {
+            return null; // ປິດບັນຊີແລ້ວ ຫຼື ບໍ່ມີຕາຕະລາງ
+        }
+        let total_principal = 0;
+        let total_interest = 0;
+        let total_penalty = 0;
+        // 2. ວົນ Loop ເພື່ອບວກຕົວເລກຕາມໂລຈິກ
+        unpaidSchedules.forEach((sch, index) => {
+            // ຕົ້ນທຶນ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ
+            total_principal += Number(sch.principal_amount) || 0;
+            // ຄ່າປັບໃໝ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ (ຖ້າມີ)
+            total_penalty += Number(sch.penalty) || 0;
+            // 🟢 ດອກເບ້ຍ (Option 2): ຄິດໄລ່ດອກເບ້ຍເຕັມເດືອນ ສະເພາະ "ງວດປະຈຸບັນ" (index === 0)
+            // ສ່ວນງວດອະນາຄົດ (index > 0) ຈະຖືວ່າໄດ້ຮັບການ "ຍົກເວັ້ນດອກເບ້ຍ (0 ກີບ)" ອັດຕະໂນມັດ
+            if (index === 0) {
+                total_interest += Number(sch.interest_amount) || 0;
+            }
+        });
+        // 3. ຄຳນວນຍອດປິດບັນຊີລວມ
+        const total_payoff_amount = total_principal + total_interest + total_penalty;
+        return {
+            remaining_principal: total_principal,
+            calculated_interest: total_interest,
+            total_penalty: total_penalty,
+            total_payoff_amount: total_payoff_amount
+        };
     }
     async findRepaymentById(repaymentId) {
-        return await init_models_1.db.repayments.findByPk(repaymentId);
+        return await init_models_1.db.repayments.findByPk(repaymentId, {
+            include: [
+                {
+                    model: init_models_1.db.repayment_schedules,
+                    as: 'schedule',
+                    attributes: ['id', 'version', 'status'],
+                    where: { status: 'approved' } // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+                }
+            ]
+        });
     }
-    async updateRepayment(repaymentId, data) {
+    async updateRepayment(repaymentId, data, transaction) {
         try {
-            const repayment = await init_models_1.db.repayments.findByPk(repaymentId);
+            const repayment = await init_models_1.db.repayments.findByPk(repaymentId, {
+                transaction,
+                lock: transaction ? transaction.LOCK.UPDATE : undefined // 🟢 เพิ่ม Lock เฉพาะตอนมี Transaction
+            });
             if (!repayment) {
                 logger_1.logger.error(`Repayment with ID: ${repaymentId} not found`);
                 return null;
@@ -148,6 +221,28 @@ class RepaymentRepository {
             logger_1.logger.error(`Error deleting repayments for application ID: ${applicationId} - ${error.message}`);
             throw error;
         }
+    }
+    // ==========================================
+    // 🟢 ສ່ວນທີ່ເພີ່ມໃໝ່ ສຳລັບການຮັບຊຳລະເງິນ (Payment Processing)
+    // ==========================================
+    // 1. ສ້າງໃບບິນຮັບເງິນ (Receipt / Transaction Log)
+    // ໝາຍເຫດ: ປ່ຽນ db.payment_receipts ເປັນຊື່ Table ທີ່ທ່ານມີສຳລັບເກັບໃບບິນ
+    async createReceipt(data, transaction) {
+        return await init_models_1.db.payment_transactions.create(data, { transaction });
+    }
+    // 2. ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid'
+    async markAllRemainingAsPaid(applicationId, transaction) {
+        return await init_models_1.db.repayments.update({ payment_status: 'paid', paid_at: new Date() }, {
+            where: {
+                application_id: applicationId,
+                payment_status: { [sequelize_1.Op.in]: ['unpaid', 'overdue', 'partial'] }
+            },
+            transaction
+        });
+    }
+    // 3. ອັບເດດສະຖານະຂອງສັນຍາ (ເຊັ່ນ: ປ່ຽນເປັນ 'completed' ຕອນປິດບັນຊີ)
+    async updateLoanStatus(applicationId, status, transaction) {
+        return await init_models_1.db.loan_applications.update({ status: status }, { where: { id: applicationId }, transaction });
     }
 }
 exports.default = new RepaymentRepository();

@@ -132,6 +132,7 @@ router.get('/loanID/:LoanId', auth_middleware_1.verifyToken, loanCtrl.getLoanByL
  *         description: Application created
  */
 router.post('/', auth_middleware_1.verifyToken, loanCtrl.createLoanApplication);
+router.post('/:id/print-summary', auth_middleware_1.verifyToken, loanCtrl.markApprovalSummaryPrinted);
 /**
  * @swagger
  * /loan-application/draft/{id}:
@@ -251,6 +252,42 @@ router.patch('/:id/apply', auth_middleware_1.verifyToken, loanCtrl.sentApplyDraf
  *         description: Application and customer created
  */
 router.post('/create-with-customer', auth_middleware_1.optionalVerifyToken, loanCtrl.createWithCustomer);
+/**
+ * @swagger
+ * /loan-application/repayment-schedule/{application_id}:
+ *   post:
+ *     summary: Create repayment schedule
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       201:
+ *         description: Repayment schedule created
+ */
 router.post('/repayment-schedule/:application_id', auth_middleware_1.verifyToken, loanCtrl.createRepaymentSchedule);
+/**
+ * @swagger
+ * /loan-application/repayment-schedule/{application_id}/all:
+ *   get:
+ *     summary: Get repayment schedule
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Repayment schedule details
+ */
 router.get('/repayment-schedule/:application_id/all', auth_middleware_1.verifyToken, loanCtrl.getRepaymentSchedule);
 exports.default = router;

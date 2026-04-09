@@ -11,6 +11,11 @@ class loan_contract extends sequelize_1.Model {
                 allowNull: false,
                 primaryKey: true
             },
+            loan_flow_type: {
+                type: sequelize_1.DataTypes.ENUM('single_item', 'bnpl_cart'),
+                allowNull: false,
+                defaultValue: "single_item"
+            },
             loan_id: {
                 type: sequelize_1.DataTypes.INTEGER,
                 allowNull: false,
@@ -18,6 +23,10 @@ class loan_contract extends sequelize_1.Model {
                     model: 'loan_applications',
                     key: 'id'
                 }
+            },
+            order_id: {
+                type: sequelize_1.DataTypes.INTEGER,
+                allowNull: true
             },
             loan_contract_number: {
                 type: sequelize_1.DataTypes.STRING(100),
@@ -91,7 +100,7 @@ class loan_contract extends sequelize_1.Model {
             cus_occupation: {
                 type: sequelize_1.DataTypes.STRING(100),
                 allowNull: true,
-                comment: "ອາຊີບລູກຄ້າ (ຖ້າມີ)",
+                comment: "อาชีพของลูกค้า"
             },
             cus_company_name: {
                 type: sequelize_1.DataTypes.STRING(255),
@@ -137,7 +146,7 @@ class loan_contract extends sequelize_1.Model {
             },
             product_detail: {
                 type: sequelize_1.DataTypes.STRING(100),
-                allowNull: false
+                allowNull: true
             },
             producttype_id: {
                 type: sequelize_1.DataTypes.INTEGER,
@@ -149,11 +158,11 @@ class loan_contract extends sequelize_1.Model {
             },
             product_brand: {
                 type: sequelize_1.DataTypes.STRING(100),
-                allowNull: false
+                allowNull: true
             },
             product_model: {
                 type: sequelize_1.DataTypes.STRING(100),
-                allowNull: false
+                allowNull: true
             },
             product_price: {
                 type: sequelize_1.DataTypes.DECIMAL(15, 2),
@@ -226,11 +235,11 @@ class loan_contract extends sequelize_1.Model {
             },
             shop_branch: {
                 type: sequelize_1.DataTypes.STRING(100),
-                allowNull: false
+                allowNull: true
             },
             shop_id: {
                 type: sequelize_1.DataTypes.STRING(20),
-                allowNull: false
+                allowNull: true
             },
             ref_name: {
                 type: sequelize_1.DataTypes.STRING(255),

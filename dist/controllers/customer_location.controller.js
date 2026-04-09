@@ -5,34 +5,26 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteLocation = exports.getCustomerLocations = exports.updateLocation = exports.createLocation = void 0;
 const customer_location_service_1 = __importDefault(require("../services/customer_location.service"));
+// 👉 1. Import Custom Errors
+const errors_1 = require("../utils/errors");
 /**
  * ✅ สร้าง Location ใหม่
  * POST /api/customer-locations/:customerId/locations
  */
-const createLocation = async (req, res) => {
+const createLocation = async (req, res, next) => {
     try {
         const customerId = parseInt(req.params.customerId);
         if (!customerId || isNaN(customerId)) {
-            return res.status(400).json({
-                success: false,
-                message: 'customer_id ไม่ถูกต้อง'
-            });
+            throw new errors_1.BadRequestError('customer_id ບໍ່ຖືກຕ້ອງ');
         }
-        // ✅ Validate และแปลง is_primary ใน Controller
         const { location_type, address, latitude, longitude, is_primary } = req.body;
         // ✅ ตรวจสอบ location_type
         if (!location_type || !['home', 'work', 'other'].includes(location_type)) {
-            return res.status(400).json({
-                success: false,
-                message: 'location_type ต้องเป็น home, work, หรือ other'
-            });
+            throw new errors_1.BadRequestError('location_type ต้องเป็น home, work, หรือ other');
         }
         // ✅ ตรวจสอบ address
         if (!address || address.trim() === '') {
-            return res.status(400).json({
-                success: false,
-                message: 'address เป็นข้อมูลบังคับ'
-            });
+            throw new errors_1.BadRequestError('address ເປັນຂໍ້ມູນທີ່ຈຳເປັນ');
         }
         // ✅ แปลง is_primary เป็น number (0 หรือ 1)
         let primaryValue = 0;
@@ -45,21 +37,17 @@ const createLocation = async (req, res) => {
             address: address.trim(),
             latitude: latitude ? parseFloat(latitude) : null,
             longitude: longitude ? parseFloat(longitude) : null,
-            is_primary: primaryValue // ✅ number (0 หรือ 1)
+            is_primary: primaryValue
         };
         const result = await customer_location_service_1.default.createLocation(locationData);
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
-            message: 'สร้างที่อยู่สำเร็จ',
+            message: 'ສ້າງທີ່ຢู่ສຳເລັດ',
             data: result
         });
     }
     catch (error) {
-        console.error('Create Location Error:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        next(error); // 👉 โยนให้ Global Error Handler จัดการ
     }
 };
 exports.createLocation = createLocation;
@@ -67,16 +55,12 @@ exports.createLocation = createLocation;
  * ✅ อัปเดต Location
  * PUT /api/customer-locations/:id
  */
-const updateLocation = async (req, res) => {
+const updateLocation = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
         if (!id || isNaN(id)) {
-            return res.status(400).json({
-                success: false,
-                message: 'location_id ไม่ถูกต้อง'
-            });
+            throw new errors_1.BadRequestError('location_id ບໍ່ຖືກຕ້ອງ');
         }
-        // ✅ Validate และแปลง is_primary ใน Controller
         const { address, latitude, longitude, is_primary, location_type } = req.body;
         const updateData = {};
         if (address !== undefined) {
@@ -90,10 +74,7 @@ const updateLocation = async (req, res) => {
         }
         if (location_type !== undefined) {
             if (!['home', 'work', 'other'].includes(location_type)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'location_type ต้องเป็น home, work, หรือ other'
-                });
+                throw new errors_1.BadRequestError('location_type ต้องเป็น home, work, หรือ other');
             }
             updateData.location_type = location_type;
         }
@@ -104,22 +85,15 @@ const updateLocation = async (req, res) => {
         console.log('Update Location Data:', updateData);
         const result = await customer_location_service_1.default.updateLocation(id, updateData);
         if (!result) {
-            return res.status(404).json({
-                success: false,
-                message: 'ไม่พบข้อมูลที่อยู่'
-            });
+            throw new errors_1.NotFoundError('ບໍ່ພົບຂໍ້ມູນທີ່ຢู่');
         }
-        res.json({
+        return res.status(200).json({
             success: true,
-            message: 'อัปเดตที่อยู่สำเร็จ'
+            message: 'ອັບເດດທີ່ຢู่ສຳເລັດ',
         });
     }
     catch (error) {
-        console.error('Update Location Error:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        next(error);
     }
 };
 exports.updateLocation = updateLocation;
@@ -127,27 +101,20 @@ exports.updateLocation = updateLocation;
  * ✅ ดึงรายการ Location ของลูกค้า
  * GET /api/customer-locations/:customerId/locations
  */
-const getCustomerLocations = async (req, res) => {
+const getCustomerLocations = async (req, res, next) => {
     try {
         const customerId = parseInt(req.params.customerId);
         if (!customerId || isNaN(customerId)) {
-            return res.status(400).json({
-                success: false,
-                message: 'customer_id ไม่ถูกต้อง'
-            });
+            throw new errors_1.BadRequestError('customer_id ບໍ່ຖືກຕ້ອງ');
         }
         const result = await customer_location_service_1.default.getLocationsByCustomerId(customerId);
-        res.json({
+        return res.status(200).json({
             success: true,
             data: result
         });
     }
     catch (error) {
-        console.error('Get Locations Error:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        next(error);
     }
 };
 exports.getCustomerLocations = getCustomerLocations;
@@ -155,27 +122,20 @@ exports.getCustomerLocations = getCustomerLocations;
  * ✅ ลบ Location
  * DELETE /api/customer-locations/:id
  */
-const deleteLocation = async (req, res) => {
+const deleteLocation = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id);
         if (!id || isNaN(id)) {
-            return res.status(400).json({
-                success: false,
-                message: 'location_id ไม่ถูกต้อง'
-            });
+            throw new errors_1.BadRequestError('location_id ບໍ່ຖືກຕ້ອງ');
         }
         await customer_location_service_1.default.deleteLocation(id);
-        res.json({
+        return res.status(200).json({
             success: true,
-            message: 'ลบที่อยู่สำเร็จ'
+            message: 'ລົບທີ່ຢู่ສຳເລັດ'
         });
     }
     catch (error) {
-        console.error('Delete Location Error:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        next(error);
     }
 };
 exports.deleteLocation = deleteLocation;

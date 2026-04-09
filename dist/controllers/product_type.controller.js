@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const product_type_repo_1 = __importDefault(require("../repositories/product_type.repo"));
 const logger_1 = require("../utils/logger");
+const redis_service_1 = __importDefault(require("../services/redis.service")); // 🟢 Import Redis
 class ProductTypeController {
     static validateQueryParams(query) {
         const errors = [];
@@ -40,6 +41,8 @@ class ProductTypeController {
                 is_active: data.is_active
             };
             const newProductType = await product_type_repo_1.default.createProductType(mapData);
+            // 🟢 ລ້າງແຄຊປະເພດສິນຄ້າທັງໝົດ
+            await redis_service_1.default.delByPattern('cache:product_types:*');
             return res.status(201).json({ message: 'ສ້າງປະເພດສິນຄ້າສຳເລັດ', data: newProductType });
         }
         catch (error) {
@@ -62,7 +65,16 @@ class ProductTypeController {
                 page: Number(page),
                 getAllData: getAllData === 'true'
             };
+            // 🟢 1. ກຳນົດ Cache Key ສຳລັບລາຍການປະເພດສິນຄ້າ
+            const cacheKey = `cache:product_types:list:${JSON.stringify(options)}`;
+            // 🟢 2. ກວດສອບ Redis ກ່ອນ
+            const cachedProductTypes = await redis_service_1.default.get(cacheKey);
+            if (cachedProductTypes) {
+                return res.status(200).json({ productTypes: JSON.parse(cachedProductTypes) });
+            }
             const productType = await product_type_repo_1.default.findAllActiveProductTypes(options);
+            // 🟢 3. ເຊບລົງ Redis (ອາຍຸ 1 ຊົ່ວໂມງ)
+            await redis_service_1.default.set(cacheKey, JSON.stringify(productType), 3600);
             return res.status(200).json({ productTypes: productType });
         }
         catch (error) {
@@ -73,7 +85,17 @@ class ProductTypeController {
     async getProductTypeById(req, res) {
         try {
             const productTypeId = parseInt(req.params.id, 10);
+            const cacheKey = `cache:product_types:detail:${productTypeId}`;
+            // 🟢 ກວດສອບ Redis
+            const cachedType = await redis_service_1.default.get(cacheKey);
+            if (cachedType) {
+                return res.status(200).json({ productTypes: JSON.parse(cachedType) });
+            }
             const productType = await product_type_repo_1.default.findProductTypeById(productTypeId);
+            // 🟢 ເຊບລົງ Redis
+            if (productType) {
+                await redis_service_1.default.set(cacheKey, JSON.stringify(productType), 3600);
+            }
             return res.status(200).json({ productTypes: productType });
         }
         catch (error) {
@@ -87,6 +109,10 @@ class ProductTypeController {
             const partnerId = req.userPayload?.userId;
             const data = req.body;
             const updatedProductType = await product_type_repo_1.default.updateProductType(productTypeId, partnerId, data);
+            // 🟢 ລ້າງແຄຊ
+            await redis_service_1.default.delByPattern('cache:product_types:*');
+            // 💡 ເນື່ອງຈາກການແກ້ໄຂ "ປະເພດສິນຄ້າ" ອາດສົ່ງຜົນກະທົບຕໍ່ໜ້າລາຍຊື່ສິນຄ້າ (ຊື່ປະເພດປ່ຽນ) ຄວນລ້າງແຄຊ products ນຳ
+            await redis_service_1.default.delByPattern('cache:products:*');
             return res.status(200).json({ message: 'อัปเดตประเภทสินค้าเรียบร้อย', data: updatedProductType });
         }
         catch (error) {
@@ -100,6 +126,9 @@ class ProductTypeController {
             console.log('productTypeId is :', productTypeId);
             const partnerId = req.userPayload?.userId;
             const updatedProductType = await product_type_repo_1.default.deleteProductType(productTypeId, partnerId);
+            // 🟢 ລ້າງແຄຊ
+            await redis_service_1.default.delByPattern('cache:product_types:*');
+            await redis_service_1.default.delByPattern('cache:products:*');
             return res.status(200).json({ message: 'ปิดใช้งานประเภทสินค้าเรียบร้อย', productType: updatedProductType });
         }
         catch (error) {

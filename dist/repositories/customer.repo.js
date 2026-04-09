@@ -9,6 +9,7 @@ class CustomerRepository {
     async createCustomer(data, options = {}) {
         try {
             const cleanCustomer = { ...data };
+            const { transaction } = options;
             if (!cleanCustomer.first_name || cleanCustomer.first_name.trim() === '') {
                 throw new Error('First name is required');
             }
@@ -30,7 +31,7 @@ class CustomerRepository {
             if (cleanCustomer.income_per_month === undefined || cleanCustomer.income_per_month === 0) {
                 throw new Error('Income per month is required');
             }
-            const existCustomer = await init_models_1.db.customers.findOne({ where: { identity_number: cleanCustomer.identity_number }, transaction: options.transaction });
+            const existCustomer = await init_models_1.db.customers.findOne({ where: { identity_number: cleanCustomer.identity_number }, transaction, lock: transaction?.LOCK.UPDATE });
             if (existCustomer) {
                 logger_1.logger.error(`Identity number already exists: ${cleanCustomer.identity_number}`);
                 throw new Error('Identity number already exists');
@@ -43,6 +44,7 @@ class CustomerRepository {
                 address: cleanCustomer.address,
                 occupation: cleanCustomer.occupation,
                 income_per_month: cleanCustomer.income_per_month,
+                other_debt: cleanCustomer.other_debt || 0,
             };
             const newCustomer = await init_models_1.db.customers.create(mapData, { transaction: options.transaction });
             // 🟢 บันทึก Audit Log (CREATE)
@@ -57,7 +59,7 @@ class CustomerRepository {
         }
     }
     async findCustomerById(customerId, options = {}) {
-        return await init_models_1.db.customers.findByPk(customerId, { transaction: options.transaction });
+        return await init_models_1.db.customers.findByPk(customerId, { transaction: options.transaction, lock: options.lock });
     }
     async findCustomerByIdentityNumber(identityNumber) {
         return await init_models_1.db.customers.findOne({ where: { identity_number: identityNumber } });
@@ -84,7 +86,8 @@ class CustomerRepository {
     }
     async updateCustomer(customerId, data, options = {}) {
         try {
-            const customer = await this.findCustomerById(customerId, options);
+            const { transaction } = options;
+            const customer = await this.findCustomerById(customerId, { transaction, lock: transaction?.LOCK.UPDATE });
             if (!customer) {
                 logger_1.logger.error(`Customer with ID: ${customerId} not found`);
                 return null;
@@ -99,6 +102,7 @@ class CustomerRepository {
                 address: data.address || customer.address,
                 occupation: data.occupation || customer.occupation,
                 income_per_month: data.income_per_month || customer.income_per_month,
+                other_debt: data.other_debt !== undefined ? data.other_debt : customer.other_debt,
             };
             // 🟢 ✅ แก้ไข Syntax การ Update ให้ถูกต้อง
             // การเรียกใช้ instance.update() รับแค่ก้อน data และ options แค่ก้อนเดียว

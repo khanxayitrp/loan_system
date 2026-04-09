@@ -106,7 +106,68 @@ router.post('/otp/request', customerCtrl.requestOtpForCustomer);
  */
 router.post('/create', auth_middleware_1.verifyToken, customerCtrl.createCustomer); // อาจให้ staff หรือ user เอง
 // 🟢 Login ເພື່ອເອົາ Token ໄປໃຊ້ງານອັບໂຫຼດເອກະສານ
+/**
+ * @swagger
+ * /customer/verify-login:
+ *   post:
+ *     summary: Verify OTP and get customer token for document upload
+ *     tags: [Customer]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - phone
+ *               - otp
+ *             properties:
+ *               phone:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully, returns customer token
+ *       400:
+ *         description: Invalid OTP
+ *       404:
+ *         description: Customer not found
+ */
 router.post('/verify-login', customerCtrl.verifyOtpAndGetToken);
+/**
+ * @swagger
+ * /customer/search:
+ *   get:
+ *     summary: Search for customers
+ *     tags: [Customer]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: phone
+ *         schema:
+ *           type: string
+ *         description: Customer's phone number
+ *       - in: query
+ *         name: first_name
+ *         schema:
+ *           type: string
+ *         description: Customer's first name
+ *       - in: query
+ *         name: last_name
+ *         schema:
+ *           type: string
+ *         description: Customer's last name
+ *     responses:
+ *       200:
+ *         description: A list of customers matching the search criteria
+ *       400:
+ *         description: Search parameters missing
+ *       404:
+ *         description: Customer not found
+ */
+router.get('/search', auth_middleware_1.verifyToken, customerCtrl.getCustomerBySearch);
 /**
  * @swagger
  * /customer/{id}:
@@ -127,25 +188,6 @@ router.post('/verify-login', customerCtrl.verifyOtpAndGetToken);
  *       404:
  *         description: Customer not found
  */
-/**
- * @swagger
- * /customer/search:
- *   get:
- *     summary: Search for customers
- *     tags: [Customer]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: term
- *         schema:
- *           type: string
- *         description: Search term for customer name, phone, or identity number
- *     responses:
- *       200:
- *         description: A list of customers matching the search criteria
- */
-router.get('/search', auth_middleware_1.verifyToken, customerCtrl.getCustomerBySearch);
 router.get('/:id', auth_middleware_1.verifyToken, customerCtrl.getCustomerById);
 // เพิ่ม route อื่นๆ...
 exports.default = router;

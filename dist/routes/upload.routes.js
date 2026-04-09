@@ -171,6 +171,7 @@ router.put('/document/:document_id', upload_middleware_1.uploadDocument.single('
  *         description: Image uploaded
  */
 router.post('/product/:product_id/image', upload_middleware_1.uploadProductImage.single('file'), upload_controller_1.default.uploadProductImage);
+router.post('/variant-image', upload_middleware_1.uploadVariantImage.single('file'), upload_controller_1.default.uploadVariantImage);
 /**
  * @swagger
  * /upload/product/{product_id}/gallery:
@@ -202,7 +203,37 @@ router.post('/product/:product_id/image', upload_middleware_1.uploadProductImage
  *         description: Gallery uploaded
  */
 router.post('/product/:product_id/gallery', upload_middleware_1.uploadProductImage.array('files', 5), upload_controller_1.default.uploadProductGallery);
-router.post('/location/:customer_id/image', upload_middleware_1.uploadLocationImage.array('files', 2), upload_controller_1.default.uploadLocationImage);
+/**
+ * @swagger
+ * /upload/location/{customer_id}/image:
+ *   post:
+ *     summary: Upload customer location image
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: customer_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       201:
+ *         description: Location image uploaded
+ */
+router.post('/location/:customer_id/image/:application_id', upload_middleware_1.uploadLocationImage.array('files', 2), upload_controller_1.default.uploadLocationImage);
 /**
  * @swagger
  * /upload/shop/{partner_id}/logo:

@@ -54,7 +54,7 @@ class loan_approval_logs extends sequelize_1.Model {
                 }
             },
             action: {
-                type: sequelize_1.DataTypes.ENUM('submitted', 'verified_basic', 'verified_call', 'verified_cib', 'verified_field', 'assessed_income', 'verified_delivery_receipt', 'approved', 'rejected', 'returned_for_edit', 'cancelled'),
+                type: sequelize_1.DataTypes.ENUM('submitted', 'verified_basic', 'verified_call', 'verified_cib', 'verified_field', 'assessed_income', 'verified_delivery_receipt', 'verified', 'approved', 'rejected', 'returned_for_edit', 'cancelled', 'printed_approval_summary'),
                 allowNull: false
             },
             status_from: {

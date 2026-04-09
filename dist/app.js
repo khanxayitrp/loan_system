@@ -4,10 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 // import { defaultOptions } from './../node_modules/yaml/index.d';
+const dotenv_1 = __importDefault(require("dotenv"));
 const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
-const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const db_config_1 = require("./config/db.config");
 const helmet_1 = __importDefault(require("helmet"));
@@ -15,11 +15,14 @@ const rateLimiter_1 = require("./middlewares/rateLimiter");
 const redis_service_1 = __importDefault(require("./services/redis.service"));
 const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const index_1 = __importDefault(require("./routes/index"));
+// app.ts (ด้านบนสุด)
+const errorHandler_1 = require("./middlewares/errorHandler"); // <-- Import middleware ของเรา
+const errors_1 = require("./utils/errors"); // <-- Import Error Class สำหรับทำ 404
 dotenv_1.default.config();
 // import authRoutes from './routes/auth.route';
 // import employeeRoutes from './routes/employee.route';
 // import userRoutes from './routes/user.route';
-const index_1 = __importDefault(require("./routes/index"));
 // Placeholder for JWT authentication middleware
 const authenticateJWT = (req, res, next) => {
     // In a real application, this would verify the JWT token
@@ -29,7 +32,7 @@ const authenticateJWT = (req, res, next) => {
 class App {
     constructor() {
         this.corsOptions = {
-            origin: ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.7:5173'], // Replace with your allowed origins
+            origin: ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.118:5173'], // Replace with your allowed origins
             methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
             allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
             credentials: true,
@@ -47,6 +50,10 @@ class App {
                         url: 'http://localhost:15520/api',
                         description: 'Development server',
                     },
+                    {
+                        url: 'http://192.168.101.89:15520/api', // 🟢 เพิ่ม IP วง LAN ของเครื่องเซิร์ฟเวอร์คุณเข้าไป
+                        description: 'LAN Server'
+                    }
                 ], components: {
                     securitySchemes: {
                         bearerAuth: {
@@ -85,20 +92,20 @@ class App {
         this.app.use((0, cookie_parser_1.default)());
         // this.app.use(bodyParser.json({ limit: '50mb' }));
         this.app.use((0, helmet_1.default)({
-            //contentSecurityPolicy: false,
+            contentSecurityPolicy: false,
             crossOriginEmbedderPolicy: false,
             crossOriginResourcePolicy: false,
+            hsts: false
         }));
         // ✅ ປັບ rate limiter ບໍ່ໃຫ້ block PDF requests
-        this.app.use((req, res, next) => {
-            if (req.path.includes('/pdf') || req.path.includes('/generate')) {
-                // ຂ້າມ rate limiter ສຳລັບ PDF generation
-                next();
-            }
-            else {
-                (0, rateLimiter_1.limiter)(req, res, next);
-            }
-        });
+        // this.app.use((req, res, next) => {
+        //     if (req.path.includes('/pdf') || req.path.includes('/generate')) {
+        //         // ຂ້າມ rate limiter ສຳລັບ PDF generation
+        //         heavyTaskLimiter(req, res, next);
+        //     } else {
+        //         globalLimiter(req, res, next);
+        //     }
+        // });
         // this.app.use(limiter);
     }
     requestLogger(req, res, next) {
@@ -112,6 +119,11 @@ class App {
         //  this.app.use('/api', indexRoutes);
         // // Mount authentication routes
         // this.app.use('/api/auth', authRoutes);
+        // 1. ດັກໜ້າ Route ທີ່ກ່ຽວກັບ Login/Auth
+        this.app.use('/api/auth/login', rateLimiter_1.authLimiter);
+        this.app.use('/api/auth/refresh', rateLimiter_1.authLimiter);
+        this.app.use('/api/pdf', rateLimiter_1.heavyTaskLimiter);
+        this.app.use('/api/generate', rateLimiter_1.heavyTaskLimiter);
         // // Mount employee and user routes with JWT authentication placeholder
         // this.app.use('/api/employees', authenticateJWT, employeeRoutes);
         // this.app.use('/api/users', authenticateJWT, userRoutes);
@@ -189,7 +201,7 @@ class App {
         //         }
         //     }
         // });
-        this.app.use('/api', index_1.default);
+        this.app.use('/api', rateLimiter_1.globalLimiter, index_1.default);
         // Swagger UI
         const specs = (0, swagger_jsdoc_1.default)(this.swaggerOptions);
         this.app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(specs));
@@ -205,21 +217,28 @@ class App {
             });
         });
         // // 404 handler
-        // this.app.use('*', (req: Request, res: Response) => {
+        // this.app.use((req: Request, res: Response) => {
         //     res.status(404).json({
         //         success: false,
         //         message: `Route ${req.originalUrl} not found`
         //     });
         // });
-        // Global error handler
-        this.app.use((error, req, res, next) => {
-            console.error('Global error handler:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-                error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
-            });
+        // // Global error handler
+        // this.app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+        //     console.error('Global error handler:', error);
+        //     res.status(500).json({
+        //         success: false,
+        //         message: 'Internal server error',
+        //         error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+        //     });
+        // });
+        // ✅ 404 Handler แบบใหม่ (โยนเข้า Error Handler)
+        this.app.use((req, res, next) => {
+            // โยน NotFoundError ไปให้ Global Error Handler จัดการ
+            next(new errors_1.NotFoundError(`Route ${req.originalUrl} not found`));
         });
+        // ✅ Global error handler ตัวใหม่ที่เราเขียนไว้! (ต้องอยู่ล่างสุดเสมอ)
+        this.app.use(errorHandler_1.errorHandler);
     }
 }
 exports.default = new App().app;

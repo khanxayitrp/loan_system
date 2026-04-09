@@ -11,6 +11,11 @@ class loan_applications extends sequelize_1.Model {
                 allowNull: false,
                 primaryKey: true
             },
+            loan_flow_type: {
+                type: sequelize_1.DataTypes.ENUM('single_item', 'bnpl_cart'),
+                allowNull: false,
+                defaultValue: "single_item"
+            },
             customer_id: {
                 type: sequelize_1.DataTypes.INTEGER,
                 allowNull: false,
@@ -24,6 +29,14 @@ class loan_applications extends sequelize_1.Model {
                 allowNull: false,
                 references: {
                     model: 'products',
+                    key: 'id'
+                }
+            },
+            order_id: {
+                type: sequelize_1.DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'orders',
                     key: 'id'
                 }
             },
@@ -65,7 +78,7 @@ class loan_applications extends sequelize_1.Model {
                 defaultValue: 0
             },
             status: {
-                type: sequelize_1.DataTypes.ENUM('pending', 'verifying', 'approved', 'rejected', 'cancelled', 'completed', 'closed_early'),
+                type: sequelize_1.DataTypes.ENUM('pending', 'verifying', 'verified', 'approved', 'rejected', 'cancelled', 'completed', 'closed_early'),
                 allowNull: true,
                 defaultValue: "pending"
             },
@@ -172,6 +185,13 @@ class loan_applications extends sequelize_1.Model {
                     using: "BTREE",
                     fields: [
                         { name: "approver_id" },
+                    ]
+                },
+                {
+                    name: "fk_loan_order",
+                    using: "BTREE",
+                    fields: [
+                        { name: "order_id" },
                     ]
                 },
             ]

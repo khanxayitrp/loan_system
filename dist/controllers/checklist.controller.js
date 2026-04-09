@@ -4,337 +4,192 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const checklist_service_1 = __importDefault(require("../services/checklist.service"));
+const errors_1 = require("../utils/errors");
 class ChecklistController {
-    async saveIncomeAssessment(req, res) {
+    async saveIncomeAssessment(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
             const assessed_by = req.userPayload?.userId || 1;
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
             const data = req.body;
-            if (!data) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'data is required'
-                });
-            }
-            console.log('Received data for saveIncomeAssessment:', data);
-            // ✅ โค้ดใหม่ที่ถูกต้อง (ดึงค่ามาบวกกันตรงๆ)
+            if (!data || Object.keys(data).length === 0)
+                throw new errors_1.BadRequestError('data is required');
+            // คำนวณรายได้
             const avgIncome = Number(data.average_monthly_income) || 0;
             const otherIncome = Number(data.other_verified_income) || 0;
             const total_verified_income = avgIncome + otherIncome;
             data.total_verified_income = total_verified_income;
-            // 💡 แนะนำเพิ่มเติม: คุณสามารถคำนวณ DSR ฝั่ง Backend เผื่อไว้เลยก็ได้ครับเพื่อความชัวร์
+            // คำนวณ DSR
             const debtBurden = (Number(data.existing_debt_payments) || 0) + (Number(data.proposed_installment) || 0);
-            data.dsr_percentage = total_verified_income > 0
-                ? (debtBurden / total_verified_income) * 100
-                : 0;
-            const checklistData = {
-                ...data,
-                loan_id,
-                assessed_by
-            };
-            console.log('Prepared checklistData for saveIncomeAssessment:', checklistData);
+            data.dsr_percentage = total_verified_income > 0 ? (debtBurden / total_verified_income) * 100 : 0;
+            const checklistData = { ...data, loan_id, assessed_by };
             const result = await checklist_service_1.default.CreateIncomeAssessment(checklistData);
-            res.status(200).json(data);
+            // ✅ เช็คผลลัพธ์จาก Service ถ้า false โยนเข้า Error Handler
+            if (!result.success)
+                throw new errors_1.BadRequestError(result.message);
+            // ✅ ส่ง result ของ Service คืน Client ตรงๆ เลย เพราะจัดฟอร์แมตมาสวยแล้ว
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error saving income assessment:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error saving income assessment'
-            });
+            next(error);
         }
     }
-    async saveBasicChecklist(req, res) {
+    async saveBasicChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
             const verified_by = req.userPayload?.userId || 1;
             const data = req.body;
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
-            if (!data) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'data is required'
-                });
-            }
-            console.log('Received data for saveBasicChecklist:', data);
-            const checklistData = {
-                ...data,
-                loan_id,
-                verified_by
-            };
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
+            if (!data || Object.keys(data).length === 0)
+                throw new errors_1.BadRequestError('data is required');
+            const checklistData = { ...data, loan_id, verified_by };
             const result = await checklist_service_1.default.CreateBasicVerification(checklistData);
-            res.status(200).json(data);
+            if (!result.success)
+                throw new errors_1.BadRequestError(result.message);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error saving basic checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error saving basic checklist'
-            });
+            next(error);
         }
     }
-    async saveCallChecklist(req, res) {
+    async saveCallChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
             const data = req.body;
-            // ดึง ID พนักงาน
             const calledBy = req.user?.id || 1;
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
-            console.log('Received data for saveCallChecklist:', data);
-            let checklistData = {};
-            // ✅ เช็คว่าเป็น Array หรือ Object
-            if (Array.isArray(data)) {
-                // ถ้า Frontend ส่ง Array มาเพียวๆ [{}, {}]
-                // ให้จัดโครงสร้างใหม่เป็น { calls: [...], loan_id: X, called_by: Y }
-                checklistData = {
-                    calls: data,
-                    loan_id: loan_id,
-                    called_by: calledBy
-                };
-            }
-            else {
-                // ถ้า Frontend ส่ง Object มา เช่น { calls: [...] } หรือ { contact_name: "..." }
-                checklistData = {
-                    ...data,
-                    loan_id: loan_id,
-                    called_by: calledBy
-                };
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
+            let checklistData = Array.isArray(data)
+                ? { calls: data, loan_id: loan_id, called_by: calledBy }
+                : { ...data, loan_id: loan_id, called_by: calledBy };
             const result = await checklist_service_1.default.CreateCallVerification(checklistData);
-            if (!result.success) {
-                return res.status(400).json(result);
-            }
-            res.status(200).json(result);
+            if (!result.success)
+                throw new errors_1.BadRequestError(result.message);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error saving call checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error saving call checklist',
-                error: error.message
-            });
+            next(error);
         }
     }
-    async saveCIBChecklist(req, res) {
+    async saveCIBChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
             const data = req.body;
             const checked_by = req.userPayload?.userId || 1;
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
-            if (!data) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'data is required'
-                });
-            }
-            console.log('Received data for saveCIBChecklist:', data);
-            const checklistData = {
-                ...data,
-                loan_id,
-                checked_by
-            };
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
+            if (!data)
+                throw new errors_1.BadRequestError('data is required');
+            const checklistData = { ...data, loan_id, checked_by };
             const result = await checklist_service_1.default.CreateCIBVerification(checklistData);
-            res.status(200).json(result);
+            if (!result.success)
+                throw new errors_1.BadRequestError(result.message);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error saving CIB checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error saving CIB checklist',
-                error: error.message
-            });
+            next(error);
         }
     }
-    async saveFieldChecklist(req, res) {
+    async saveFieldChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
             const data = req.body;
             const visited_by = req.user?.id || 1;
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
-            if (!data) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'data is required'
-                });
-            }
-            console.log('Received data for saveFieldChecklist:', data);
-            let checklistData = {};
-            if (Array.isArray(data)) {
-                checklistData = {
-                    calls: data,
-                    loan_id: loan_id,
-                    visited_by
-                };
-            }
-            else {
-                checklistData = {
-                    ...data,
-                    loan_id: loan_id,
-                    visited_by
-                };
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
+            if (!data)
+                throw new errors_1.BadRequestError('data is required');
+            let checklistData = Array.isArray(data)
+                ? { calls: data, loan_id: loan_id, visited_by }
+                : { ...data, loan_id: loan_id, visited_by };
             const result = await checklist_service_1.default.CreateFieldVisits(checklistData);
-            res.status(200).json(result);
+            if (!result.success)
+                throw new errors_1.BadRequestError(result.message);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error saving field checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error saving field checklist',
-                error: error.message
-            });
+            next(error);
         }
     }
-    async getChecklist(req, res) {
+    // ==========================================
+    // GET METHODS 
+    // ==========================================
+    // ==========================================
+    // 🟢 GET METHODS (Updated - ไม่โยน Error 400 ถ้าแค่หาข้อมูลไม่เจอ)
+    // ==========================================
+    async getChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
             const result = await checklist_service_1.default.GetAllChecklistByLoanId(loan_id);
-            res.status(200).json(result);
+            // ✅ ไม่ต้อง throw error ส่ง result กลับไปเลย (ถ้าไม่มีข้อมูล Service มักจะส่ง data: null กลับไป)
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error getting checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error getting checklist',
-                error: error.message
-            });
+            next(error);
         }
     }
-    async getIncomeAssessment(req, res) {
+    async getIncomeAssessment(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
             const result = await checklist_service_1.default.GetIncomeAssessmentByLoanId(loan_id);
-            res.status(200).json(result);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error getting income assessment:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error getting income assessment',
-                error: error.message
-            });
+            next(error);
         }
     }
-    async getBasicChecklist(req, res) {
+    async getBasicChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
             const result = await checklist_service_1.default.GetBasicVerificationByLoanId(loan_id);
-            res.status(200).json(result);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error getting basic checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error getting basic checklist',
-                error: error.message
-            });
+            next(error);
         }
     }
-    async getCallChecklist(req, res) {
+    async getCallChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
             const result = await checklist_service_1.default.GetCallVerificationsByLoanId(loan_id);
-            res.status(200).json(result);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error getting call checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error getting call checklist',
-                error: error.message
-            });
+            next(error);
         }
     }
-    async getCIBChecklist(req, res) {
+    async getCIBChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
             const result = await checklist_service_1.default.GetCIBCheckByLoanId(loan_id);
-            res.status(200).json(result);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error getting CIB checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error getting CIB checklist',
-                error: error.message
-            });
+            next(error);
         }
     }
-    async getFieldChecklist(req, res) {
+    async getFieldChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
-            if (!loan_id || isNaN(loan_id)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'loan_id ບໍ່ຖືກຕ້ອງ'
-                });
-            }
+            if (!loan_id || isNaN(loan_id))
+                throw new errors_1.BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
             const result = await checklist_service_1.default.GetFieldVisitsByLoanId(loan_id);
-            res.status(200).json(result);
+            return res.status(200).json(result);
         }
         catch (error) {
-            console.error('❌ Error getting field checklist:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Error getting field checklist',
-                error: error.message
-            });
+            next(error);
         }
     }
 }

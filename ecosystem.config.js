@@ -30,7 +30,7 @@ module.exports = {
       merge_logs: true,        //  logs all instance
       listen_timeout: 10000,   // timeout graceful shutdown
       kill_timeout: 5000,      // timeout before force kill
-      wait_ready: true,        
+      wait_ready: false,        
     },
   ],
 };

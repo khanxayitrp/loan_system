@@ -17,6 +17,7 @@ class ServerApp {
     this.portService = new PortService();
     this.httpServer = createServer((req: IncomingMessage, res: ServerResponse) => app(req, res));
     this.io = new SocketServer(this.httpServer, { cors: { origin: "*" } });
+    // this.setupGracefulShutdown();
     this.InitializeServer();
   }
   private async InitializeServer(): Promise<void> {

@@ -5,8 +5,16 @@ const redis_1 = require("redis");
 class RedisService {
     constructor() {
         this.isConnected = false;
+        // ກວດສອບວ່າມີ Password ຫຼື ບໍ່ ເພື່ອສ້າງ URL ໃຫ້ຖືກຕ້ອງ
+        const host = process.env.REDIS_HOST || 'localhost';
+        const port = process.env.REDIS_PORT || '6379';
+        const password = process.env.REDIS_PASSWORD;
+        // ຖ້າມີລະຫັດຜ່ານ ໃຫ້ເອົາລະຫັດໄປຍັດໃສ່ໃນ URL ນຳ
+        const redisUrl = password
+            ? `redis://:${password}@${host}:${port}`
+            : `redis://${host}:${port}`;
         this.client = (0, redis_1.createClient)({
-            url: process.env.REDIS_URL || 'redis://localhost:6379',
+            url: redisUrl
         });
         // Properly typed error handler
         this.client.on('error', (err) => {

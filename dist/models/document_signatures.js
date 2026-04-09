@@ -21,7 +21,7 @@ class document_signatures extends sequelize_1.Model {
                 }
             },
             document_type: {
-                type: sequelize_1.DataTypes.ENUM('contract', 'delivery_note', 'repayment_schedule'),
+                type: sequelize_1.DataTypes.ENUM('contract', 'delivery_note', 'repayment_schedule', 'approval_summary'),
                 allowNull: false
             },
             reference_id: {

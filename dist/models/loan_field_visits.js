@@ -68,7 +68,7 @@ class loan_field_visits extends sequelize_1.Model {
             sequelize,
             tableName: 'loan_field_visits',
             timestamps: true,
-            createdAt: 'created_at', // Maps to your column name
+            createdAt: 'created_at',
             updatedAt: false,
             indexes: [
                 {

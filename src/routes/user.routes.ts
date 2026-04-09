@@ -106,7 +106,7 @@ router.put('/:id', verifyToken, userController.updateUser);
 
 /**
  * @swagger
- * /users/{id}:
+ * /users/{id}/change-status:
  *   patch:
  *     summary: Change user status by ID
  *     tags: [User]

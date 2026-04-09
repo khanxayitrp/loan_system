@@ -54,6 +54,10 @@ class customers extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.DECIMAL(15, 2),
                 allowNull: true
             },
+            other_debt: {
+                type: sequelize_1.DataTypes.DECIMAL(15, 2),
+                allowNull: true
+            },
             user_id: {
                 type: sequelize_1.DataTypes.INTEGER,
                 allowNull: true,
@@ -72,6 +76,19 @@ class customers extends sequelize_1.Model {
             },
             issue_date: {
                 type: sequelize_1.DataTypes.DATEONLY,
+                allowNull: true
+            },
+            kyc_status: {
+                type: sequelize_1.DataTypes.ENUM('unverified', 'verified', 'expired', 'rejected'),
+                allowNull: true,
+                defaultValue: "unverified"
+            },
+            kyc_verified_at: {
+                type: sequelize_1.DataTypes.DATE,
+                allowNull: true
+            },
+            income_verified_at: {
+                type: sequelize_1.DataTypes.DATE,
                 allowNull: true
             }
         }, {

@@ -1,8 +1,9 @@
 // import { defaultOptions } from './../node_modules/yaml/index.d';
+import dotenv from 'dotenv';
 import cors from 'cors';
 import express, { NextFunction, Request, Response } from 'express';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
+
 import { readdirSync } from 'fs';
 import path from 'path';
 import { initModels } from './models/init-models';

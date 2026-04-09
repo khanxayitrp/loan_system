@@ -68,7 +68,7 @@ class repayment_schedules extends sequelize_1.Model {
             sequelize,
             tableName: 'repayment_schedules',
             timestamps: true,
-            createdAt: 'created_at', // Maps to your column name
+            createdAt: 'created_at', // แมปชื่อให้ตรงกับใน DB
             updatedAt: false,
             indexes: [
                 {

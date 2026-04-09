@@ -15,9 +15,9 @@ exports.smsConfig = {
     defaultSenderId: process.env.SMS_SENDER_ID,
     timeoutMs: parseInt(process.env.SMS_TIMEOUT_MS || '30000', 10),
     otp: {
-        length: parseInt(process.env.OTP_LENGTH || '6', 10),
-        expiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES || '5', 10),
-        maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '5', 10),
+        length: parseInt(process.env.SMS_OTP_LENGTH || '6', 10),
+        expiryMinutes: parseInt(process.env.SMS_OTP_EXPIRY_MINUTES || '5', 10),
+        maxAttempts: parseInt(process.env.SMS_OTP_MAX_ATTEMPTS || '5', 10),
     },
 };
 // Validation (critical for security)
