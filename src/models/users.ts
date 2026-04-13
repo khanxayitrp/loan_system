@@ -32,11 +32,12 @@ export interface usersAttributes {
   is_active?: number;
   created_at?: Date;
   updated_at?: Date;
+  deleted_at?: Date;
 }
 
 export type usersPk = "id";
 export type usersId = users[usersPk];
-export type usersOptionalAttributes = "id" | "staff_level" | "is_active" | "created_at" | "updated_at";
+export type usersOptionalAttributes = "id" | "staff_level" | "is_active" | "created_at" | "updated_at" | "deleted_at";
 export type usersCreationAttributes = Optional<usersAttributes, usersOptionalAttributes>;
 
 export class users extends Model<usersAttributes, usersCreationAttributes> implements usersAttributes {
@@ -49,6 +50,7 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   is_active?: number;
   created_at?: Date;
   updated_at?: Date;
+  deleted_at?: Date;
 
   // users hasMany application_documents via uploaded_by
   application_documents!: application_documents[];
@@ -385,11 +387,21 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
       type: DataTypes.BOOLEAN,
       allowNull: true,
       defaultValue: 1
+    },
+    // 🟢 เพิ่มฟิลด์ deleted_at ตรงนี้
+    deleted_at: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
   }, {
     sequelize,
     tableName: 'users',
     timestamps: true,
+    // 🟢 เพิ่ม 4 บรรทัดนี้ เพื่อเปิดโหมด Soft Delete และ Map ชื่อคอลัมน์
+    paranoid: true, 
+    deletedAt: 'deleted_at',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       {
         name: "PRIMARY",

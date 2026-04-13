@@ -212,16 +212,17 @@ class RepaymentRepository {
     };
 }  
 
-    async findRepaymentById(repaymentId: number): Promise<repayments | null> {
-        return await db.repayments.findByPk(repaymentId, {
-            include: [
-                {
-                    model: db.repayment_schedules,
-                    as: 'schedule',
-                    attributes: ['id', 'version', 'status'],
-                    where: { status: 'approved' } // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
-                }
-            ]
+    async findRepaymentById(application_id: number) {
+        return await db.repayment_schedules.findOne({
+            where: { application_id: application_id, status: 'approved' }, // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+            // include: [
+            //     {
+            //         model: db.r,
+            //         as: 'schedule',
+            //         attributes: ['id', 'version', 'status'],
+            //         where: { status: 'approved' } // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+            //     }
+            // ]
         });
     }
 

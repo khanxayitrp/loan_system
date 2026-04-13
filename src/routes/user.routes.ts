@@ -138,4 +138,7 @@ router.put('/:id', verifyToken, userController.updateUser);
  */
 router.patch('/:id', verifyToken, userController.changeStatus);
 
+// (ควรมี middleware ดักสิทธิ์ด้วยว่าให้เฉพาะ admin หรือคนที่มีสิทธิ์ลบได้เท่านั้น)
+router.delete('/:id', verifyToken, userController.deleteUser);
+
 export default router;

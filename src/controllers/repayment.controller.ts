@@ -46,3 +46,21 @@ export const getEarlyPayoffSummary = async (req: Request, res: Response, next: N
         next(error);
     } 
 }
+
+export const getRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const application_id = parseInt(req.params.application_id); 
+        if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
+
+        const schedule = await repaymentRepo.findRepaymentById(application_id);
+        if (!schedule) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຕາຕະລາງຜ່ອນຊຳລະ');  
+
+        return res.status(200).json({
+            success: true,
+            message: 'ດຶງຂໍ້ມູນຕາຕະລາງຜ່ອນຊຳລະສຳເລັັດ',
+            data: schedule
+        });
+    } catch (error) {
+        next(error);
+    }   
+}
