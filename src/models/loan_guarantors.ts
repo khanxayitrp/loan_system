@@ -11,6 +11,8 @@ export interface loan_guarantorsAttributes {
   age?: number;
   phone?: string;
   address?: string;
+  province_id?: string;
+  district_id?: string;
   occupation?: string;
   relationship?: string;
   work_company_name?: string;
@@ -22,7 +24,7 @@ export interface loan_guarantorsAttributes {
 
 export type loan_guarantorsPk = "id";
 export type loan_guarantorsId = loan_guarantors[loan_guarantorsPk];
-export type loan_guarantorsOptionalAttributes = "id" | "identity_number" | "date_of_birth" | "age" | "phone" | "address" | "occupation" | "relationship" | "work_company_name" | "work_phone" | "work_location" | "work_position" | "work_salary";
+export type loan_guarantorsOptionalAttributes = "id" | "identity_number" | "date_of_birth" | "age" | "phone" | "address" | "province_id" | "district_id" | "occupation" | "relationship" | "work_company_name" | "work_phone" | "work_location" | "work_position" | "work_salary";
 export type loan_guarantorsCreationAttributes = Optional<loan_guarantorsAttributes, loan_guarantorsOptionalAttributes>;
 
 export class loan_guarantors extends Model<loan_guarantorsAttributes, loan_guarantorsCreationAttributes> implements loan_guarantorsAttributes {
@@ -34,6 +36,8 @@ export class loan_guarantors extends Model<loan_guarantorsAttributes, loan_guara
   age?: number;
   phone?: string;
   address?: string;
+  province_id?: string;
+  district_id?: string;
   occupation?: string;
   relationship?: string;
   work_company_name?: string;
@@ -87,6 +91,14 @@ export class loan_guarantors extends Model<loan_guarantorsAttributes, loan_guara
     },
     address: {
       type: DataTypes.TEXT,
+      allowNull: true
+    },
+    province_id: {
+      type: DataTypes.STRING(2),
+      allowNull: true
+    },
+    district_id: {
+      type: DataTypes.STRING(4),
       allowNull: true
     },
     occupation: {

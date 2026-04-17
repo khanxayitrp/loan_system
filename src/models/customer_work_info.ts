@@ -7,6 +7,8 @@ export interface customer_work_infoAttributes {
   customer_id: number;
   company_name?: string;
   address?: string;
+  province_id?: string;
+  district_id?: string;
   phone?: string;
   business_type?: string;
   business_detail?: string;
@@ -20,7 +22,7 @@ export interface customer_work_infoAttributes {
 
 export type customer_work_infoPk = "id";
 export type customer_work_infoId = customer_work_info[customer_work_infoPk];
-export type customer_work_infoOptionalAttributes = "id" | "company_name" | "address" | "phone" | "business_type" | "business_detail" | "duration_years" | "duration_months" | "department" | "position" | "salary" | "created_at";
+export type customer_work_infoOptionalAttributes = "id" | "company_name" | "address" | "province_id" | "district_id" | "phone" | "business_type" | "business_detail" | "duration_years" | "duration_months" | "department" | "position" | "salary" | "created_at";
 export type customer_work_infoCreationAttributes = Optional<customer_work_infoAttributes, customer_work_infoOptionalAttributes>;
 
 export class customer_work_info extends Model<customer_work_infoAttributes, customer_work_infoCreationAttributes> implements customer_work_infoAttributes {
@@ -28,6 +30,8 @@ export class customer_work_info extends Model<customer_work_infoAttributes, cust
   customer_id!: number;
   company_name?: string;
   address?: string;
+  province_id?: string;
+  district_id?: string;
   phone?: string;
   business_type?: string;
   business_detail?: string;
@@ -68,6 +72,14 @@ export class customer_work_info extends Model<customer_work_infoAttributes, cust
       type: DataTypes.TEXT,
       allowNull: true
     },
+    province_id: {
+      type: DataTypes.STRING(2),
+      allowNull: true
+    },
+    district_id: {
+      type: DataTypes.STRING(4),
+      allowNull: true
+    },
     phone: {
       type: DataTypes.STRING(20),
       allowNull: true
@@ -104,7 +116,7 @@ export class customer_work_info extends Model<customer_work_infoAttributes, cust
     sequelize,
     tableName: 'customer_work_info',
     timestamps: true,
-    createdAt: 'created_at',    // แมปชื่อให้ตรงกับใน DB
+      createdAt: 'created_at',    // แมปชื่อให้ตรงกับใน DB
     updatedAt: false,
     indexes: [
       {

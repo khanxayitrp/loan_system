@@ -38,7 +38,7 @@ export const requestOtpForCustomer = async (req: Request, res: Response, next: N
 export const createCustomer = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
-      identity_number, first_name, last_name, phone,
+      identity_number, first_name, last_name, phone, province_id, district_id,
       address, occupation, income_per_month, other_debt, otp
     } = req.body;
 
@@ -62,6 +62,8 @@ export const createCustomer = async (req: Request, res: Response, next: NextFunc
       first_name,
       last_name,
       phone,
+      province_id,
+      district_id,
       address,
       occupation,
       income_per_month,

@@ -11,6 +11,8 @@ export interface loan_basic_verificationsAttributes {
   verified_last_name?: string;
   verified_dob?: string;
   verified_address?: string;
+  verified_province_id?: string;
+  verified_district_id?: string;
   verified_product_type?: string;
   verified_price?: number;
   verified_down_payment?: number;
@@ -34,7 +36,7 @@ export interface loan_basic_verificationsAttributes {
 
 export type loan_basic_verificationsPk = "id";
 export type loan_basic_verificationsId = loan_basic_verifications[loan_basic_verificationsPk];
-export type loan_basic_verificationsOptionalAttributes = "id" | "cus_contact_method" | "verified_first_name" | "verified_last_name" | "verified_dob" | "verified_address" | "verified_product_type" | "verified_price" | "verified_down_payment" | "verified_monthly_pay" | "has_id_card" | "has_census_book" | "has_income_doc" | "has_other_doc" | "other_doc_detail" | "cus_credibility_assessment" | "work_company_name" | "work_position" | "work_salary" | "work_years" | "workplace_assessment" | "status" | "created_at" | "updated_at";
+export type loan_basic_verificationsOptionalAttributes = "id" | "cus_contact_method" | "verified_first_name" | "verified_last_name" | "verified_dob" | "verified_address" | "verified_province_id" | "verified_district_id" | "verified_product_type" | "verified_price" | "verified_down_payment" | "verified_monthly_pay" | "has_id_card" | "has_census_book" | "has_income_doc" | "has_other_doc" | "other_doc_detail" | "cus_credibility_assessment" | "work_company_name" | "work_position" | "work_salary" | "work_years" | "workplace_assessment" | "status" | "created_at" | "updated_at";
 export type loan_basic_verificationsCreationAttributes = Optional<loan_basic_verificationsAttributes, loan_basic_verificationsOptionalAttributes>;
 
 export class loan_basic_verifications extends Model<loan_basic_verificationsAttributes, loan_basic_verificationsCreationAttributes> implements loan_basic_verificationsAttributes {
@@ -45,6 +47,8 @@ export class loan_basic_verifications extends Model<loan_basic_verificationsAttr
   verified_last_name?: string;
   verified_dob?: string;
   verified_address?: string;
+  verified_province_id?: string;
+  verified_district_id?: string;
   verified_product_type?: string;
   verified_price?: number;
   verified_down_payment?: number;
@@ -110,6 +114,14 @@ export class loan_basic_verifications extends Model<loan_basic_verificationsAttr
     },
     verified_address: {
       type: DataTypes.TEXT,
+      allowNull: true
+    },
+    verified_province_id: {
+      type: DataTypes.STRING(2),
+      allowNull: true
+    },
+    verified_district_id: {
+      type: DataTypes.STRING(4),
       allowNull: true
     },
     verified_product_type: {

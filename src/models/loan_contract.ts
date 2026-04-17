@@ -24,6 +24,8 @@ export interface loan_contractAttributes {
   cus_house_number: string;
   cus_unit: number;
   cus_address: string;
+  cus_province_id?: string;
+  cus_district_id?: string;
   cus_lived_year: number;
   cus_lived_with: string;
   cus_lived_situation: string;
@@ -72,6 +74,8 @@ export interface loan_contractAttributes {
   ref_house_number: string;
   ref_unit: number;
   ref_address: string;
+  ref_province_id?: string;
+  ref_district_id?: string;
   ref_lived_year: number;
   ref_lived_with: string;
   ref_lived_situation: string;
@@ -97,7 +101,7 @@ export interface loan_contractAttributes {
 
 export type loan_contractPk = "id";
 export type loan_contractId = loan_contract[loan_contractPk];
-export type loan_contractOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "cus_date_of_birth" | "cus_id_pass_date" | "cus_census_number" | "cus_census_created" | "cus_occupation" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "product_detail" | "producttype_id" | "product_brand" | "product_model" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "shop_branch" | "shop_id" | "ref_date_of_birth" | "ref_id_pass_date" | "ref_census_number" | "ref_census_created" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
+export type loan_contractOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "cus_date_of_birth" | "cus_id_pass_date" | "cus_census_number" | "cus_census_created" | "cus_province_id" | "cus_district_id" | "cus_occupation" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "product_detail" | "producttype_id" | "product_brand" | "product_model" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "shop_branch" | "shop_id" | "ref_date_of_birth" | "ref_id_pass_date" | "ref_census_number" | "ref_census_created" | "ref_province_id" | "ref_district_id" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
 export type loan_contractCreationAttributes = Optional<loan_contractAttributes, loan_contractOptionalAttributes>;
 
 export class loan_contract extends Model<loan_contractAttributes, loan_contractCreationAttributes> implements loan_contractAttributes {
@@ -119,6 +123,8 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   cus_house_number!: string;
   cus_unit!: number;
   cus_address!: string;
+  cus_province_id?: string;
+  cus_district_id?: string;
   cus_lived_year!: number;
   cus_lived_with!: string;
   cus_lived_situation!: string;
@@ -167,6 +173,8 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   ref_house_number!: string;
   ref_unit!: number;
   ref_address!: string;
+  ref_province_id?: string;
+  ref_district_id?: string;
   ref_lived_year!: number;
   ref_lived_with!: string;
   ref_lived_situation!: string;
@@ -296,6 +304,14 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     cus_address: {
       type: DataTypes.STRING(255),
       allowNull: false
+    },
+    cus_province_id: {
+      type: DataTypes.STRING(2),
+      allowNull: true
+    },
+    cus_district_id: {
+      type: DataTypes.STRING(4),
+      allowNull: true
     },
     cus_lived_year: {
       type: DataTypes.INTEGER,
@@ -504,6 +520,14 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
     ref_address: {
       type: DataTypes.STRING(255),
       allowNull: false
+    },
+    ref_province_id: {
+      type: DataTypes.STRING(2),
+      allowNull: true
+    },
+    ref_district_id: {
+      type: DataTypes.STRING(4),
+      allowNull: true
     },
     ref_lived_year: {
       type: DataTypes.INTEGER,

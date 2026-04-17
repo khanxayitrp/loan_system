@@ -334,7 +334,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
     const transaction = await db.sequelize.transaction();
     try {
         const {
-            phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month, other_debt,
+            phone, otp, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
             product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
             interest_type, interest_rate_type, 
             existing_customer_id 
@@ -367,8 +367,8 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
         // 2. Get or Create Customer
         // =======================================================
         let customer;
-        const customerPayload = { phone, identity_number, first_name, last_name, address, age, occupation, income_per_month, other_debt };
-        const customerUpdatePayload = { first_name, last_name, address, age, occupation, income_per_month, other_debt };
+        const customerPayload = { phone, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
+        const customerUpdatePayload = { first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
 
         if (isEmployeeRequest) {
             // STAFF FLOW: ຈັດການຂໍ້ມູນລູກຄ້າໂດຍພະນັກງານ
@@ -472,6 +472,8 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
                     identity_number: identity_number,
                     first_name: first_name,
                     last_name: last_name,
+                    province_id: province_id,
+                    district_id: district_id,
                     address: address,
                     age: age,
                     occupation: occupation,

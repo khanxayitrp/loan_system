@@ -16,13 +16,15 @@ export interface partnersAttributes {
   contact_number?: string;
   shop_logo_url?: string;
   address?: string;
+  province_id?: string;
+  district_id?: string;
   business_type: string;
   is_active?: number;
 }
 
 export type partnersPk = "id";
 export type partnersId = partners[partnersPk];
-export type partnersOptionalAttributes = "id" | "shop_owner" | "contact_number" | "shop_logo_url" | "address" | "is_active";
+export type partnersOptionalAttributes = "id" | "shop_owner" | "contact_number" | "shop_logo_url" | "address" | "province_id" | "district_id" | "is_active";
 export type partnersCreationAttributes = Optional<partnersAttributes, partnersOptionalAttributes>;
 
 export class partners extends Model<partnersAttributes, partnersCreationAttributes> implements partnersAttributes {
@@ -34,6 +36,8 @@ export class partners extends Model<partnersAttributes, partnersCreationAttribut
   contact_number?: string;
   shop_logo_url?: string;
   address?: string;
+  province_id?: string;
+  district_id?: string;
   business_type!: string;
   is_active?: number;
 
@@ -141,6 +145,14 @@ export class partners extends Model<partnersAttributes, partnersCreationAttribut
     },
     address: {
       type: DataTypes.TEXT,
+      allowNull: true
+    },
+    province_id: {
+      type: DataTypes.STRING(2),
+      allowNull: true
+    },
+    district_id: {
+      type: DataTypes.STRING(4),
       allowNull: true
     },
     business_type: {

@@ -13,6 +13,8 @@ import { cus_requestform as _cus_requestform } from "./cus_requestform";
 import type { cus_requestformAttributes, cus_requestformCreationAttributes } from "./cus_requestform";
 import { customer_credits as _customer_credits } from "./customer_credits";
 import type { customer_creditsAttributes, customer_creditsCreationAttributes } from "./customer_credits";
+import { customer_documents as _customer_documents } from "./customer_documents";
+import type { customer_documentsAttributes, customer_documentsCreationAttributes } from "./customer_documents";
 import { customer_locations as _customer_locations } from "./customer_locations";
 import type { customer_locationsAttributes, customer_locationsCreationAttributes } from "./customer_locations";
 import { customer_points as _customer_points } from "./customer_points";
@@ -25,6 +27,8 @@ import { customers as _customers } from "./customers";
 import type { customersAttributes, customersCreationAttributes } from "./customers";
 import { delivery_receipts as _delivery_receipts } from "./delivery_receipts";
 import type { delivery_receiptsAttributes, delivery_receiptsCreationAttributes } from "./delivery_receipts";
+import { districts as _districts } from "./districts";
+import type { districtsAttributes, districtsCreationAttributes } from "./districts";
 import { document_signatures as _document_signatures } from "./document_signatures";
 import type { document_signaturesAttributes, document_signaturesCreationAttributes } from "./document_signatures";
 import { features as _features } from "./features";
@@ -75,6 +79,8 @@ import { products as _products } from "./products";
 import type { productsAttributes, productsCreationAttributes } from "./products";
 import { promotions as _promotions } from "./promotions";
 import type { promotionsAttributes, promotionsCreationAttributes } from "./promotions";
+import { provinces as _provinces } from "./provinces";
+import type { provincesAttributes, provincesCreationAttributes } from "./provinces";
 import { repayment_schedules as _repayment_schedules } from "./repayment_schedules";
 import type { repayment_schedulesAttributes, repayment_schedulesCreationAttributes } from "./repayment_schedules";
 import { repayments as _repayments } from "./repayments";
@@ -90,7 +96,7 @@ import type { vouchersAttributes, vouchersCreationAttributes } from "./vouchers"
 import { wishlists as _wishlists } from "./wishlists";
 import type { wishlistsAttributes, wishlistsCreationAttributes } from "./wishlists";
 import connect from "../config/db.config";
-import { sequelize } from "../config/db.config"; 
+import { sequelize } from "../config/db.config";
 
 export {
   _application_documents as application_documents,
@@ -100,12 +106,14 @@ export {
   _credit_ledgers as credit_ledgers,
   _cus_requestform as cus_requestform,
   _customer_credits as customer_credits,
+  _customer_documents as customer_documents,
   _customer_locations as customer_locations,
   _customer_points as customer_points,
   _customer_vouchers as customer_vouchers,
   _customer_work_info as customer_work_info,
   _customers as customers,
   _delivery_receipts as delivery_receipts,
+  _districts as districts,
   _document_signatures as document_signatures,
   _features as features,
   _global_categories as global_categories,
@@ -131,6 +139,7 @@ export {
   _product_variants as product_variants,
   _products as products,
   _promotions as promotions,
+  _provinces as provinces,
   _repayment_schedules as repayment_schedules,
   _repayments as repayments,
   _user_permissions as user_permissions,
@@ -141,7 +150,7 @@ export {
 };
 
 export type {
-  sequelize,
+    sequelize,
   application_documentsAttributes,
   application_documentsCreationAttributes,
   audit_logsAttributes,
@@ -156,6 +165,8 @@ export type {
   cus_requestformCreationAttributes,
   customer_creditsAttributes,
   customer_creditsCreationAttributes,
+  customer_documentsAttributes,
+  customer_documentsCreationAttributes,
   customer_locationsAttributes,
   customer_locationsCreationAttributes,
   customer_pointsAttributes,
@@ -168,6 +179,8 @@ export type {
   customersCreationAttributes,
   delivery_receiptsAttributes,
   delivery_receiptsCreationAttributes,
+  districtsAttributes,
+  districtsCreationAttributes,
   document_signaturesAttributes,
   document_signaturesCreationAttributes,
   featuresAttributes,
@@ -218,6 +231,8 @@ export type {
   productsCreationAttributes,
   promotionsAttributes,
   promotionsCreationAttributes,
+  provincesAttributes,
+  provincesCreationAttributes,
   repayment_schedulesAttributes,
   repayment_schedulesCreationAttributes,
   repaymentsAttributes,
@@ -242,12 +257,14 @@ export function initModels(sequelize: Sequelize) {
   const credit_ledgers = _credit_ledgers.initModel(sequelize);
   const cus_requestform = _cus_requestform.initModel(sequelize);
   const customer_credits = _customer_credits.initModel(sequelize);
+  const customer_documents = _customer_documents.initModel(sequelize);
   const customer_locations = _customer_locations.initModel(sequelize);
   const customer_points = _customer_points.initModel(sequelize);
   const customer_vouchers = _customer_vouchers.initModel(sequelize);
   const customer_work_info = _customer_work_info.initModel(sequelize);
   const customers = _customers.initModel(sequelize);
   const delivery_receipts = _delivery_receipts.initModel(sequelize);
+  const districts = _districts.initModel(sequelize);
   const document_signatures = _document_signatures.initModel(sequelize);
   const features = _features.initModel(sequelize);
   const global_categories = _global_categories.initModel(sequelize);
@@ -273,6 +290,7 @@ export function initModels(sequelize: Sequelize) {
   const product_variants = _product_variants.initModel(sequelize);
   const products = _products.initModel(sequelize);
   const promotions = _promotions.initModel(sequelize);
+  const provinces = _provinces.initModel(sequelize);
   const repayment_schedules = _repayment_schedules.initModel(sequelize);
   const repayments = _repayments.initModel(sequelize);
   const user_permissions = _user_permissions.initModel(sequelize);
@@ -293,6 +311,8 @@ export function initModels(sequelize: Sequelize) {
   customers.hasMany(cus_requestform, { as: "cus_requestforms", foreignKey: "customer_id"});
   customer_credits.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasOne(customer_credits, { as: "customer_credit", foreignKey: "customer_id"});
+  customer_documents.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(customer_documents, { as: "customer_documents", foreignKey: "customer_id"});
   customer_locations.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(customer_locations, { as: "customer_locations", foreignKey: "customer_id"});
   customer_points.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
@@ -381,6 +401,8 @@ export function initModels(sequelize: Sequelize) {
   products.hasMany(product_variants, { as: "product_variants", foreignKey: "product_id"});
   wishlists.belongsTo(products, { as: "product", foreignKey: "product_id"});
   products.hasMany(wishlists, { as: "wishlists", foreignKey: "product_id"});
+  districts.belongsTo(provinces, { as: "province", foreignKey: "province_id"});
+  provinces.hasMany(districts, { as: "districts", foreignKey: "province_id"});
   repayments.belongsTo(repayment_schedules, { as: "schedule", foreignKey: "schedule_id"});
   repayment_schedules.hasMany(repayments, { as: "repayments", foreignKey: "schedule_id"});
   payment_transactions.belongsTo(repayments, { as: "schedule", foreignKey: "schedule_id"});
@@ -435,6 +457,8 @@ export function initModels(sequelize: Sequelize) {
   users.hasMany(user_refresh_tokens, { as: "user_refresh_tokens", foreignKey: "user_id"});
   customer_vouchers.belongsTo(vouchers, { as: "voucher", foreignKey: "voucher_id"});
   vouchers.hasMany(customer_vouchers, { as: "customer_vouchers", foreignKey: "voucher_id"});
+  customer_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by"});
+  users.hasMany(customer_documents, { as: "uploaded_customer_documents", foreignKey: "uploaded_by"});
 
   return {
     sequelize: sequelize,
@@ -445,12 +469,14 @@ export function initModels(sequelize: Sequelize) {
     credit_ledgers: credit_ledgers,
     cus_requestform: cus_requestform,
     customer_credits: customer_credits,
+    customer_documents: customer_documents,
     customer_locations: customer_locations,
     customer_points: customer_points,
     customer_vouchers: customer_vouchers,
     customer_work_info: customer_work_info,
     customers: customers,
     delivery_receipts: delivery_receipts,
+    districts: districts,
     document_signatures: document_signatures,
     features: features,
     global_categories: global_categories,
@@ -476,6 +502,7 @@ export function initModels(sequelize: Sequelize) {
     product_variants: product_variants,
     products: products,
     promotions: promotions,
+    provinces: provinces,
     repayment_schedules: repayment_schedules,
     repayments: repayments,
     user_permissions: user_permissions,

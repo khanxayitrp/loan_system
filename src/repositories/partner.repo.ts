@@ -65,6 +65,14 @@ class PartnerRepository {
                 throw new Error('business_type is required');
             }
 
+            if (!cleanPartner.province_id || cleanPartner.province_id.trim() === '') {
+                throw new Error('province_id is required');
+            }
+
+            if (!cleanPartner.district_id || cleanPartner.district_id.trim() === '') {
+                throw new Error('district_id is required');
+            }
+
             const existPartner = await db.partners.findOne({ 
                 where: { shop_name: cleanPartner.shop_name },
                 transaction: t 
@@ -107,6 +115,8 @@ class PartnerRepository {
                 shop_name: cleanPartner.shop_name,
                 shop_owner: cleanPartner.shop_owner,
                 contact_number: cleanPartner.contact_number || null,
+                province_id: cleanPartner.province_id || null,
+                district_id: cleanPartner.district_id || null,
                 address: cleanPartner.address || null,
                 shop_logo_url: cleanPartner.shop_logo_url || null,
                 business_type: cleanPartner.business_type
@@ -172,6 +182,8 @@ class PartnerRepository {
             if (data.shop_owner !== undefined) updateData.shop_owner = data.shop_owner;
             if (data.contact_number !== undefined) updateData.contact_number = data.contact_number;
             if (data.business_type !== undefined) updateData.business_type = data.business_type;
+            if (data.province_id !== undefined) updateData.province_id = data.province_id;
+            if (data.district_id !== undefined) updateData.district_id = data.district_id;
             if (data.address !== undefined) updateData.address = data.address;
             if (data.shop_logo_url !== undefined) updateData.shop_logo_url = data.shop_logo_url;
 

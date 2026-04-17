@@ -4,6 +4,7 @@ import type { carts, cartsCreationAttributes, cartsId } from './carts';
 import type { credit_ledgers, credit_ledgersId } from './credit_ledgers';
 import type { cus_requestform, cus_requestformId } from './cus_requestform';
 import type { customer_credits, customer_creditsCreationAttributes, customer_creditsId } from './customer_credits';
+import type { customer_documents, customer_documentsId } from './customer_documents';
 import type { customer_locations, customer_locationsId } from './customer_locations';
 import type { customer_points, customer_pointsCreationAttributes, customer_pointsId } from './customer_points';
 import type { customer_vouchers, customer_vouchersId } from './customer_vouchers';
@@ -24,6 +25,8 @@ export interface customersAttributes {
   date_of_birth?: string;
   phone: string;
   address?: string;
+  province_id?: string;
+  district_id?: string;
   age?: number;
   occupation?: string;
   income_per_month?: number;
@@ -41,7 +44,7 @@ export interface customersAttributes {
 
 export type customersPk = "id";
 export type customersId = customers[customersPk];
-export type customersOptionalAttributes = "id" | "census_number" | "date_of_birth" | "address" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at";
+export type customersOptionalAttributes = "id" | "census_number" | "date_of_birth" | "address" | "province_id" | "district_id" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at";
 export type customersCreationAttributes = Optional<customersAttributes, customersOptionalAttributes>;
 
 export class customers extends Model<customersAttributes, customersCreationAttributes> implements customersAttributes {
@@ -53,6 +56,8 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   date_of_birth?: string;
   phone!: string;
   address?: string;
+  province_id?: string;
+  district_id?: string;
   age?: number;
   occupation?: string;
   income_per_month?: number;
@@ -101,6 +106,18 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   getCustomer_credit!: Sequelize.HasOneGetAssociationMixin<customer_credits>;
   setCustomer_credit!: Sequelize.HasOneSetAssociationMixin<customer_credits, customer_creditsId>;
   createCustomer_credit!: Sequelize.HasOneCreateAssociationMixin<customer_credits>;
+  // customers hasMany customer_documents via customer_id
+  customer_documents!: customer_documents[];
+  getCustomer_documents!: Sequelize.HasManyGetAssociationsMixin<customer_documents>;
+  setCustomer_documents!: Sequelize.HasManySetAssociationsMixin<customer_documents, customer_documentsId>;
+  addCustomer_document!: Sequelize.HasManyAddAssociationMixin<customer_documents, customer_documentsId>;
+  addCustomer_documents!: Sequelize.HasManyAddAssociationsMixin<customer_documents, customer_documentsId>;
+  createCustomer_document!: Sequelize.HasManyCreateAssociationMixin<customer_documents>;
+  removeCustomer_document!: Sequelize.HasManyRemoveAssociationMixin<customer_documents, customer_documentsId>;
+  removeCustomer_documents!: Sequelize.HasManyRemoveAssociationsMixin<customer_documents, customer_documentsId>;
+  hasCustomer_document!: Sequelize.HasManyHasAssociationMixin<customer_documents, customer_documentsId>;
+  hasCustomer_documents!: Sequelize.HasManyHasAssociationsMixin<customer_documents, customer_documentsId>;
+  countCustomer_documents!: Sequelize.HasManyCountAssociationsMixin;
   // customers hasMany customer_locations via customer_id
   customer_locations!: customer_locations[];
   getCustomer_locations!: Sequelize.HasManyGetAssociationsMixin<customer_locations>;
@@ -244,6 +261,14 @@ export class customers extends Model<customersAttributes, customersCreationAttri
     },
     address: {
       type: DataTypes.TEXT,
+      allowNull: true
+    },
+    province_id: {
+      type: DataTypes.STRING(2),
+      allowNull: true
+    },
+    district_id: {
+      type: DataTypes.STRING(4),
       allowNull: true
     },
     age: {

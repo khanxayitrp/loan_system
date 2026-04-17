@@ -21,6 +21,8 @@ class PartnerController {
                 shop_name: data.shop_name,
                 shop_owner: data.shop_owner,
                 contact_number: data.contact_number || null,
+                province_id: data.province_id || null,
+                district_id: data.district_id || null,
                 address: data.address,
                 shop_logo_url: data.shop_logo_url || null,
                 business_type: data.business_type
@@ -74,6 +76,8 @@ class PartnerController {
                     shop_owner: partner?.shop_owner,
                     contact_number: partner.contact_number,
                     shop_logo_url: partner.shop_logo_url,
+                    province_id: partner.province_id,
+                    district_id: partner.district_id,
                     address: partner.address,
                     business_type: partner.business_type,
                     is_active: partner.is_active
