@@ -32,7 +32,7 @@ export interface FileUploadConfig {
   fileNamePrefix?: string;
 }
 
-export type DocumentType = 'id_card' | 'house_reg' | 'salary_slip' | 'other';
+export type DocumentType = 'id_card' | 'house_reg' | 'salary_slip' | 'face_scan' | 'other';
 export type ImageType = 'product' | 'shop_logo' | 'payment_proof';
 
 export const FILE_UPLOAD_CONFIG = {

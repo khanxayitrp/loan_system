@@ -19,6 +19,7 @@ import deliveryRouter from './delivery_receipt.routes';
 import custPortalRouter from './customer-portal.routes';
 import globalCategoriesRouter from './global_categories.routes';
 import repaymentRouter from './repayment.routes';
+import addressRouter from './province_district.routes';
 
 const router = express.Router();
 
@@ -62,6 +63,8 @@ router.use('/portal', custPortalRouter);
 router.use('/global-categories', globalCategoriesRouter);
 
 router.use('/repayments', repaymentRouter);
+
+router.use('/address', addressRouter);
 
 
 export default router;

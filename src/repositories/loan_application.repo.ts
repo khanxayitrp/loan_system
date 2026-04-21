@@ -202,12 +202,12 @@ class LoanApplicationRepository {
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'province_id', 'district_id', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
                     include: [
                         {
                             model: db.customer_work_info,
                             as: 'customer_work_infos',
-                            attributes: ['id', 'company_name', 'address', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
+                            attributes: ['id', 'company_name', 'address', 'province_id','district_id', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
                         },
                         {
                             model: db.customer_locations,
@@ -246,7 +246,7 @@ class LoanApplicationRepository {
                 {
                     model: db.loan_guarantors,
                     as: 'loan_guarantors',
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_phone']
+                    attributes: ['id', 'name', 'identity_number', 'phone', 'address','province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location','work_province_id', 'work_district_id', 'work_district_id', 'work_phone']
                 },
                 {
                     model: db.delivery_receipts,
@@ -431,8 +431,9 @@ class LoanApplicationRepository {
                 await transaction.rollback();
                 return null;
             }
-
-            let customerId = data.customer_id;
+            console.log('Data received for updateDraftLoanApplication:', data);
+            console.log('Existing loan application data:', loanApplication.toJSON());
+            let customerId = data.customer_id || loanApplication.customer_id;
             if (customerId && typeof customerId === 'object') {
                 customerId = customerId.id || customerId.customer_id;
             }
@@ -449,6 +450,8 @@ class LoanApplicationRepository {
                 last_name: data.last_name !== undefined ? data.last_name : customer.last_name,
                 phone: data.phone !== undefined ? data.phone : customer.phone,
                 address: data.address !== undefined ? data.address : customer.address,
+                province_id: data.province_id !== undefined ? data.province_id : customer.province_id,
+                district_id: data.district_id !== undefined ? data.district_id : customer.district_id,  
                 date_of_birth: data.date_of_birth !== undefined ? data.date_of_birth : customer.date_of_birth,
                 age: data.age !== undefined ? data.age : customer.age,
                 occupation: data.occupation !== undefined ? data.occupation : customer.occupation,
@@ -738,6 +741,8 @@ class LoanApplicationRepository {
             });
             if (!loanApplication) {
                 throw new NotFoundError(`Loan application with ID: ${loanApplicationId} not found`);
+                await t.rollback();
+                return null;
             }
 
             const oldLoanData = loanApplication.toJSON();

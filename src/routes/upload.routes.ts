@@ -23,7 +23,7 @@ router.use(verifyToken);
 
 /**
  * @swagger
- * /upload/application/{application_id}/document:
+ * /upload/application/{customerId}/document:
  *   post:
  *     summary: Upload application document
  *     tags: [Upload]
@@ -31,7 +31,7 @@ router.use(verifyToken);
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
@@ -52,14 +52,14 @@ router.use(verifyToken);
  *         description: Document uploaded
  */
 router.post(
-  '/application/:application_id/document',
+  '/application/:customerId/document',
   uploadDocument.single('file'),
   uploadController.uploadApplicationDocument
 );
 
 /**
  * @swagger
- * /upload/application/{application_id}/documents:
+ * /upload/application/{customerId}/documents:
  *   post:
  *     summary: Upload multiple application documents
  *     tags: [Upload]
@@ -67,7 +67,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
@@ -88,7 +88,7 @@ router.post(
  *         description: Documents uploaded
  */
 router.post(
-  '/application/:application_id/documents',
+  '/application/:customerId/documents',
   uploadDocument.array('files', 10),
   uploadController.uploadMultipleDocuments
 );

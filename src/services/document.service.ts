@@ -437,53 +437,78 @@ import { db } from '../models/init-models';
 import fileUploadService from './fileUpload.service';
 import { FILE_UPLOAD_CONFIG, DocumentType, UploadedFile } from '../types/file.types';
 import { logger } from '../utils/logger';
-import { NotFoundError, ForbiddenError } from '../utils/errors'; // แก้ไข path ให้ตรงกับโปรเจกต์ของคุณถ้าจำเป็น
+import { NotFoundError } from '../utils/errors';
+import { Op } from 'sequelize';
+
+// 🟢 Import Helper Function ที่เราแยกออกไป
+import { calculateExpiryDate } from '../utils/calculateExpiryDate';
 
 interface CreateDocumentData {
-  application_id: number;
+  customer_id: number;
   doc_type: DocumentType;
   file: UploadedFile;
   original_filename: string;
   file_size: number;
   mime_type: string;
+  uploaded_by?: number;
 }
 
 interface DocumentRecord {
   id: number;
-  application_id: number;
+  customer_id: number;
   file_url: string;
   doc_type: DocumentType;
   uploaded_at?: Date;
+  expires_at?: Date | null;
 }
 
 class DocumentService {
 
+  /**
+   * 🟢 ເພີ່ມ Function ນີ້ເພື່ອແກ້ໄຂ Error 500
+   * ດຶງເອກະສານທັງໝົດໂດຍອີງຕາມ Application ID
+   */
+  async getApplicationDocuments(application_id: number): Promise<DocumentRecord[]> {
+    try {
+      // 1. ຊອກຫາຂໍ້ມູນ Application ກ່ອນເພື່ອເອົາ customer_id
+      // ໝາຍເຫດ: ໃຫ້ໝັ້ນໃຈວ່າໃນ db.loan_applications ມີຄວາມສຳພັນກັບ customer
+      const application = await db.loan_applications.findByPk(application_id);
+      
+      if (!application) {
+        throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຄຳຂໍສິນເຊື່ອ (Application not found)');
+      }
+
+      const customer_id = application.customer_id;
+
+      // 2. ເອີ້ນໃຊ້ Function ທີ່ມີຢູ່ແລ້ວເພື່ອດຶງເອກະສານຂອງ Customer ນັ້ນ
+      return await this.getCustomerDocuments(customer_id);
+      
+    } catch (error) {
+      logger.error('Error in getApplicationDocuments service:', error);
+      throw error;
+    }
+  }
   // =========================================================================
-  // 🟢 CORE METHODS (อัปโหลด, ลบ, แทนที่) สำหรับ MinIO / Cloud Storage
+  // 🟢 CORE METHODS (อัปโหลด, ลบ, แทนที่)
   // =========================================================================
 
   /**
-   * อัปโหลดเอกสารสำหรับ loan application
+   * อัปโหลดเอกสารสำหรับลูกค้า
    */
   async uploadApplicationDocument(data: CreateDocumentData): Promise<DocumentRecord> {
     const transaction = await db.sequelize.transaction();
     let uploadedPath: string | null = null;
-    
+    console.log('uploadApplicationDocument called with data:', data);
     try {
-      const application = await db.loan_applications.findByPk(data.application_id, { transaction });
-      if (!application) throw new NotFoundError('Loan application not found');
-
-      if (application.is_confirmed === 1) {
-        throw new ForbiddenError('ไม่สามารถอัปโหลดเอกสารเพิ่มได้หลังยื่นคำขอแล้ว');
-      }
+      const customer = await db.customers.findByPk(data.customer_id, { transaction });
+      if (!customer) throw new NotFoundError('Customer not found');
 
       // 1. ค้นหาว่ามีไฟล์ประเภทนี้อยู่แล้วหรือไม่
-      const existingDoc = await db.application_documents.findOne({
-        where: { application_id: data.application_id, doc_type: data.doc_type },
+      const existingDoc = await db.customer_documents.findOne({
+        where: { customer_id: data.customer_id, doc_type: data.doc_type },
         transaction
       });
 
-      // 🌟 [ปรับปรุงใหม่] ถ้ามีไฟล์เดิม ให้ลบออกจาก DB และสั่งลบออกจาก MinIO ทันที! (แทนการทำ Cleanup แบบเดิม)
       if (existingDoc) {
         const oldFileUrl = existingDoc.file_url;
         await existingDoc.destroy({ transaction });
@@ -497,19 +522,10 @@ class DocumentService {
       }
 
       // 2. อัปโหลดไฟล์ไปที่ MinIO Storage
-      // เราดึงเฉพาะโฟลเดอร์จาก Config เช่น 'documents' มาสร้างเป็น Prefix
-      // const folderPrefix = FILE_UPLOAD_CONFIG.DOCUMENTS.uploadDir.replace('uploads/', '').replace('uploads\\', '');
-      // const uploadResult = await fileUploadService.uploadSingleFile(
-      //   data.file,
-      //   FILE_UPLOAD_CONFIG.DOCUMENTS,
-      //   `${folderPrefix}/app_${data.application_id}_${data.doc_type}_${Date.now()}` // สร้าง Path สวยๆ บน MinIO
-      // );
-
-      // ✅ โค้ดที่แก้ไขแล้ว (ลบ folderPrefix ออกไปเลย ส่งแค่ชื่อไฟล์เพียวๆ)
       const uploadResult = await fileUploadService.uploadSingleFile(
         data.file,
         FILE_UPLOAD_CONFIG.DOCUMENTS,
-        `app_${data.application_id}_${data.doc_type}_${Date.now()}` 
+        `app_cus_${data.customer_id}_${data.doc_type}_${Date.now()}` 
       );
 
       if (!uploadResult.success) {
@@ -517,14 +533,19 @@ class DocumentService {
       }
       uploadedPath = uploadResult.fileUrl!;
 
-      // 3. บันทึกข้อมูลลง Database
-      const document = await db.application_documents.create({
-        application_id: data.application_id,
-        file_url: uploadedPath, // ตอนนี้เป็น URL เต็มๆ แล้ว (http://...)
-        original_filename: data.file.originalname,
-        file_size: data.file.size,
-        mime_type: data.file.mimetype,
-        doc_type: data.doc_type
+      // 🟢 3. เรียกใช้ฟังก์ชันคำนวณวันหมดอายุที่แยกไฟล์ไว้
+      const expiresAt = calculateExpiryDate(data.doc_type);
+
+      // 4. บันทึกข้อมูลลง Database
+      const document = await db.customer_documents.create({
+        customer_id: data.customer_id,
+        file_url: uploadedPath, 
+        original_filename: data.original_filename,
+        file_size: data.file_size,
+        mime_type: data.mime_type,
+        doc_type: data.doc_type,
+        expires_at: expiresAt, 
+        uploaded_by: data.uploaded_by || null 
       }, { transaction });
 
       await transaction.commit();
@@ -535,7 +556,7 @@ class DocumentService {
     } catch (error) {
       await transaction.rollback();
       
-      // 🌟 [ปรับปรุงใหม่] ถ้า Database Error ให้ลบไฟล์ที่เพิ่งอัปโหลดขึ้น MinIO ทิ้ง (Rollback File)
+      // Rollback File บน MinIO หาก DB Error
       if (uploadedPath) {
         await fileUploadService.deleteFile(uploadedPath).catch(err => 
           logger.error(`Failed to cleanup file from MinIO after DB error: ${uploadedPath}`, err)
@@ -551,24 +572,24 @@ class DocumentService {
    * อัปโหลดหลายเอกสารพร้อมกัน
    */
   async uploadMultipleDocuments(
-    application_id: number,
+    customer_id: number,
+    uploaded_by: number,
     documents: Array<{ file: UploadedFile; doc_type: DocumentType }>
   ): Promise<DocumentRecord[]> {
     try {
-      const results: DocumentRecord[] = [];
-
-      for (const doc of documents) {
-        const result = await this.uploadApplicationDocument({
-          application_id,
+      const uploadPromises = documents.map(doc => 
+        this.uploadApplicationDocument({
+          customer_id,
           file: doc.file,
           original_filename: doc.file.originalname,
           file_size: doc.file.size,
           mime_type: doc.file.mimetype,
-          doc_type: doc.doc_type
-        });
-        results.push(result);
-      }
+          doc_type: doc.doc_type,
+          uploaded_by
+        })
+      );
 
+      const results = await Promise.all(uploadPromises);
       return results;
     } catch (error) {
       logger.error('Error uploading multiple documents:', error);
@@ -582,15 +603,12 @@ class DocumentService {
   async deleteDocument(document_id: number): Promise<boolean> {
     const transaction = await db.sequelize.transaction();
     try {
-      const document = await db.application_documents.findByPk(document_id);
+      const document = await db.customer_documents.findByPk(document_id);
       if (!document) throw new Error('Document not found');
 
       const fileUrl = document.file_url;
 
-      // ลบจาก database ก่อน
       await document.destroy({ transaction });
-
-      // 🌟 [ปรับปรุงใหม่] ลบไฟล์จาก MinIO โดยส่ง URL เข้าไปตรงๆ
       await fileUploadService.deleteFile(fileUrl);
 
       await transaction.commit();
@@ -603,49 +621,47 @@ class DocumentService {
   }
 
   /**
-   * ลบเอกสารทั้งหมดของ application (ใช้เมื่อยกเลิกคำขอ)
+   * ลบเอกสารทั้งหมดของลูกค้า (ใช้เมื่อต้องการลบข้อมูลลูกค้าทิ้ง)
    */
-  async deleteAllApplicationDocuments(application_id: number): Promise<boolean> {
+  async deleteAllCustomerDocuments(customer_id: number): Promise<boolean> {
     try {
-      const documents = await this.getApplicationDocuments(application_id);
+      const documents = await this.getCustomerDocuments(customer_id);
 
-      // 🌟 [ปรับปรุงใหม่] ลบไฟล์ทั้งหมดออกจาก MinIO
       const fileUrls = documents.map(doc => doc.file_url);
       if (fileUrls.length > 0) {
         await fileUploadService.deleteFiles(fileUrls);
       }
 
-      // ลบจาก database
-      await db.application_documents.destroy({
-        where: { application_id }
+      await db.customer_documents.destroy({
+        where: { customer_id }
       });
 
-      logger.info(`All documents deleted for application ${application_id} from MinIO and DB`);
+      logger.info(`All documents deleted for customer ${customer_id} from MinIO and DB`);
       return true;
     } catch (error) {
-      logger.error('Error deleting all application documents:', error);
+      logger.error('Error deleting all customer documents:', error);
       throw error;
     }
   }
 
   /**
-   * ดึงเอกสารทั้งหมดของ application
+   * ดึงเอกสารทั้งหมดของลูกค้า
    */
-  async getApplicationDocuments(
-    application_id: number
+  async getCustomerDocuments(
+    customer_id: number
   ): Promise<DocumentRecord[]> {
     try {
-      const documents = await db.application_documents.findAll({
-        where: { application_id },
+      const documents = await db.customer_documents.findAll({
+        where: { customer_id },
         order: [['uploaded_at', 'DESC']]
       });
 
       return documents.map(doc => ({
         ...doc.get({ plain: true }),
-        doc_type: doc.doc_type!  as DocumentType
+        doc_type: doc.doc_type! as DocumentType
       }));
     } catch (error) {
-      logger.error('Error getting application documents:', error);
+      logger.error('Error getting customer documents:', error);
       throw error;
     }
   }
@@ -654,13 +670,13 @@ class DocumentService {
    * ดึงเอกสารตามประเภท
    */
   async getDocumentsByType(
-    application_id: number,
+    customer_id: number,
     doc_type: DocumentType
   ): Promise<DocumentRecord[]> {
     try {
-      const documents = await db.application_documents.findAll({
+      const documents = await db.customer_documents.findAll({
         where: {
-          application_id,
+          customer_id,
           doc_type
         },
         order: [['uploaded_at', 'DESC']]
@@ -668,7 +684,7 @@ class DocumentService {
 
       return documents.map(doc => ({
         ...doc.get({ plain: true }),
-        doc_type: doc.doc_type!  as DocumentType
+        doc_type: doc.doc_type! as DocumentType
       }));
     } catch (error) {
       logger.error('Error getting documents by type:', error);
@@ -681,50 +697,48 @@ class DocumentService {
    */
   async replaceDocument(
     document_id: number,
-    new_file: UploadedFile
+    new_file: UploadedFile,
+    uploaded_by?: number
   ): Promise<DocumentRecord> {
     try {
-      const document = await db.application_documents.findByPk(document_id);
+      const document = await db.customer_documents.findByPk(document_id);
       if (!document) throw new Error('Document not found');
 
       const plainDoc = document.get({ plain: true });
 
-      // อัปโหลดไฟล์ใหม่ขึ้น MinIO
-      // const folderPrefix = FILE_UPLOAD_CONFIG.DOCUMENTS.uploadDir.replace('uploads/', '').replace('uploads\\', '');
-      // const uploadResult = await fileUploadService.uploadSingleFile(
-      //   new_file,
-      //   FILE_UPLOAD_CONFIG.DOCUMENTS,
-      //   `${folderPrefix}/app_${plainDoc.application_id}_${plainDoc.doc_type}_${Date.now()}`
-      // );
-
-      // ✅ โค้ดที่แก้ไขแล้ว
       const uploadResult = await fileUploadService.uploadSingleFile(
         new_file,
         FILE_UPLOAD_CONFIG.DOCUMENTS,
-        `app_${plainDoc.application_id}_${plainDoc.doc_type}_${Date.now()}`
+        `app_cus_${plainDoc.customer_id}_${plainDoc.doc_type}_${Date.now()}`
       );
 
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || 'Failed to upload new file to MinIO');
       }
 
-      // 🌟 [ปรับปรุงใหม่] ลบไฟล์เก่าออกจาก MinIO โดยใช้ URL เดิม
       await fileUploadService.deleteFile(plainDoc.file_url).catch(err => 
         logger.warn(`Failed to delete old file during replace: ${plainDoc.file_url}`, err)
       );
 
-      // อัปเดต database
+      // 🟢 คำนวณวันหมดอายุใหม่
+      const expiresAt = calculateExpiryDate(plainDoc.doc_type as DocumentType);
+
       await document.update({
-        file_url: uploadResult.fileUrl!
+        file_url: uploadResult.fileUrl!,
+        original_filename: new_file.originalname,
+        file_size: new_file.size,
+        mime_type: new_file.mimetype,
+        expires_at: expiresAt,
+        uploaded_by: uploaded_by || document.uploaded_by
       });
 
       logger.info(`Document ${document_id} replaced successfully on MinIO`);
 
-      const updatedDoc = await db.application_documents.findByPk(document_id);
+      const updatedDoc = await db.customer_documents.findByPk(document_id);
       const plainUpdated = updatedDoc!.get({ plain: true }) as DocumentRecord;
 
       if (!plainUpdated.doc_type) {
-        plainUpdated.doc_type = 'other'; // fallback
+        plainUpdated.doc_type = 'other'; 
       }
 
       return plainUpdated;
@@ -735,16 +749,26 @@ class DocumentService {
   }
 
   /**
-   * ตรวจสอบว่ามีเอกสารครบถ้วนหรือไม่
+   * ตรวจสอบว่ามีเอกสารครบถ้วน และ "ยังไม่หมดอายุ" หรือไม่
    */
   async checkRequiredDocuments(
-    application_id: number
+    customer_id: number
   ): Promise<{ complete: boolean; missing: DocumentType[] }> {
     try {
       const requiredTypes: DocumentType[] = ['id_card', 'house_reg', 'salary_slip'];
-      const documents = await this.getApplicationDocuments(application_id);
+      
+      const validDocuments = await db.customer_documents.findAll({
+        where: {
+          customer_id,
+          [Op.or]: [
+            { expires_at: { [Op.is]: null } }, 
+            { expires_at: { [Op.gt]: new Date() } } 
+          ]
+        } as any
+      });
 
-      const existingTypes = documents.map(doc => doc.doc_type);
+      const existingTypes = validDocuments.map(doc => doc.doc_type);
+      
       const missingTypes = requiredTypes.filter(
         type => !existingTypes.includes(type)
       );

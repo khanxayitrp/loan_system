@@ -78,7 +78,7 @@ class ProposalService {
                 address: data.address || null,
                 phone: data.phone || null,
                 business_type: data.business_type || null,
-                business_detail: data.business_details || null,
+                business_detail: data.business_detail || null,
                 duration_years: data.duration_years,
                 duration_months: data.duration_months,
                 department: data.department || null,
@@ -121,7 +121,7 @@ class ProposalService {
                     name: data.name || null,
                     identity_number: data.identity_number || null,
                     date_of_birth: data.GuarantorDOB || null,
-                    age: data.GuatantorAGE || null,
+                    age: data.GuarantorAGE || null,
                     phone: data.Guarantorphone || null,
                     province_id: data.Guarantorprovince_id || null,
                     district_id: data.Guarantordistrict_id || null,
@@ -131,6 +131,8 @@ class ProposalService {
                     work_company_name: data.work_company_name || null,
                     work_phone: data.work_phone || null,
                     work_location: data.work_location || null,
+                    work_province_id: data.work_province_id || null,
+                    work_district_id: data.work_district_id || null,
                     work_position: data.work_position || null,
                     work_salary: data.work_salary || null
                 };

@@ -12,8 +12,9 @@ export interface customer_documentsAttributes {
   mime_type?: string;
   doc_type: 'id_card' | 'house_reg' | 'salary_slip' | 'face_scan' | 'other'; // 🟢 เพิ่ม 'other'
   uploaded_at: Date;
-  expires_at?: Date;
-  uploaded_by?: number; // 🟢 เพิ่มฟิลด์ใหม่
+  expires_at?: Date | null; // <--- ເພີ່ມ | null ເຂົ້າໄປ
+  uploaded_by?: number | null; // <--- ແນະນຳໃຫ້ເພີ່ມ | null ໃຫ້ uploaded_by ນຳ ເພາະໃນ service ທ່ານໃຊ້ data.uploaded_by || null
+
 }
 
 export type customer_documentsPk = "id";

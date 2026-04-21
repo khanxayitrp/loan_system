@@ -64,70 +64,169 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
         const pType = formData.product?.type || ''; // ดึงค่าประเภทสินค้ามาเก็บไว้ก่อน
         
         // ✅ 6. เตรียม Data
+        // const data = {
+        //     onlineChecked: 'checked',
+        //     offlineChecked: '',
+        //     // goldChecked: formData.product.type === 'gold' ? 'checked' : '',
+        //     // generalChecked: formData.product.type === 'general' ? 'checked' : '',
+        //     // motorcycleChecked: formData.product.type === 'motorcycle' ? 'checked' : '',
+        //     // 🟢 แก้ไขเงื่อนไข Checkbox ให้เช็คจากคำภาษาลาวที่ส่งมา
+        //     goldChecked: pType.includes('ຄຳ') ? 'checked' : '',
+        //     generalChecked: pType.includes('ທົ່ວໄປ') ? 'checked' : '',
+        //     motorcycleChecked: (pType.includes('ລົດ') || pType.includes('ລົດຈັກ')) ? 'checked' : '',
+        //     customer: {
+        //         fullname: formData.customer.fullname || '________________',
+        //         dob: formatDate(formData.customer.dob),
+        //         age: formData.customer.age || '___',
+        //         occupation: formData.customer.occupation || '________________',
+        //         phone: formData.customer.phone || '________________',
+        //         address: {
+        //             village: formData.customer.address.village || '____________',
+        //             district: formData.customer.address.district || '____________',
+        //             province: formData.customer.address.province || '____________'
+        //         },
+        //         idCard: formData.customer.idCard || '________________',
+        //         censusNo: formData.customer.censusNo || '________________',
+        //         unit: formData.customer.unit || '______',
+        //         issuePlace: formData.customer.issuePlace || '________________',
+        //         issueDate: formatDate(formData.customer.issueDate)
+        //     },
+        //     work: {
+        //         companyName: formData.work.companyName || '________________',
+        //         address: {
+        //             village: formData.work.address.village || '____________',
+        //             district: formData.work.address.district || '____________',
+        //             province: formData.work.address.province || '____________'
+        //         },
+        //         phone: formData.work.phone || '________________',
+        //         businessType: formData.work.businessType || '________________',
+        //         businessDetail: formData.work.businessDetail || '________________',
+        //         durationMonths: formData.work.durationMonths || '___',
+        //         durationYears: formData.work.durationYears || '___',
+        //         department: formData.work.department || '________________',
+        //         position: formData.work.position || '________________',
+        //         salary: formatCurrency(formData.work.salary)
+        //     },
+        //     product: {
+        //         type: formData.product?.type || formData.product?.type_name || formData.product?.productType?.type_name || '________________',
+        //         brand: formData.product.brand || '________________',
+        //         model: formData.product.model || '________________',
+        //         price: formatCurrency(formData.product.price),
+        //         downPayment: formatCurrency(formData.product.downPayment),
+        //         approvedAmount: formatCurrency(formData.product.approvedAmount),
+        //         loanTerm: formData.product.loanTerm || '___',
+        //         interestRate: formData.product.interestRate || '___',
+        //         totalInterest: formatCurrency(formData.product.totalInterest),
+        //         fee: formatCurrency(formData.product.fee),
+        //         firstInstallment: formatCurrency(formData.product.firstInstallment),
+        //         monthlyPayment: formatCurrency(formData.product.monthlyPayment),
+        //         paymentDay: formData.product.paymentDay || '___',
+        //         store: formData.product.store || '________________________________________________________'
+        //     },
+        //     hasGuarantor: formData.hasGuarantor || formData.hasReference,
+        //     guarantorChecked: formData.hasGuarantor ? 'checked' : '',
+        //     referenceChecked: formData.hasReference ? 'checked' : '',
+        //     guarantor: {
+        //         name: formData.guarantor?.name || '________________',
+        //         dob: formatDate(formData.guarantor?.dob),
+        //         age: formData.guarantor?.age || '___',
+        //         occupation: formData.guarantor?.occupation || '________________',
+        //         phone: formData.guarantor?.phone || '________________',
+        //         address: {
+        //             village: formData.guarantor?.address?.village || '____________',
+        //             district: formData.guarantor?.address?.district || '____________',
+        //             province: formData.guarantor?.address?.province || '____________'
+        //         },
+        //         idCard: formData.guarantor?.idCard || '________________',
+        //         parentChecked: formData.guarantor?.relationship === 'parent' ? 'checked' : '',
+        //         spouseChecked: formData.guarantor?.relationship === 'spouse' ? 'checked' : '',
+        //         otherChecked: formData.guarantor?.relationship === 'other' ? 'checked' : '',
+        //         relationshipOther: formData.guarantor?.relationshipOther || '',
+        //         work: {
+        //             companyName: formData.guarantor?.work?.companyName || '________________',
+        //             address: {
+        //                 village: formData.guarantor?.work?.address?.village || '____________',
+        //                 district: formData.guarantor?.work?.address?.district || '____________',
+        //                 province: formData.guarantor?.work?.address?.province || '____________'
+        //             },
+        //             position: formData.guarantor?.work?.position || '________________',
+        //             phone: formData.guarantor?.work?.phone || '________________',
+        //             salary: formatCurrency(formData.guarantor?.work?.salary)
+        //         }
+        //     },
+        //     signatures: {
+        //         borrowerDate: formatDate(formData.signatures?.borrowerDate),
+        //         guarantorDate: formatDate(formData.signatures?.guarantorDate),
+        //         staffDate: formatDate(formData.signatures?.staffDate)
+        //     }
+        // };
+        // ✅ 6. เตรียม Data
         const data = {
             onlineChecked: 'checked',
             offlineChecked: '',
-            // goldChecked: formData.product.type === 'gold' ? 'checked' : '',
-            // generalChecked: formData.product.type === 'general' ? 'checked' : '',
-            // motorcycleChecked: formData.product.type === 'motorcycle' ? 'checked' : '',
             // 🟢 แก้ไขเงื่อนไข Checkbox ให้เช็คจากคำภาษาลาวที่ส่งมา
             goldChecked: pType.includes('ຄຳ') ? 'checked' : '',
             generalChecked: pType.includes('ທົ່ວໄປ') ? 'checked' : '',
             motorcycleChecked: (pType.includes('ລົດ') || pType.includes('ລົດຈັກ')) ? 'checked' : '',
+            
             customer: {
-                fullname: formData.customer.fullname || '________________',
-                dob: formatDate(formData.customer.dob),
-                age: formData.customer.age || '___',
-                occupation: formData.customer.occupation || '________________',
-                phone: formData.customer.phone || '________________',
+                fullname: formData.customer?.fullname || '________________',
+                dob: formatDate(formData.customer?.dob),
+                age: formData.customer?.age || '___',
+                occupation: formData.customer?.occupation || '________________',
+                phone: formData.customer?.phone || '________________',
                 address: {
-                    village: formData.customer.address.village || '____________',
-                    district: formData.customer.address.district || '____________',
-                    province: formData.customer.address.province || '____________'
+                    village: formData.customer?.address?.village || '____________',
+                    district: formData.customer?.address?.district || '____________',
+                    province: formData.customer?.address?.province || '____________'
                 },
-                idCard: formData.customer.idCard || '________________',
-                censusNo: formData.customer.censusNo || '________________',
-                unit: formData.customer.unit || '______',
-                issuePlace: formData.customer.issuePlace || '________________',
-                issueDate: formatDate(formData.customer.issueDate)
+                idCard: formData.customer?.idCard || '________________',
+                censusNo: formData.customer?.censusBook || '________________', // 🟢 ປ່ຽນຈາກ censusNo ເປັນ censusBook
+                unit: formData.customer?.unit || '______',
+                issuePlace: formData.customer?.censusAuthorizeBy || formData.customer?.idCardPlace || '________________', // 🟢 ປ່ຽນການດຶງສະຖານທີ່ອອກ
+                issueDate: formatDate(formData.customer?.idCardIssueDate) // 🟢 ປ່ຽນຈາກ issueDate ເປັນ idCardIssueDate
             },
+            
             work: {
-                companyName: formData.work.companyName || '________________',
+                companyName: formData.work?.companyName || '________________',
                 address: {
-                    village: formData.work.address.village || '____________',
-                    district: formData.work.address.district || '____________',
-                    province: formData.work.address.province || '____________'
+                    village: formData.work?.address?.village || '____________',
+                    district: formData.work?.address?.district || '____________',
+                    province: formData.work?.address?.province || '____________'
                 },
-                phone: formData.work.phone || '________________',
-                businessType: formData.work.businessType || '________________',
-                businessDetail: formData.work.businessDetail || '________________',
-                durationMonths: formData.work.durationMonths || '___',
-                durationYears: formData.work.durationYears || '___',
-                department: formData.work.department || '________________',
-                position: formData.work.position || '________________',
-                salary: formatCurrency(formData.work.salary)
+                phone: formData.work?.phone || '________________',
+                businessType: formData.work?.businessType || '________________',
+                businessDetail: formData.work?.businessDetail || '________________',
+                durationMonths: formData.work?.workMonths || '___', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງກັບ Frontend
+                durationYears: formData.work?.workYears || '___', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງກັບ Frontend
+                department: formData.work?.department || '________________',
+                position: formData.work?.position || '________________',
+                salary: formatCurrency(formData.work?.salary)
             },
+            
             product: {
                 type: formData.product?.type || formData.product?.type_name || formData.product?.productType?.type_name || '________________',
-                brand: formData.product.brand || '________________',
-                model: formData.product.model || '________________',
-                price: formatCurrency(formData.product.price),
-                downPayment: formatCurrency(formData.product.downPayment),
-                approvedAmount: formatCurrency(formData.product.approvedAmount),
-                loanTerm: formData.product.loanTerm || '___',
-                interestRate: formData.product.interestRate || '___',
-                totalInterest: formatCurrency(formData.product.totalInterest),
-                fee: formatCurrency(formData.product.fee),
-                firstInstallment: formatCurrency(formData.product.firstInstallment),
-                monthlyPayment: formatCurrency(formData.product.monthlyPayment),
-                paymentDay: formData.product.paymentDay || '___',
-                store: formData.product.store || '________________________________________________________'
+                brand: formData.product?.brand || '________________',
+                model: formData.product?.model || '________________',
+                price: formatCurrency(formData.product?.price),
+                downPayment: formatCurrency(formData.product?.downPayment),
+                approvedAmount: formatCurrency(formData.product?.approvedAmount),
+                loanTerm: formData.product?.loanTerm || '___',
+                interestRate: formData.product?.interestRate || '___',
+                totalInterest: formatCurrency(formData.product?.totalInterest),
+                fee: formatCurrency(formData.product?.fee),
+                firstInstallment: formatCurrency(formData.product?.firstInstallment),
+                monthlyPayment: formatCurrency(formData.product?.monthlyPayment),
+                paymentDay: formData.product?.paymentDay || '___',
+                store: formData.shop?.branch || formData.product?.store || '________________________________________________________' // 🟢 ດຶງສາຂາຮ້ານມາໃສ່
             },
+            
             hasGuarantor: formData.hasGuarantor || formData.hasReference,
             guarantorChecked: formData.hasGuarantor ? 'checked' : '',
             referenceChecked: formData.hasReference ? 'checked' : '',
+            
             guarantor: {
-                name: formData.guarantor?.name || '________________',
+                name: formData.guarantor?.fullname || '________________', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງ
                 dob: formatDate(formData.guarantor?.dob),
                 age: formData.guarantor?.age || '___',
                 occupation: formData.guarantor?.occupation || '________________',
@@ -138,20 +237,23 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
                     province: formData.guarantor?.address?.province || '____________'
                 },
                 idCard: formData.guarantor?.idCard || '________________',
-                parentChecked: formData.guarantor?.relationship === 'parent' ? 'checked' : '',
-                spouseChecked: formData.guarantor?.relationship === 'spouse' ? 'checked' : '',
-                otherChecked: formData.guarantor?.relationship === 'other' ? 'checked' : '',
-                relationshipOther: formData.guarantor?.relationshipOther || '',
+                
+                parentChecked: formData.guarantor?.relationship === 'ພໍ່' || formData.guarantor?.relationship === 'ແມ່' ? 'checked' : '',
+                spouseChecked: formData.guarantor?.relationship === 'ຜົວ' || formData.guarantor?.relationship === 'ເມຍ' ? 'checked' : '',
+                otherChecked: (formData.guarantor?.relationship && !['ພໍ່', 'ແມ່', 'ຜົວ', 'ເມຍ'].includes(formData.guarantor?.relationship)) ? 'checked' : '',
+                relationshipOther: (!['ພໍ່', 'ແມ່', 'ຜົວ', 'ເມຍ'].includes(formData.guarantor?.relationship)) ? formData.guarantor?.relationship : '',
+                
+                // 🟢 ແກ້ໄຂການດຶງຂໍ້ມູນວຽກຜູ້ຄ້ຳ ໃຫ້ດຶງຈາກ guarantorWork ໂດຍກົງ!
                 work: {
-                    companyName: formData.guarantor?.work?.companyName || '________________',
+                    companyName: formData.guarantorWork?.companyName || '________________',
                     address: {
-                        village: formData.guarantor?.work?.address?.village || '____________',
-                        district: formData.guarantor?.work?.address?.district || '____________',
-                        province: formData.guarantor?.work?.address?.province || '____________'
+                        village: formData.guarantorWork?.address?.village || '____________',
+                        district: formData.guarantorWork?.address?.district || '____________',
+                        province: formData.guarantorWork?.address?.province || '____________'
                     },
-                    position: formData.guarantor?.work?.position || '________________',
-                    phone: formData.guarantor?.work?.phone || '________________',
-                    salary: formatCurrency(formData.guarantor?.work?.salary)
+                    position: formData.guarantorWork?.position || '________________',
+                    phone: formData.guarantorWork?.phone || '________________',
+                    salary: formatCurrency(formData.guarantorWork?.salary)
                 }
             },
             signatures: {

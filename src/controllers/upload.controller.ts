@@ -523,15 +523,15 @@ class UploadController {
 
   async uploadApplicationDocument(req: Request, res: Response): Promise<void> {
     try {
-      UploadController.validateRequiredFields(req, ['application_id', 'doc_type']);
+      UploadController.validateRequiredFields(req, ['customerId', 'doc_type']);
 
-      const { application_id } = req.params;
+      const { customerId } = req.params;
       const { doc_type } = req.body;
 
       if (!req.file) throw new ValidationError('No file uploaded');
 
       const document = await documentService.uploadApplicationDocument({
-        application_id: parseInt(application_id),
+        customer_id: parseInt(customerId),
         doc_type: doc_type as DocumentType,
         original_filename: req.file.originalname,
         file_size: req.file.size,
@@ -553,11 +553,13 @@ class UploadController {
 
   async uploadMultipleDocuments(req: Request, res: Response): Promise<void> {
     try {
-      UploadController.validateRequiredFields(req, ['application_id']);
+      UploadController.validateRequiredFields(req, ['customerId']);
 
-      const { application_id } = req.params;
+      const { customerId } = req.params;
       const files = req.files as Express.Multer.File[];
       const { doc_types } = req.body;
+
+      const userId = req.userPayload?.userId!;
 
       if (!files?.length) throw new ValidationError('No files uploaded');
       if (!doc_types || !Array.isArray(doc_types) || doc_types.length !== files.length) {
@@ -572,7 +574,7 @@ class UploadController {
         doc_type: doc_types[index] as DocumentType
       }));
 
-      const results = await documentService.uploadMultipleDocuments(parseInt(application_id), documents);
+      const results = await documentService.uploadMultipleDocuments(parseInt(customerId), userId, documents);
 
       res.status(201).json({
         success: true,
