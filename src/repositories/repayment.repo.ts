@@ -230,19 +230,22 @@ class RepaymentRepository {
         try {
             const repayment = await db.repayments.findByPk(repaymentId, {
                 transaction,
-                lock: transaction ? transaction.LOCK.UPDATE : undefined // 🟢 เพิ่ม Lock เฉพาะตอนมี Transaction
+                lock: transaction ? transaction.LOCK.UPDATE : undefined 
             });
+            
             if (!repayment) {
                 logger.error(`Repayment with ID: ${repaymentId} not found`);
                 return null;
-
             }
+            
+            // ✅ จุดที่แก้: ใส่ { transaction } เข้าไป เพื่อให้มันทำงานในท่อเดียวกัน
             const updateRepayment = await repayment.update(data, {
-                where: { id: repaymentId },
-                returning: true
+                transaction // 🟢 สำคัญมาก ห้ามลืม!
             });
+            
             logger.info(`Repayment with ID: ${repaymentId} updated successfully`);
             return updateRepayment;
+            
         } catch (error) {
             logger.error(`Error updating repayment with ID: ${repaymentId} - ${(error as Error).message}`);
             throw error;
@@ -270,18 +273,54 @@ class RepaymentRepository {
         return await db.payment_transactions.create(data, { transaction });
     }
 
-    // 2. ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid'
-    async markAllRemainingAsPaid(applicationId: number, transaction?: any): Promise<any> {
-        return await db.repayments.update(
-            { payment_status: 'paid', paid_at: new Date() },
-            { 
-                where: { 
-                    application_id: applicationId, 
-                    payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } 
-                },
-                transaction 
-            }
-        );
+    // // 2. ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid'
+    // async markAllRemainingAsPaid(applicationId: number, transaction?: any): Promise<any> {
+    //     return await db.repayments.update(
+    //         { payment_status: 'paid', paid_at: new Date() },
+    //         { 
+    //             where: { 
+    //                 application_id: applicationId, 
+    //                 payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } 
+    //             },
+    //             transaction 
+    //         }
+    //     );
+    // }
+
+    // ==========================================
+    // ໃນໄຟລ໌ RepaymentRepository.ts (ເພີ່ມຟັງຊັນນີ້ແທນອັນເກົ່າ)
+    // ==========================================
+
+    // ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid' ພ້ອມຍັດຍອດເງິນ
+    async processEarlyPayoffSettlement(applicationId: number, transaction?: any): Promise<void> {
+        
+        // 1. ດຶງງວດທີ່ຍັງຄ້າງທັງໝົດ
+        const unpaidSchedules = await db.repayments.findAll({
+            where: { 
+                application_id: applicationId, 
+                payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } 
+            },
+            order: [['installment_no', 'ASC']],
+            lock: transaction ? transaction.LOCK.UPDATE : undefined,
+            transaction 
+        });
+
+        const now = new Date();
+
+        // 2. ວົນ Loop ອັບເດດຍອດເງິນທີ່ຄວນຈະຈ່າຍ ໃຫ້ເຕັມ
+        for (let i = 0; i < unpaidSchedules.length; i++) {
+            const sch = unpaidSchedules[i];
+            
+            // ສູດ Early Payoff: ດອກເບ້ຍເອົາສະເພາະງວດທຳອິດທີ່ຄ້າງ (i === 0), ງວດຖັດໄປດອກເບ້ຍເປັນ 0
+            const finalInterest = i === 0 ? Number(sch.interest_amount) : Number(sch.paid_interest || 0);
+
+            await sch.update({
+                paid_principal: Number(sch.principal_amount), // ຈ່າຍຕົ້ນທຶນເຕັມ
+                paid_interest: finalInterest,                 // ຈ່າຍດອກເບ້ຍຕາມສູດ
+                payment_status: 'paid',
+                paid_at: now
+            }, { transaction });
+        }
     }
 
     // 3. ອັບເດດສະຖານະຂອງສັນຍາ (ເຊັ່ນ: ປ່ຽນເປັນ 'completed' ຕອນປິດບັນຊີ)

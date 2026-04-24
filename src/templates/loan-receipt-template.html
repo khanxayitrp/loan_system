@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ໃບສະເຫນີຂໍປ່ອຍສິນຄ້າປະເພດສິນເຊື່ອເພື່ອການຊົມໃຊ້</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;700&display=swap" rel="stylesheet">
     <style>
         @font-face {
             font-family: 'Phetsarath OT';
@@ -17,7 +18,8 @@
         }
 
         body {
-            font-family: 'Phetsarath OT', sans-serif;
+            /* 🟢 2. ຕັ້ງຄ່າໃຫ້ໃຊ້ Noto Sans Lao ເປັນອັນດັບທຳອິດ */
+            font-family: 'Noto Sans Lao', 'Phetsarath OT', sans-serif;
             font-size: 13px;
             color: var(--text-color);
             line-height: 1.4;
@@ -90,13 +92,12 @@
             text-align: center;
         }
 
-        /* 🟢 ສ່ວນທີ່ປັບປຸງເພື່ອແກ້ບັນຫາຕາຕະລາງແຕກ ແລະ ເສັ້ນຊອດອອກນອກກອບ */
         table.form-grid {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10px;
-            table-layout: fixed; /* ບັງຄັບຄວາມກວ້າງໃຫ້ຕາຍຕົວ */
-            page-break-inside: avoid; /* ປ້ອງກັນບໍ່ໃຫ້ຕາຕະລາງຂາດເຄິ່ງໜ້າ */
+            table-layout: fixed; 
+            page-break-inside: avoid; 
         }
         table.form-grid th,
         table.form-grid td {
@@ -104,10 +105,9 @@
             padding: 4px 6px;
             vertical-align: middle;
             font-size: 13px;
-            /* 🟢 3 ບັນທັດນີ້ຄືຫົວໃຈຫຼັກໃນການແກ້ບັນຫາ */
-            white-space: nowrap; /* ຫ້າມຂໍ້ຄວາມຕົກແຖວ (ໃຫ້ຢູ່ແຖວດຽວສະເໝີ) */
-            overflow: hidden; /* ເຊື່ອງສ່ວນທີ່ຍາວເກີນກອບ (ເຊັ່ນ ເສັ້ນ _____ ຍາວໆ) */
-            text-overflow: clip; /* ຕັດສ່ວນທີ່ເກີນຖິ້ມໄປແບບນຽນໆ */
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: clip; 
         }
         .td-label {
             font-weight: bold;

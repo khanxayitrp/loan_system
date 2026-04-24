@@ -6,9 +6,9 @@ import handlebars from 'handlebars';
 import redisService from '../services/redis.service'; // 🟢 1. Import Redis
 import { db } from '../models/init-models'; // 🟢 2. Import DB Models
 import { generatePdfBufferFromData } from '../services/pdf.service';
-import { 
-    formatDate, formatCurrency, mapGender, 
-    mapMaritalStatus, mapResidenceStatus, getProductTypeName 
+import {
+    formatDate, formatCurrency, mapGender,
+    mapMaritalStatus, mapResidenceStatus, getProductTypeName
 } from '../utils/formatters';
 
 export const generateLoanPDF = async (req: Request, res: Response) => {
@@ -47,8 +47,14 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
         const logoUrl = `file://${logoPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
 
         // ✅ 3. หา Path ของไฟล์ฟ้อนต์
-        const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
-        const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
+        // ປ່ຽນເປັນ:
+        const fontPath = path.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
+        // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
+        const fontBase64 = fs.existsSync(fontPath) ? fs.readFileSync(fontPath, 'base64') : '';
+        // 🟢 ສ້າງ Data URI ສຳລັບ Font
+        const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
 
         if (!fs.existsSync(logoPath)) console.error('❌ Logo file not found at:', logoPath);
         if (!fs.existsSync(fontPath)) console.error('❌ Font file not found at:', fontPath);
@@ -60,9 +66,9 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
 
         // ✅ 5. Compile Template
         const templateCompiled = handlebars.compile(htmlContent);
-        
+
         const pType = formData.product?.type || ''; // ดึงค่าประเภทสินค้ามาเก็บไว้ก่อน
-        
+
         // ✅ 6. เตรียม Data
         // const data = {
         //     onlineChecked: 'checked',
@@ -168,7 +174,7 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
             goldChecked: pType.includes('ຄຳ') ? 'checked' : '',
             generalChecked: pType.includes('ທົ່ວໄປ') ? 'checked' : '',
             motorcycleChecked: (pType.includes('ລົດ') || pType.includes('ລົດຈັກ')) ? 'checked' : '',
-            
+
             customer: {
                 fullname: formData.customer?.fullname || '________________',
                 dob: formatDate(formData.customer?.dob),
@@ -186,7 +192,7 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
                 issuePlace: formData.customer?.censusAuthorizeBy || formData.customer?.idCardPlace || '________________', // 🟢 ປ່ຽນການດຶງສະຖານທີ່ອອກ
                 issueDate: formatDate(formData.customer?.idCardIssueDate) // 🟢 ປ່ຽນຈາກ issueDate ເປັນ idCardIssueDate
             },
-            
+
             work: {
                 companyName: formData.work?.companyName || '________________',
                 address: {
@@ -203,7 +209,7 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
                 position: formData.work?.position || '________________',
                 salary: formatCurrency(formData.work?.salary)
             },
-            
+
             product: {
                 type: formData.product?.type || formData.product?.type_name || formData.product?.productType?.type_name || '________________',
                 brand: formData.product?.brand || '________________',
@@ -220,11 +226,11 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
                 paymentDay: formData.product?.paymentDay || '___',
                 store: formData.shop?.branch || formData.product?.store || '________________________________________________________' // 🟢 ດຶງສາຂາຮ້ານມາໃສ່
             },
-            
+
             hasGuarantor: formData.hasGuarantor || formData.hasReference,
             guarantorChecked: formData.hasGuarantor ? 'checked' : '',
             referenceChecked: formData.hasReference ? 'checked' : '',
-            
+
             guarantor: {
                 name: formData.guarantor?.fullname || '________________', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງ
                 dob: formatDate(formData.guarantor?.dob),
@@ -237,12 +243,12 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
                     province: formData.guarantor?.address?.province || '____________'
                 },
                 idCard: formData.guarantor?.idCard || '________________',
-                
+
                 parentChecked: formData.guarantor?.relationship === 'ພໍ່' || formData.guarantor?.relationship === 'ແມ່' ? 'checked' : '',
                 spouseChecked: formData.guarantor?.relationship === 'ຜົວ' || formData.guarantor?.relationship === 'ເມຍ' ? 'checked' : '',
                 otherChecked: (formData.guarantor?.relationship && !['ພໍ່', 'ແມ່', 'ຜົວ', 'ເມຍ'].includes(formData.guarantor?.relationship)) ? 'checked' : '',
                 relationshipOther: (!['ພໍ່', 'ແມ່', 'ຜົວ', 'ເມຍ'].includes(formData.guarantor?.relationship)) ? formData.guarantor?.relationship : '',
-                
+
                 // 🟢 ແກ້ໄຂການດຶງຂໍ້ມູນວຽກຜູ້ຄ້ຳ ໃຫ້ດຶງຈາກ guarantorWork ໂດຍກົງ!
                 work: {
                     companyName: formData.guarantorWork?.companyName || '________________',
@@ -275,7 +281,8 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
                 '--font-render-hinting=none',
                 '--disable-web-security',
                 '--allow-file-access-from-files',
-                '--allow-file-access'
+                '--allow-file-access',
+                '--lang=lo-LA,en-US'
             ]
         });
 
@@ -341,12 +348,12 @@ export const getCustomerLoanContractPDF = async (req: Request, res: Response) =>
 
         // 2. Fetch Data from Database
         // สมมติใช้ ORM ดึงข้อมูลจากตาราง loan_contract
-        const contractDataFromDB = await db.loan_contract.findOne({ 
+        const contractDataFromDB = await db.loan_contract.findOne({
             where: { id: contractId, loan_id: loanId },
             include: [
-                { model: db.product_types, as: 'producttype', attributes: ['id','type_name'] }, 
+                { model: db.product_types, as: 'producttype', attributes: ['id', 'type_name'] },
             ],
-                raw: true, nest: true
+            raw: true, nest: true
         });
 
         if (!contractDataFromDB) {
@@ -379,10 +386,10 @@ export const getCustomerLoanContractPDF = async (req: Request, res: Response) =>
             cusIdCard: dbData.cus_id_pass_number || '________________',
             cusIdIssueDate: formatDate(dbData.cus_id_pass_date),
             cusCensus: dbData.cus_census_number || '________________',
-            cusIssuePlace: dbData.cus_census_authorize_by || '________________', 
+            cusIssuePlace: dbData.cus_census_authorize_by || '________________',
             cusHouseNo: dbData.cus_house_number || '_____',
             cusUnit: dbData.cus_unit ? String(dbData.cus_unit) : '_____',
-            cusVillage: dbData.cus_address || '________________', 
+            cusVillage: dbData.cus_address || '________________',
             cusLivedYears: dbData.cus_lived_year ? String(dbData.cus_lived_year) : '___',
             cusLiveWith: dbData.cus_lived_with || '________________',
             cusResStatus: mapResidenceStatus(dbData.cus_lived_situation), // ใช้ Helper ของคุณ
@@ -414,7 +421,7 @@ export const getCustomerLoanContractPDF = async (req: Request, res: Response) =>
             prodMonthly: formatCurrency(dbData.monthly_pay),
             prodFirstInst: formatCurrency(dbData.first_installment_amount),
             prodPayDay: dbData.payment_day ? String(dbData.payment_day) : '___',
-            
+
             // -- ข้อมูลรถจักรยานยนต์ --
             isMotorcycle: dbData.producttype_id === 3,
             motorId: dbData.motor_id || '________________',
@@ -429,7 +436,7 @@ export const getCustomerLoanContractPDF = async (req: Request, res: Response) =>
             // -- ผู้ค้ำประกัน (Guarantor / Reference) --
             hasGuarantor: !!dbData.ref_name,
             checkGuarantor: !!dbData.ref_name ? 'checked' : '',
-            
+
             guaName: dbData.ref_name || '________________',
             guaDob: formatDate(dbData.ref_date_of_birth),
             guaPhone: dbData.ref_phone || '________________',
@@ -510,8 +517,13 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
         const logoPath = path.resolve(__dirname, '../../public/image/LOGO INSEE.png');
         const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath, 'base64') : '';
         const logoDataUri = logoBase64 ? `data:image/png;base64,${logoBase64}` : '';
-        const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
-        const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
+        const fontPath = path.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
+        // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
+        const fontBase64 = fs.existsSync(fontPath) ? fs.readFileSync(fontPath, 'base64') : '';
+        // 🟢 ສ້າງ Data URI ສຳລັບ Font
+        const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
 
         let htmlContent = templateSource;
         htmlContent = htmlContent.replace('{{logoPath}}', logoDataUri);
@@ -538,7 +550,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             cusIdIssueDate: formatDate(formData.customer?.idCardIssueDate),
             cusCensus: formData.customer?.censusBook || '________________',
             cusIdExpiryDate: formatDate(formData.customer?.idCardExpiryDate),
-            cusIssuePlace: formData.customer?.censusAuthorizeBy || '________________', 
+            cusIssuePlace: formData.customer?.censusAuthorizeBy || '________________',
             cusHouseNo: formData.customer?.houseNumber || '_____',
             cusUnit: formData.customer?.unit || '_____',
             cusVillage: formData.customer?.address?.village || '________________',
@@ -575,7 +587,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             prodMonthly: formatCurrency(formData.product?.monthlyPayment),
             prodFirstInst: formatCurrency(formData.product?.firstInstallment),
             prodPayDay: formData.product?.paymentDay || '___',
-            
+
             isMotorcycle: formData.productType?.motorcycle,
             motorId: formData.product?.motorcycle?.motorId || '________________',
             motorColor: formData.product?.motorcycle?.motorColor || '________________',
@@ -590,7 +602,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             hasGuarantor: formData.hasGuarantor || formData.hasReference,
             checkGuarantor: formData.hasGuarantor ? 'checked' : '',
             checkReference: formData.hasReference ? 'checked' : '',
-            
+
             guaName: formData.guarantor?.fullname || '________________',
             guaDob: formatDate(formData.guarantor?.dob),
             guaPhone: formData.guarantor?.phone || '________________',
@@ -633,7 +645,8 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             args: [
                 '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                 '--font-render-hinting=none', '--disable-web-security',
-                '--allow-file-access-from-files', '--allow-file-access'
+                '--allow-file-access-from-files', '--allow-file-access',
+                '--lang=lo-LA,en-US'
             ]
         });
 
@@ -703,8 +716,13 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
         if (!fs.existsSync(templatePath)) throw new Error(`Template file not found at: ${templatePath}`);
         const templateSource = fs.readFileSync(templatePath, 'utf-8');
 
-        const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
-        const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
+        const fontPath = path.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
+        // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
+        const fontBase64 = fs.existsSync(fontPath) ? fs.readFileSync(fontPath, 'base64') : '';
+        // 🟢 ສ້າງ Data URI ສຳລັບ Font
+        const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
 
         let htmlContent = templateSource.replace('{{fontPath}}', fontUrl);
 
@@ -712,7 +730,7 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
         // 🟢 2. ໂຫຼດຮູບ QR Code ແປງເປັນ Base64
         // =========================================================
         // ໝາຍເຫດ: ປັບ path ໃຫ້ກົງກັບທີ່ຢູ່ຈິງຂອງໂຟນເດີ public ຂອງທ່ານ
-        const qrPath = path.resolve(__dirname, '../../public/image/qr_code.jpeg'); 
+        const qrPath = path.resolve(__dirname, '../../public/image/qr_code.jpeg');
         let qrCodeBase64 = '';
         if (fs.existsSync(qrPath)) {
             const qrBuffer = fs.readFileSync(qrPath);
@@ -728,13 +746,13 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
             customerName: `${loanData.customer?.first_name || ''} ${loanData.customer?.last_name || ''}`.trim() || '________________',
             customerAddress: loanData.customer?.address || '________________',
             customerPhone: loanData.customer?.phone || '________________',
-            
+
             productPrice: formatCurrency(loanData.product?.price || loanData.total_amount),
             downPayment: formatCurrency(loanData.down_payment),
             approvedAmount: formatCurrency(Number(loanData.total_amount) - Number(loanData.down_payment || 0)),
             interestRate: loanData.interest_rate_at_apply,
             interestRateType: loanData.interest_rate_type === 'yearly' ? '(ຕໍ່ປີ)' : '(ຕໍ່ເດືອນ)',
-            
+
             startDate: formatDate(scheduleRows.length > 0 ? scheduleRows[0].due_date : null),
             endDate: formatDate(scheduleRows.length > 0 ? scheduleRows[scheduleRows.length - 1].due_date : null),
             paymentDay: loanData.payment_day || '___',
@@ -752,9 +770,9 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
             totalPrincipal: formatCurrency(totals.principal),
             totalInterest: formatCurrency(totals.interest),
             totalAmount: formatCurrency(totals.amount),
-            
+
             // 🟢 ສົ່ງ Base64 ຂອງ QR Code ໄປໃຫ້ HTML Template ໃຊ້ງານ
-            qrCodeBase64: qrCodeBase64 
+            qrCodeBase64: qrCodeBase64
         };
 
         const templateCompiled = handlebars.compile(htmlContent);
@@ -765,7 +783,8 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
             args: [
                 '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                 '--font-render-hinting=none', '--disable-web-security',
-                '--allow-file-access-from-files', '--allow-file-access'
+                '--allow-file-access-from-files', '--allow-file-access',
+                '--lang=lo-LA,en-US'
             ]
         });
 
@@ -784,7 +803,7 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
             preferCSSPageSize: true
         });
         const pdfBuffer = Buffer.from(rawPdf);
-        
+
         console.log('✅ Schedule PDF generated successfully');
 
         // =========================================================
@@ -832,7 +851,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         // =========================================================
 
         console.log('📄 Generating Delivery Receipt PDF for receipt:', receiptId);
-        
+
         const templatePath = path.join(__dirname, '../templates/loan-receipt-template.html');
         if (!fs.existsSync(templatePath)) throw new Error(`Template file not found at: ${templatePath}`);
         const templateSource = fs.readFileSync(templatePath, 'utf-8');
@@ -840,9 +859,14 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const logoPath = path.resolve(__dirname, '../../public/image/LOGO INSEE.png');
         const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath, 'base64') : '';
         const logoDataUri = logoBase64 ? `data:image/png;base64,${logoBase64}` : '';
-        
-        const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
-        const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+
+        // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
+        const fontPath = path.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
+        // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
+        const fontBase64 = fs.existsSync(fontPath) ? fs.readFileSync(fontPath, 'base64') : '';
+        // 🟢 ສ້າງ Data URI ສຳລັບ Font
+        const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
 
         let htmlContent = templateSource;
         htmlContent = htmlContent.replace(/{{logoPath}}/g, logoDataUri);
@@ -887,7 +911,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const approvedAmount = price - downPayment;
         const term = Number(loanData?.loan_period || 0);
         const monthlyPay = Number(loanData?.monthly_pay || 0);
-        const totalInterest = (monthlyPay * term) - approvedAmount; 
+        const totalInterest = (monthlyPay * term) - approvedAmount;
 
         const pType = String(product.productType_id || product.product_type?.name || product.type || '');
         const isGold = pType.toLowerCase().includes('gold') || pType.includes('ຄຳ') || pType === '1';
@@ -900,8 +924,8 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             contractDay: String(today.getDate()).padStart(2, '0'),
             contractMonth: String(today.getMonth() + 1).padStart(2, '0'),
             contractYear: String(today.getFullYear()),
-            
-            checkGold: isGold ? '✔' : '', 
+
+            checkGold: isGold ? '✔' : '',
             checkMotorcycle: isMoto ? '✔' : '',
             checkGeneral: isGen ? '✔' : '',
 
@@ -914,7 +938,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             cusProvince: getVal(cusAddr.province, '____________'),
 
             workName: getVal(workInfo.company_name || workInfo.companyName),
-            workVillage: getVal(workAddr.village, '____________'), 
+            workVillage: getVal(workAddr.village, '____________'),
             workDistrict: getVal(workAddr.district, '____________'),
             workProvince: getVal(workAddr.province, '____________'),
             workDepartment: getVal(workInfo.department),
@@ -923,7 +947,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             workSalary: getVal(formatCurrency(workInfo.salary || customer.income_per_month)),
 
             prodDesc: getVal(product.product_name),
-            prodType: getVal(isGold ? 'ສິນຄ້າຄຳ' : isMoto ? 'ສິນຄ້າລົດຈັກ' : 'ສິນຄ້າທົ່ວໄປ'), 
+            prodType: getVal(isGold ? 'ສິນຄ້າຄຳ' : isMoto ? 'ສິນຄ້າລົດຈັກ' : 'ສິນຄ້າທົ່ວໄປ'),
             prodBrand: getVal(product.brand),
             prodModel: getVal(product.model),
             prodPrice: getVal(formatCurrency(price)),
@@ -948,7 +972,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             guaVillage: getVal(guaAddr.village, '____________'),
             guaDistrict: getVal(guaAddr.district, '____________'),
             guaProvince: getVal(guaAddr.province, '____________'),
-            
+
             guaWorkName: getVal(guarantorWork.company_name),
             guaWorkVillage: getVal(guaWorkAddr.village, '____________'),
             guaWorkDistrict: getVal(guaWorkAddr.district, '____________'),
@@ -968,7 +992,9 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             args: [
                 '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                 '--font-render-hinting=none', '--disable-web-security',
-                '--allow-file-access-from-files', '--allow-file-access'
+                '--allow-file-access-from-files', '--allow-file-access',
+                '--lang=lo-LA,en-US'
+
             ]
         });
 

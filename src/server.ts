@@ -5,6 +5,8 @@ import app from "./app";
 import PortService from "./services/Port.Service";
 import redisService from "./services/redis.service";
 import { createUploadDirectories } from "./utils/createUploadsDir";
+import DailyTrackingService from './services/DailyTrackingService';
+import ReminderCronService from "./services/ReminderCronService";
 
 class ServerApp {
   private httpServer: HttpServer;
@@ -26,6 +28,11 @@ class ServerApp {
       await this.initializeRedis();
 
       await createUploadDirectories();
+
+      // 🟢 ເປີດນຳໃຊ້ລະບົບ Tracking ອັດຕະໂນມັດ 🟢
+       DailyTrackingService.startCronJob(); 
+
+       ReminderCronService.startCronJob();
 
       // Start the HTTP server
       this.startServer();

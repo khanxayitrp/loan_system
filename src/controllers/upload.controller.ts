@@ -486,6 +486,7 @@ import { FILE_UPLOAD_CONFIG, DocumentType, UploadedFile } from '../types/file.ty
 import { logger } from '../utils/logger';
 import { ValidationError, ForbiddenError, handleErrorResponse } from '../utils/errors';
 import { db } from '../models/init-models'; // 🌟 Import DB สำหรับค้นหาไฟล์เก่า
+import repaymentService from '../services/repayment.service';
 
 class UploadController {
   private async handleFileUploadResponse(
@@ -879,6 +880,7 @@ class UploadController {
       if (!req.file) throw new ValidationError('No file uploaded');
 
       const { transaction_id } = req.params;
+        const userId = req.user?.id || 1; // 🌟 ดึง ID คนทำรายการเพื่อเก็บ Audit
 
       // 🟢 1. เช็คสลิปการโอนเก่า (ถ้ามี)
       const transaction = await db.payment_transactions.findByPk(transaction_id);
@@ -891,7 +893,7 @@ class UploadController {
         `payment_${transaction_id}_${Date.now()}`
       );
 
-      if (!result.success) throw new ValidationError(result.error || 'Failed to upload payment proof');
+      if (!result.success || !result.fileUrl) throw new ValidationError(result.error || 'Failed to upload payment proof');
 
       // 🟢 3. ลบสลิปเก่าออก (หากเป็นการอัปโหลดเพื่อแก้ไขสลิปเดิม)
       if (oldProofUrl) {
@@ -899,6 +901,9 @@ class UploadController {
           logger.warn(`Failed to delete old payment proof: ${oldProofUrl}`, err)
         );
       }
+
+      // 🌟 4. [ใหม่] เอา URL ไปอัปเดตลง Database ทันที!
+        await repaymentService.updateProofUrl(Number(transaction_id), result.fileUrl, userId);
 
       res.status(201).json({
         success: true,

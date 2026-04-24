@@ -18,13 +18,15 @@ export interface repaymentsAttributes {
   remaining_principal: number;
   paid_principal?: number;
   paid_interest?: number;
+  paid_penalty?: number;
   payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
   paid_at?: Date;
+  last_penalty_date?: string;
 }
 
 export type repaymentsPk = "id";
 export type repaymentsId = repayments[repaymentsPk];
-export type repaymentsOptionalAttributes = "id" | "discounts" | "penalty" | "paid_principal" | "paid_interest" | "payment_status" | "paid_at";
+export type repaymentsOptionalAttributes = "id" | "discounts" | "penalty" | "paid_principal" | "paid_interest" | "paid_penalty" | "payment_status" | "paid_at" | "last_penalty_date";
 export type repaymentsCreationAttributes = Optional<repaymentsAttributes, repaymentsOptionalAttributes>;
 
 export class repayments extends Model<repaymentsAttributes, repaymentsCreationAttributes> implements repaymentsAttributes {
@@ -41,8 +43,10 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
   remaining_principal!: number;
   paid_principal?: number;
   paid_interest?: number;
+  paid_penalty?: number;
   payment_status?: 'unpaid' | 'partial' | 'paid' | 'overdue';
   paid_at?: Date;
+  last_penalty_date?: string;
 
   // repayments belongsTo loan_applications via application_id
   application!: loan_applications;
@@ -137,6 +141,12 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
       defaultValue: 0.00,
       comment: "ยอดสะสมที่ตัดดอกเบี้ยไปแล้วในงวดนี้"
     },
+    paid_penalty: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true,
+      defaultValue: 0.00,
+      comment: "ยอดสะสมที่ตัดค่าปรับไปแล้วในงวดนี้"
+    },
     payment_status: {
       type: DataTypes.ENUM('unpaid','partial','paid','overdue'),
       allowNull: true,
@@ -145,6 +155,11 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
     paid_at: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    last_penalty_date: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+      comment: "วันที่ระบบคิดค่าปรับล่าสุด"
     }
   }, {
     sequelize,

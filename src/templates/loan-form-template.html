@@ -5,17 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ໃບສະເໜີຂໍກູ້ຢືມ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;700&display=swap" rel="stylesheet">
     <style>
         @font-face {
             font-family: 'Phetsarath OT';
             src: url('{{fontPath}}') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        }
-
-        @font-face {
-            font-family: 'Noto Sans Lao';
-            src: url('https://fonts.gstatic.com/s/notosanslao/v20/NoATjA4kPjFf-vfZ5v5X.woff2') format('woff2');
             font-weight: normal;
             font-style: normal;
         }
@@ -29,7 +23,8 @@
         }
 
         body {
-            font-family: 'Phetsarath OT', 'Noto Sans Lao', sans-serif;
+            /* 🟢 2. ຕັ້ງຄ່າໃຫ້ໃຊ້ Noto Sans Lao ເປັນອັນດັບທຳອິດ */
+            font-family: 'Noto Sans Lao', 'Phetsarath OT', sans-serif;
             font-size: 11pt;
             line-height: 1.5;
             padding: 15mm;
@@ -306,24 +301,20 @@
 </head>
 
 <body>
-    <!-- ✅ Header - โลโก้ซ้าย ข้อความกลาง -->
     <div class="header">
-        <img src="{{logoPath}}" alt="ສັນຍາລັກ" class="emblem" />
+        <img src="{{logoPath}}" alt="ສັນຍາລັກ" class="emblem" onerror="this.style.display='none'" />
         <div class="header-text">
-            <!-- ✅ ทั้งสองบรรทัดขนาดเท่ากัน ระยะห่างน้อย -->
             <h2>ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</h2>
             <p>ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</p>
         </div>
     </div>
 
-    <!-- Form Title -->
     <h1 class="form-title">ໃບສະເໜີຂໍກູ້ຢືມ ປະເພດສິນເຊື່ອ ເພື່ອການ ຊົມໃຊ້</h1>
     <h3 class="form-subtitle">
         <span class="checkbox {{onlineChecked}} checkbox-inline"></span> ອອນລາຍ &nbsp;&nbsp;
         <span class="checkbox {{offlineChecked}} checkbox-inline"></span> ອ໋ອບລາຍ
     </h3>
 
-    <!-- Recipient -->
     <div class="recipient">
         <p><strong>ຮຽນ:</strong> ທ່ານຄະນະອຳນວຍການ ສະຖາບັນການເງິນຈຸລະພາກ ທີ່ ບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ</p>
         <p>
@@ -334,7 +325,6 @@
         </p>
     </div>
 
-    <!-- Section I: Customer -->
     <section class="section">
         <h3 class="section-title">I. ຂໍ້ມູນລູກຄ້າ:</h3>
         <div class="section-content">
@@ -381,7 +371,6 @@
         </div>
     </section>
 
-    <!-- Section II: Work -->
     <section class="section">
         <h3 class="section-title">II. ຂໍ້ມູນບ່ອນເຮັດວຽກ:</h3>
         <div class="section-content">
@@ -428,7 +417,6 @@
         </div>
     </section>
 
-    <!-- Section III: Product -->
     <section class="section">
         <h3 class="section-title">III. ລາຍລະອຽດສິນຄ້າ:</h3>
         <table class="product-table">
@@ -479,7 +467,6 @@
         </table>
     </section>
 
-    <!-- Section IV: Guarantor -->
     <section class="section">
         <h3 class="section-title">
             IV. ຂໍ້ມູນສ່ວນຕົວຂອງ &nbsp;
@@ -558,7 +545,6 @@
         {{/if}}
     </section>
 
-    <!-- Consent -->
     <div class="consent">
         <p>
             <strong>ໝາຍເຫດ:</strong> ຂ້າພະເຈົ້າ, ຜູ້ກູ້ ແລະ/ຫລື ຜູ້ຄ້ຳປະກັນ (ຖ້າມີ),
@@ -567,10 +553,8 @@
         </p>
     </div>
 
-    <!-- Conclusion -->
     <p class="conclusion">ດັ່ງນັ້ນ, ຈື່ງສະເໜີມາຍັງທ່ານພິຈາລະນາຕາມທາງຄວນດ້ວຍ</p>
 
-    <!-- Signatures -->
     <div class="signatures">
         <div class="signature-box">
             <p class="signature-title">ເຊັນຜູ້ຂໍກູ້ (ລູກຄ້າ):</p>
@@ -589,7 +573,6 @@
         </div>
     </div>
 
-    <!-- ✅ Footer - พื้นหลังสีแดง ตัวหนังสือสีขาว -->
     <div class="footer">
         <p>
             <strong>ສະຖາບັນການເງິນ ຈຸລະພາກບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ</strong><br />
