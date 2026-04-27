@@ -36,7 +36,7 @@ export interface loan_applicationsAttributes {
   interest_rate_type: 'monthly' | 'yearly';
   monthly_pay: number;
   is_confirmed?: number;
-  status?: 'pending' | 'verifying' | 'verified' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
+  status?: 'pending' | 'verifying' | 'verified' | 'approved' | 'disbursed' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
   requester_id?: number;
   approver_id?: number;
   applied_at?: Date;
@@ -73,7 +73,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   interest_rate_type!: 'monthly' | 'yearly';
   monthly_pay!: number;
   is_confirmed?: number;
-  status?: 'pending' | 'verifying' | 'verified' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
+  status?: 'pending' | 'verifying' | 'verified' | 'approved' | 'disbursed' | 'rejected' | 'cancelled' | 'completed' | 'closed_early';
   requester_id?: number;
   approver_id?: number;
   applied_at?: Date;
@@ -374,7 +374,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       defaultValue: 0
     },
     status: {
-      type: DataTypes.ENUM('pending','verifying','verified','approved','rejected','cancelled','completed','closed_early'),
+      type: DataTypes.ENUM('pending','verifying','verified','approved','disbursed','rejected','cancelled','completed','closed_early'),
       allowNull: true,
       defaultValue: "pending"
     },

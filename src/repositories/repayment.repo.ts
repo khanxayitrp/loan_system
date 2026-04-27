@@ -330,6 +330,65 @@ class RepaymentRepository {
             { where: { id: applicationId }, transaction }
         );
     }
+
+    // ==========================================
+    // 🟢 อนุมัติและปล่อยสินเชื่อ (ปรับวันที่ชำระเงิน และเปลี่ยนสถานะ)
+    // ==========================================
+    async approveAndDisburseLoan(applicationId: number, adminId: number, actualDisburseDate: Date, transaction?: any): Promise<boolean> {
+        try {
+            // 1. หาตารางผ่อนชำระที่เป็นฉบับร่าง (Draft)
+            const schedule = await db.repayment_schedules.findOne({
+                where: { application_id: applicationId, status: 'draft' },
+                transaction,
+                lock: transaction ? transaction.LOCK.UPDATE : undefined
+            });
+
+            if (!schedule) {
+                throw new Error('ບໍ່ພົບຕາຕະລາງຮ່າງ (Draft Schedule not found)');
+            }
+
+            // 2. ดึงงวดทั้งหมดที่ผูกกับตารางนี้
+            const repayments = await db.repayments.findAll({
+                where: { schedule_id: schedule.id },
+                order: [['installment_no', 'ASC']],
+                transaction,
+                lock: transaction ? transaction.LOCK.UPDATE : undefined
+            });
+
+            // 3. ⚖️ เลื่อนวันที่จ่ายเงิน (Shift Due Dates) ตามวันที่รับเงินจริง
+            let nextDueDate = new Date(actualDisburseDate);
+
+            for (const installment of repayments) {
+                nextDueDate.setMonth(nextDueDate.getMonth() + 1); // บวกทีละ 1 เดือน
+
+                await installment.update({
+                    due_date: nextDueDate.toISOString().split('T')[0],
+                    payment_status: 'unpaid' // เปลี่ยนจากร่าง เป็นรอชำระเงิน
+                }, { transaction });
+            }
+
+            const oldScheduleData = schedule.toJSON();
+
+            // 4. อัปเดต Header ของตารางให้เป็น 'approved' (ตารางผ่อนถูกใช้งานจริงแล้ว)
+            await schedule.update({
+                status: 'approved',
+                approved_by: adminId,
+                approved_at: new Date()
+            }, { transaction });
+
+            await logAudit('repayment_schedules', applicationId, 'UPDATE', oldScheduleData, schedule.toJSON(), adminId, transaction);
+
+            // 5. 🎯 🟢 อัปเดตสถานะของ Loan Application ให้เป็น 'disbursed'
+            // (เป็นการบอกว่าใบคำขอนี้ ลูกค้ารับเงิน/รับของไปเรียบร้อยแล้ว)
+            await this.updateLoanStatus(applicationId, 'disbursed', transaction);
+
+            return true;
+
+        } catch (error) {
+            logger.error(`Error in approveAndDisburseLoan: ${(error as Error).message}`);
+            throw error;
+        }
+    }
 }
 
 export default new RepaymentRepository();

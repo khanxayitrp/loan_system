@@ -2,6 +2,7 @@ import { delivery_receipts, delivery_receiptsAttributes, delivery_receiptsCreati
 import { db } from '../models/init-models';
 import { logger } from '../utils/logger';
 import { Op } from 'sequelize';
+import RepaymentRepository from './repayment.repo';
 
 // 🟢 ສົມມຸດວ່າທ່ານມີ Helper Function ສຳລັບ Audit Log (ຖ້າບໍ່ມີໃຫ້ໃຊ້ db.audit_logs.create ໂດຍກົງ)
 import { logAudit } from '../utils/auditLogger';
@@ -311,7 +312,25 @@ class DeliveryReceiptRepository {
                 }, { transaction });
             }
 
-            // 9. ຈົບ Transaction (ຖ້າບໍ່ມີການສົ່ງມາຈາກຂ້າງນອກ)
+            // ==========================================
+            // 🌟 🟢 9. เติมเต็ม Flow: ถ้ารับของแล้ว ให้เริ่มคิดหนี้ทันที! (Disbursement)
+            // ==========================================
+            if (oldData.status !== 'approved' && receipts_status === 'approved') {
+                logger.info(`Triggering Disbursement for Application ID: ${updatedDeliveryReceipt.application_id}`);
+                
+                // ใช้ delivery_date เป็นวันรับของ/รับเงินจริง (Actual Disburse Date)
+                const actualDisburseDate = new Date(updatedDeliveryReceipt.delivery_date);
+
+                // เรียกใช้ฟังก์ชันเลื่อนวันที่ผ่อน และเปลี่ยนสถานะใบคำขอ
+                await RepaymentRepository.approveAndDisburseLoan(
+                    updatedDeliveryReceipt.application_id, 
+                    performedBy, 
+                    actualDisburseDate, 
+                    transaction // 🟢 ส่ง Transaction ไปด้วย เพื่อมัดรวมให้อยู่ในก้อนเดียวกัน
+                );
+            }
+
+            // 10. ຈົບ Transaction (ຖ້າບໍ່ມີການສົ່ງມາຈາກຂ້າງນອກ)
             if (!options.transaction) {
                 await transaction.commit();
             }
