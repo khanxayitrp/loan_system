@@ -3,6 +3,7 @@ import { db } from '../models/init-models';
 import { Op } from 'sequelize';
 import { logger } from '../utils/logger';
 import { logAudit } from '../utils/auditLogger';
+import redisService from './redis.service';
 
 class DailyTrackingService {
 
@@ -10,7 +11,20 @@ class DailyTrackingService {
     private readonly SYSTEM_USER_ID = 1;
 
     public async processDailyPenalties() {
-        const today = new Date();
+
+        const LOCK_KEY = 'lock:cron:daily_penalties';
+        const LOCK_TIMEOUT = 3600; // Lock ໄວ້ 1 ຊົ່ວໂມງ
+
+        try {
+            // 🔐 1. ຍາດເອົາ Lock ຜ່ານ Redis (NX + EX)
+            await redisService.connect();
+            const acquired = await redisService.setLock(LOCK_KEY, 'processing', LOCK_TIMEOUT);
+
+            if (!acquired) {
+                logger.info(`[Daily Batch] 🚫 Skip: Another server is already processing penalties.`);
+                return;
+            }
+            const today = new Date();
         today.setHours(0, 0, 0, 0); // ตั้งค่าเวลาเป็นเที่ยงคืนเป๊ะของวันนี้
 
         logger.info(`[Daily Batch] Start scanning for overdue schedules...`);
@@ -145,6 +159,11 @@ class DailyTrackingService {
         }
 
         logger.info(`[Daily Batch] Completed. Successfully updated ${totalUpdated} schedules.`);
+        } catch (error) {
+            logger.warn(`[Daily Batch] ⚠️ Redis unavailable, proceeding without lock:`, error);
+            // ถ้า Redis ใช้งานไม่ได้ ก็ยังคงทำงานต่อไป แต่จะไม่มีการล็อกป้องกันการรันซ้ำ
+        }
+        
     }
 
     public startCronJob() {
