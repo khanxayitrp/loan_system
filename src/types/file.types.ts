@@ -33,7 +33,7 @@ export interface FileUploadConfig {
 }
 
 export type DocumentType = 'id_card' | 'house_reg' | 'salary_slip' | 'face_scan' | 'other';
-export type ImageType = 'product' | 'shop_logo' | 'payment_proof';
+export type ImageType = 'product' | 'shop_logo' | 'payment_proof' | 'signature';
 
 export const FILE_UPLOAD_CONFIG = {
   // Document uploads (ID Card, House Registration, etc.)
@@ -46,6 +46,19 @@ export const FILE_UPLOAD_CONFIG = {
       'application/pdf'
     ],
     uploadDir: 'uploads/documents'
+  },
+
+  // Signature
+  SIGNATURE_IMAGES: {
+    maxFileSize: 2 * 1024 * 1024, // 2MB
+    allowedMimeTypes: [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif'
+    ],
+    uploadDir: 'uploads/signatures'
   },
 
   // Location images

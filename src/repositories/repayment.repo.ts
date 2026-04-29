@@ -167,54 +167,57 @@ class RepaymentRepository {
     }
 
     async calculateEarlyPayoff(applicationId: number): Promise<{ remaining_principal: number; calculated_interest: number; total_penalty: number; total_payoff_amount: number } | null> {
-    
-    // 1. ດຶງສະເພາະງວດທີ່ "ຍັງບໍ່ທັນຈ່າຍ" ຫຼື "ຊັກຊ້າ" ອອກມາ ແລະ ລຽງລຳດັບງວດກ່ອນ-ຫຼັງ
-    const unpaidSchedules = await db.repayments.findAll({
-        where: { 
-            application_id: applicationId,
-            payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } // 🟢 ດຶງສະເພາະງວດທີ່ຍັງຄ້າງ
-        },
-        order: [['installment_no', 'ASC']], // ລຽງຈາກງວດປະຈຸບັນ ໄປຫາງວດອະນາຄົດ
-        raw: true
-    });
 
-    if (!unpaidSchedules || unpaidSchedules.length === 0) {
-        return null; // ປິດບັນຊີແລ້ວ ຫຼື ບໍ່ມີຕາຕະລາງ
-    }
+        // 1. ດຶງສະເພາະງວດທີ່ "ຍັງບໍ່ທັນຈ່າຍ" ຫຼື "ຊັກຊ້າ" ອອກມາ ແລະ ລຽງລຳດັບງວດກ່ອນ-ຫຼັງ
+        const unpaidSchedules = await db.repayments.findAll({
+            where: {
+                application_id: applicationId,
+                payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } // 🟢 ດຶງສະເພາະງວດທີ່ຍັງຄ້າງ
+            },
+            order: [['installment_no', 'ASC']], // ລຽງຈາກງວດປະຈຸບັນ ໄປຫາງວດອະນາຄົດ
+            raw: true
+        });
 
-    let total_principal = 0;
-    let total_interest = 0;
-    let total_penalty = 0;
-
-    // 2. ວົນ Loop ເພື່ອບວກຕົວເລກຕາມໂລຈິກ
-    unpaidSchedules.forEach((sch, index) => {
-        // ຕົ້ນທຶນ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ
-        total_principal += Number(sch.principal_amount) || 0;
-        
-        // ຄ່າປັບໃໝ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ (ຖ້າມີ)
-        total_penalty += Number(sch.penalty) || 0;
-
-        // 🟢 ດອກເບ້ຍ (Option 2): ຄິດໄລ່ດອກເບ້ຍເຕັມເດືອນ ສະເພາະ "ງວດປະຈຸບັນ" (index === 0)
-        // ສ່ວນງວດອະນາຄົດ (index > 0) ຈະຖືວ່າໄດ້ຮັບການ "ຍົກເວັ້ນດອກເບ້ຍ (0 ກີບ)" ອັດຕະໂນມັດ
-        if (index === 0) {
-            total_interest += Number(sch.interest_amount) || 0;
+        if (!unpaidSchedules || unpaidSchedules.length === 0) {
+            return null; // ປິດບັນຊີແລ້ວ ຫຼື ບໍ່ມີຕາຕະລາງ
         }
-    });
 
-    // 3. ຄຳນວນຍອດປິດບັນຊີລວມ
-    const total_payoff_amount = total_principal + total_interest + total_penalty;
+        let total_principal = 0;
+        let total_interest = 0;
+        let total_penalty = 0;
 
-    return {
-        remaining_principal: total_principal,
-        calculated_interest: total_interest,
-        total_penalty: total_penalty,
-        total_payoff_amount: total_payoff_amount
-    };
-}  
+        // 2. ວົນ Loop ເພື່ອບວກຕົວເລກຕາມໂລຈິກ
+        unpaidSchedules.forEach((sch, index) => {
+            // ຕົ້ນທຶນ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ
+            total_principal += Number(sch.principal_amount) || 0;
+
+            // ຄ່າປັບໃໝ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ (ຖ້າມີ)
+            total_penalty += Number(sch.penalty) || 0;
+
+            // 🟢 ດອກເບ້ຍ (Option 2): ຄິດໄລ່ດອກເບ້ຍເຕັມເດືອນ ສະເພາະ "ງວດປະຈຸບັນ" (index === 0)
+            // ສ່ວນງວດອະນາຄົດ (index > 0) ຈະຖືວ່າໄດ້ຮັບການ "ຍົກເວັ້ນດອກເບ້ຍ (0 ກີບ)" ອັດຕະໂນມັດ
+            if (index === 0) {
+                total_interest += Number(sch.interest_amount) || 0;
+            }
+        });
+
+        // 3. ຄຳນວນຍອດປິດບັນຊີລວມ
+        const total_payoff_amount = total_principal + total_interest + total_penalty;
+
+        return {
+            remaining_principal: total_principal,
+            calculated_interest: total_interest,
+            total_penalty: total_penalty,
+            total_payoff_amount: total_payoff_amount
+        };
+    }
 
     async findRepaymentById(application_id: number) {
         return await db.repayment_schedules.findOne({
-            where: { application_id: application_id, status: 'approved' }, // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+            where: { application_id: application_id },
+            order: [['version', 'DESC']],
+            limit: 1
+            // status: 'approved' }, // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
             // include: [
             //     {
             //         model: db.r,
@@ -230,22 +233,22 @@ class RepaymentRepository {
         try {
             const repayment = await db.repayments.findByPk(repaymentId, {
                 transaction,
-                lock: transaction ? transaction.LOCK.UPDATE : undefined 
+                lock: transaction ? transaction.LOCK.UPDATE : undefined
             });
-            
+
             if (!repayment) {
                 logger.error(`Repayment with ID: ${repaymentId} not found`);
                 return null;
             }
-            
+
             // ✅ จุดที่แก้: ใส่ { transaction } เข้าไป เพื่อให้มันทำงานในท่อเดียวกัน
             const updateRepayment = await repayment.update(data, {
                 transaction // 🟢 สำคัญมาก ห้ามลืม!
             });
-            
+
             logger.info(`Repayment with ID: ${repaymentId} updated successfully`);
             return updateRepayment;
-            
+
         } catch (error) {
             logger.error(`Error updating repayment with ID: ${repaymentId} - ${(error as Error).message}`);
             throw error;
@@ -293,16 +296,16 @@ class RepaymentRepository {
 
     // ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid' ພ້ອມຍັດຍອດເງິນ
     async processEarlyPayoffSettlement(applicationId: number, transaction?: any): Promise<void> {
-        
+
         // 1. ດຶງງວດທີ່ຍັງຄ້າງທັງໝົດ
         const unpaidSchedules = await db.repayments.findAll({
-            where: { 
-                application_id: applicationId, 
-                payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } 
+            where: {
+                application_id: applicationId,
+                payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] }
             },
             order: [['installment_no', 'ASC']],
             lock: transaction ? transaction.LOCK.UPDATE : undefined,
-            transaction 
+            transaction
         });
 
         const now = new Date();
@@ -310,7 +313,7 @@ class RepaymentRepository {
         // 2. ວົນ Loop ອັບເດດຍອດເງິນທີ່ຄວນຈະຈ່າຍ ໃຫ້ເຕັມ
         for (let i = 0; i < unpaidSchedules.length; i++) {
             const sch = unpaidSchedules[i];
-            
+
             // ສູດ Early Payoff: ດອກເບ້ຍເອົາສະເພາະງວດທຳອິດທີ່ຄ້າງ (i === 0), ງວດຖັດໄປດອກເບ້ຍເປັນ 0
             const finalInterest = i === 0 ? Number(sch.interest_amount) : Number(sch.paid_interest || 0);
 

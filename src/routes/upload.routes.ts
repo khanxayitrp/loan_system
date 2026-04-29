@@ -11,7 +11,8 @@ import {
   uploadVariantImage,
   uploadShopLogo,
   uploadPaymentProof,
-  uploadLocationImage
+  uploadLocationImage,
+  uploadSignature
 } from '../middlewares/upload.middleware';
 import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
 import { PERMISSIONS } from '../types/permissions';
@@ -347,6 +348,12 @@ router.post(
   '/payment/:transaction_id/proof',
   uploadPaymentProof.single('file'),
   uploadController.uploadPaymentProof
+);
+
+router.post(
+  '/signature/:application_id',
+  uploadSignature.single('file'),
+  uploadController.uploadSignature
 );
 
 export default router;

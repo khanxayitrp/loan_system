@@ -207,7 +207,7 @@ class LoanApplicationRepository {
                         {
                             model: db.customer_work_info,
                             as: 'customer_work_infos',
-                            attributes: ['id', 'company_name', 'address', 'province_id','district_id', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
+                            attributes: ['id', 'company_name', 'address', 'province_id', 'district_id', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
                         },
                         {
                             model: db.customer_locations,
@@ -246,12 +246,17 @@ class LoanApplicationRepository {
                 {
                     model: db.loan_guarantors,
                     as: 'loan_guarantors',
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address','province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location','work_province_id', 'work_district_id', 'work_district_id', 'work_phone']
+                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_province_id', 'work_district_id', 'work_district_id', 'work_phone']
                 },
                 {
                     model: db.delivery_receipts,
                     as: 'delivery_receipt',
                     attributes: ['id', 'application_id', 'receipts_id', 'delivery_date', 'receiver_name', 'receipt_image_url', 'status', 'remark', 'approver_id', 'approved_at']
+                },
+                {
+                    model: db.loan_contract,
+                    as: 'loan_contracts',
+                    attributes: ['id', 'loan_contract_number']
                 }
             ],
         });
@@ -451,7 +456,7 @@ class LoanApplicationRepository {
                 phone: data.phone !== undefined ? data.phone : customer.phone,
                 address: data.address !== undefined ? data.address : customer.address,
                 province_id: data.province_id !== undefined ? data.province_id : customer.province_id,
-                district_id: data.district_id !== undefined ? data.district_id : customer.district_id,  
+                district_id: data.district_id !== undefined ? data.district_id : customer.district_id,
                 date_of_birth: data.date_of_birth !== undefined ? data.date_of_birth : customer.date_of_birth,
                 age: data.age !== undefined ? data.age : customer.age,
                 occupation: data.occupation !== undefined ? data.occupation : customer.occupation,
@@ -768,10 +773,10 @@ class LoanApplicationRepository {
 
                 // 🟢 2.1 ກວດສອບວ່າ ຢູສເຊີນີ້ເຄີຍເຊັນເອກະສານນີ້ໄປແລ້ວຫຼືຍັງ? (ປ້ອງກັນການກົດອະນຸມັດຊ້ຳທຸກລະດັບ)
                 const mySignature = await db.document_signatures.findOne({
-                    where: { 
-                        application_id: loanApplicationId, 
-                        user_id: data.approver_id, 
-                        document_type: 'approval_summary', 
+                    where: {
+                        application_id: loanApplicationId,
+                        user_id: data.approver_id,
+                        document_type: 'approval_summary',
                         status: ['signed', 'rejected'] // ກວດທັງເຄີຍອະນຸມັດ ແລະ ເຄີຍປະຕິເສດ
                     },
                     transaction: t
@@ -790,8 +795,8 @@ class LoanApplicationRepository {
                     if (staffLevel === 'credit_manager') {
                         // ຫົວໜ້າສິນເຊື່ອ ກົດໄດ້ແຄ່ Verify
                         roleType = 'credit_head';
-                        actionIntent = 'verified'; 
-                    } 
+                        actionIntent = 'verified';
+                    }
                     else if (['deputy_director', 'director', 'approver'].includes(staffLevel)) {
                         // ກຸ່ມຜູ້ບໍລິຫານ (ຕ້ອງໃຫ້ Credit Manager ຜ່ານກ່ອນ)
                         const cmSignature = await db.document_signatures.findOne({
@@ -805,11 +810,11 @@ class LoanApplicationRepository {
 
                         // ນັບຈຳນວນຜູ້ບໍລິຫານທີ່ເຄີຍເຊັນແລ້ວ (ບໍ່ລວມ credit_head)
                         const existingHighLevelSigs = await db.document_signatures.count({
-                            where: { 
-                                application_id: loanApplicationId, 
-                                document_type: 'approval_summary', 
-                                role_type: ['approver_1', 'approver_2'], 
-                                status: 'signed' 
+                            where: {
+                                application_id: loanApplicationId,
+                                document_type: 'approval_summary',
+                                role_type: ['approver_1', 'approver_2'],
+                                status: 'signed'
                             },
                             transaction: t
                         });

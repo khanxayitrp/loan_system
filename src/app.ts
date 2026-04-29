@@ -54,7 +54,7 @@ class App {
                     description: 'Development server',
                 },
                 {
-                    url: 'http://192.168.101.89:15520/api', // 🟢 เพิ่ม IP วง LAN ของเครื่องเซิร์ฟเวอร์คุณเข้าไป
+                    url: 'http://192.168.101.39:15520/api', // 🟢 เพิ่ม IP วง LAN ของเครื่องเซิร์ฟเวอร์คุณเข้าไป
                     description: 'LAN Server'
                 }
             ], components: {

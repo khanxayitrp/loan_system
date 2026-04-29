@@ -8,8 +8,9 @@ import { db } from '../models/init-models'; // 🟢 2. Import DB Models
 import { generatePdfBufferFromData } from '../services/pdf.service';
 import {
     formatDate, formatCurrency, mapGender,
-    mapMaritalStatus, mapResidenceStatus, getProductTypeName
+    mapMaritalStatus, mapResidenceStatus, getProductTypeName, fulladdress
 } from '../utils/formatters';
+import locationsData from '../utils/locations.json';
 
 export const generateLoanPDF = async (req: Request, res: Response) => {
     let browser = null;
@@ -658,7 +659,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
         const rawPdf = await page.pdf({
             format: 'A4',
             printBackground: true,
-            margin: { top: '15mm', bottom: '25mm', left: '15mm', right: '15mm' },
+            margin: { top: '12mm', bottom: '15mm', left: '15mm', right: '15mm' },
             displayHeaderFooter: false,
             preferCSSPageSize: true
         });
@@ -692,6 +693,7 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
     try {
         const { loanData, scheduleRows, totals } = req.body;
         const loanId = loanData?.loan_id;
+        console.log(`[PDF] 📄 Generating Repayment Schedule PDF for loan: `, loanData);
 
         // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
@@ -739,15 +741,15 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
             console.warn(`⚠️ ບໍ່ພົບໄຟລ໌ QR Code ຢູ່ທີ່: ${qrPath}`);
         }
         // =========================================================
-
+        const customAddress = fulladdress(loanData.customer.address, loanData.customer.district_id, loanData.customer.province_id);
         const data = {
             interestTypeName: loanData.interest_type === 'effective_rate' ? 'ຫຼຸດຕົ້ນຫຼຸດດອກ' : 'ສະເໝີຕົວ',
-            contractNumber: loanData.loan_contract_number || loanData.loan_id || '________________',
+            contractNumber: loanData.loan_contracts[0].loan_contract_number || loanData.loan_id || '________________',
             customerName: `${loanData.customer?.first_name || ''} ${loanData.customer?.last_name || ''}`.trim() || '________________',
-            customerAddress: loanData.customer?.address || '________________',
+            customerAddress: customAddress || loanData.customer?.address || '________________',
             customerPhone: loanData.customer?.phone || '________________',
 
-            productPrice: formatCurrency(loanData.product?.price || loanData.total_amount),
+            productPrice: formatCurrency(Number(loanData.total_amount)),
             downPayment: formatCurrency(loanData.down_payment),
             approvedAmount: formatCurrency(Number(loanData.total_amount) - Number(loanData.down_payment || 0)),
             interestRate: loanData.interest_rate_at_apply,

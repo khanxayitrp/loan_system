@@ -58,7 +58,7 @@ export const uploadVariantImage = multer({
     files: 2 // จำกัดไม่เกิน 2 รูป
   },
   fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.VARIANT_IMAGES.allowedMimeTypes)
-}); 
+});
 
 // สำหรับรูปสินค้า
 export const uploadProductImage = multer({
@@ -86,6 +86,15 @@ export const uploadPaymentProof = multer({
     fileSize: FILE_UPLOAD_CONFIG.PAYMENT_PROOFS.maxFileSize
   },
   fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.PAYMENT_PROOFS.allowedMimeTypes)
+});
+
+// สำหรับรูปภาพเซ็นชื่อ
+export const uploadSignature = multer({
+  storage: memoryStorage,
+  limits: {
+    fileSize: FILE_UPLOAD_CONFIG.SIGNATURE_IMAGES.maxFileSize
+  },
+  fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.SIGNATURE_IMAGES.allowedMimeTypes)
 });
 
 /**

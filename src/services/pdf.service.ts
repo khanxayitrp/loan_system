@@ -46,7 +46,7 @@ export const generatePdfBufferFromData = async (mappedData: any): Promise<Buffer
         const rawPdf = await page.pdf({
             format: 'A4',
             printBackground: true,
-            margin: { top: '15mm', bottom: '25mm', left: '15mm', right: '15mm' },
+            margin: { top: '12mm', bottom: '15mm', left: '15mm', right: '15mm' },
             displayHeaderFooter: false,
             preferCSSPageSize: true
         });

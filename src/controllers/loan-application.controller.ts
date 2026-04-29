@@ -425,6 +425,8 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
             requester_id: staffId || null
         };
 
+        console.log('Loan application payload:', loanPayload);
+
         const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
 
         await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), performedBy, transaction);

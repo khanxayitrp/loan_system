@@ -50,7 +50,7 @@ class DailyTrackingService {
                     include: [
                         {
                             model: db.repayment_schedules,
-                            as: 'schedule_header', // ສົມມຸດວ່າຕັ້ງຊື່ alias ນີ້ໃນ model
+                            as: 'schedule', // ສົມມຸດວ່າຕັ້ງຊື່ alias ນີ້ໃນ model
                             where: { status: 'approved' }, // 🛡️ ຕ້ອງ Approved ເທົ່ານັ້ນຈຶ່ງຄິດຄ່າປັບ
                             required: true // Inner Join ເພື່ອຕັດລາຍການທີ່ບໍ່ແມ່ນ Approved ອອກເລີຍ
                         },

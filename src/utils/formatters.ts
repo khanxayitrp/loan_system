@@ -2,6 +2,8 @@
 // src/utils/formatters.ts
 // ==========================================
 
+import locationsData from './locations.json';
+
 export function mapGender(gender: string | undefined | null): string {
     if (gender === 'male') return 'ຊາຍ';
     if (gender === 'female') return 'ຍິງ';
@@ -42,10 +44,19 @@ export function formatCurrency(amount: number | null | string | undefined): stri
 export function getProductTypeName(type: string | number | null): string {
     // ปรับให้รองรับกรณี DB เก็บเป็น ID (เช่น 1, 2, 3) หรือเก็บเป็น String
     const typeStr = String(type).toLowerCase();
-    const types: Record<string, string> = { 
+    const types: Record<string, string> = {
         'gold': 'ສິນຄ້າຄຳ', '1': 'ສິນຄ້າຄຳ',
         'general': 'ສິນຄ້າທົ່ວໄປ', '2': 'ສິນຄ້າທົ່ວໄປ',
         'motorcycle': 'ສິນຄ້າລົດຈັກ', '3': 'ສິນຄ້າລົດຈັກ'
     };
     return types[typeStr] || '________________';
+}
+
+export function fulladdress(address: string, districtId: string, provinceId: string) {
+    // ດຶງຄ່າຈາກ JSON (ຖ້າບໍ່ມີໃຫ້ສົ່ງຄ່າວ່າງ ຫຼື 'ບໍ່ລະບຸ')
+    const provinceName = (locationsData.provinces as Record<string, string>)[provinceId] || '';
+    const districtName = (locationsData.districts as Record<string, string>)[districtId] || '';
+
+    // ປະກອບເປັນ String ດຽວ
+    return `${address}, ${districtName}, ${provinceName}`;
 }

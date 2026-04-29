@@ -316,7 +316,7 @@
 //         prefix
 //       );
 
-      
+
 
 //       if (!results || !results.success) {
 //         throw new Error(results?.error || 'Failed to upload variant image');
@@ -342,7 +342,7 @@
 //     try {
 //       const { customer_id } = req.params;
 //       const files = req.files as Express.Multer.File[];
-      
+
 //       if (!files?.length) {
 //         throw new ValidationError('No files uploaded');
 //       }
@@ -637,7 +637,7 @@ class UploadController {
 
       // 🟢 1. เช็ครูปสินค้าเก่าเพื่อลบ (อย่าลืมเช็คชื่อฟิลด์ภาพสินค้าใน Model db.products ด้วยนะครับ)
       const product = await db.products.findByPk(product_id);
-      const oldImageUrl = product?.image_url; 
+      const oldImageUrl = product?.image_url;
 
       // 🟢 2. อัปโหลดรูปใหม่
       const result = await fileUploadService.uploadSingleFile(
@@ -650,7 +650,7 @@ class UploadController {
 
       // 🟢 3. สั่งลบรูปเก่าจาก MinIO
       if (oldImageUrl) {
-        fileUploadService.deleteFile(oldImageUrl).catch(err => 
+        fileUploadService.deleteFile(oldImageUrl).catch(err =>
           logger.warn(`Failed to delete orphaned product image: ${oldImageUrl}`, err)
         );
       }
@@ -735,7 +735,7 @@ class UploadController {
       //   prefix
       // );
 
-       const results = await fileUploadService.uploadSingleFile(
+      const results = await fileUploadService.uploadSingleFile(
         req.file as UploadedFile,
         FILE_UPLOAD_CONFIG.VARIANT_IMAGES,
         prefix
@@ -769,14 +769,14 @@ class UploadController {
     try {
       const { customer_id, application_id } = req.params;
       const files = req.files as Express.Multer.File[];
-      
+
       if (!files?.length) throw new ValidationError('No files uploaded');
 
       // 🟢 1. เช็คข้อมูลการลงพื้นที่เก่า
-      const visit = await db.loan_field_visits.findOne({ 
-        where: { application_id: application_id } 
+      const visit = await db.loan_field_visits.findOne({
+        where: { application_id: application_id }
       });
-      
+
       // รวบรวม URL รูปเก่าที่มีอยู่ในระบบ (ถ้ามี)
       const oldUrls: string[] = [];
       if (visit?.photo_url_1) oldUrls.push(visit.photo_url_1);
@@ -786,8 +786,8 @@ class UploadController {
       // เช่น req.body.retained_urls = ['http://minio.../photo1.jpg']
       let retainedUrls: string[] = [];
       if (req.body.retained_urls) {
-        retainedUrls = Array.isArray(req.body.retained_urls) 
-          ? req.body.retained_urls 
+        retainedUrls = Array.isArray(req.body.retained_urls)
+          ? req.body.retained_urls
           : [req.body.retained_urls];
       }
 
@@ -804,7 +804,7 @@ class UploadController {
       // 🟢 3. สั่งลบภาพเดิมที่ไม่ได้ใช้แล้วออกจาก MinIO (Background Process)
       if (filesToDelete.length > 0) {
         // ใช้ deleteFiles เพื่อลบทีเดียวหลายไฟล์เป็น Array ได้เลย
-        fileUploadService.deleteFiles(filesToDelete).catch(err => 
+        fileUploadService.deleteFiles(filesToDelete).catch(err =>
           logger.warn(`Failed to delete old location images:`, err)
         );
       }
@@ -851,7 +851,7 @@ class UploadController {
 
       // 🟢 3. ลบโลโก้เก่าออกจาก MinIO
       if (oldLogoUrl) {
-        fileUploadService.deleteFile(oldLogoUrl).catch(err => 
+        fileUploadService.deleteFile(oldLogoUrl).catch(err =>
           logger.warn(`Failed to delete orphaned shop logo: ${oldLogoUrl}`, err)
         );
       }
@@ -880,7 +880,7 @@ class UploadController {
       if (!req.file) throw new ValidationError('No file uploaded');
 
       const { transaction_id } = req.params;
-        const userId = req.user?.id || 1; // 🌟 ดึง ID คนทำรายการเพื่อเก็บ Audit
+      const userId = req.user?.id || 1; // 🌟 ดึง ID คนทำรายการเพื่อเก็บ Audit
 
       // 🟢 1. เช็คสลิปการโอนเก่า (ถ้ามี)
       const transaction = await db.payment_transactions.findByPk(transaction_id);
@@ -897,13 +897,13 @@ class UploadController {
 
       // 🟢 3. ลบสลิปเก่าออก (หากเป็นการอัปโหลดเพื่อแก้ไขสลิปเดิม)
       if (oldProofUrl) {
-        fileUploadService.deleteFile(oldProofUrl).catch(err => 
+        fileUploadService.deleteFile(oldProofUrl).catch(err =>
           logger.warn(`Failed to delete old payment proof: ${oldProofUrl}`, err)
         );
       }
 
       // 🌟 4. [ใหม่] เอา URL ไปอัปเดตลง Database ทันที!
-        await repaymentService.updateProofUrl(Number(transaction_id), result.fileUrl, userId);
+      await repaymentService.updateProofUrl(Number(transaction_id), result.fileUrl, userId);
 
       res.status(201).json({
         success: true,
@@ -918,6 +918,112 @@ class UploadController {
       res.status(errResp.status).json(errResp);
     }
   }
+
+  // ── 7. Upload Signature (Updated for document_signatures table) ──────────────
+
+  async uploadSignature(req: Request, res: Response): Promise<void> {
+    try {
+      const { application_id } = req.params;
+
+      // 🟢 1. รับค่าเพิ่มเติมจาก req.body (Client ส่งมาเป็น FormData)
+      const {
+        document_type,
+        reference_id,
+        role_type,
+        signer_name,
+        user_id // อาจจะส่งมาถ้าเป็นพนักงานเซ็น
+      } = req.body;
+
+      // 🟢 2. Validate ข้อมูลพื้นฐาน
+      if (!application_id) throw new ValidationError('Application ID is required');
+      if (!req.file) throw new ValidationError('No signature image uploaded');
+      if (!document_type || !reference_id || !role_type) {
+        throw new ValidationError('Missing required document mapping data (document_type, reference_id, role_type)');
+      }
+
+      // ตรวจสอบว่าแอปพลิเคชันมีอยู่จริงไหม
+      const application = await db.loan_applications.findByPk(application_id);
+      if (!application) {
+        throw new ValidationError('Application not found');
+      }
+
+      // 🟢 3. ค้นหา record เดิม (สำคัญมาก! เพื่อป้องกัน Error จาก UNIQUE KEY `unique_contract_role`)
+      // ตารางคุณตั้ง Unique ไว้ที่ (document_type, reference_id, role_type) 
+      const existingSignature = await db.document_signatures.findOne({
+        where: {
+          document_type,
+          reference_id,
+          role_type
+        }
+      });
+
+      const oldSignatureUrl = existingSignature?.signature_image_url;
+
+      // 🟢 4. ตั้งชื่อไฟล์ให้สื่อความหมายตามเอกสาร (เช่น sign_app12_contract_borrower_1612345678)
+      const customFileName = `sign_app${application_id}_${document_type}_${role_type}_${Date.now()}`;
+
+      // 🟢 5. อัปโหลดรูปลายเซ็นใหม่ลง Storage (เช่น MinIO / S3)
+      const result = await fileUploadService.uploadSingleFile(
+        req.file as UploadedFile,
+        FILE_UPLOAD_CONFIG.SIGNATURE_IMAGES,
+        customFileName
+      );
+
+      if (!result.success || !result.fileUrl) {
+        throw new ValidationError(result.error || 'Failed to upload signature image');
+      }
+
+      // 🟢 6. ลบรูปลายเซ็นเก่าออกจาก Storage (ถ้ามีการเซ็นทับของเดิม)
+      if (oldSignatureUrl) {
+        fileUploadService.deleteFile(oldSignatureUrl).catch(err => {
+          logger.warn(`Failed to delete old signature image: ${oldSignatureUrl}`, err);
+        });
+      }
+
+      let savedRecord;
+
+      // 🟢 7. บันทึกข้อมูลลงตาราง document_signatures (ใช้หลักการ Upsert)
+      if (existingSignature) {
+        // ถ้ามีเรคคอร์ดอยู่แล้ว (เช่น อัปโหลดรูปลายเซ็นใหม่ทับของเดิม) -> ทำการ Update
+        savedRecord = await existingSignature.update({
+          signature_image_url: result.fileUrl,
+          signer_name: signer_name || existingSignature.signer_name, // อัปเดตชื่อถ้ามีการส่งมาใหม่
+          user_id: user_id || existingSignature.user_id,
+          status: 'signed',
+          signed_at: new Date()
+        });
+      } else {
+        // ถ้าเป็นการเซ็นครั้งแรกในบทบาทนั้น -> ทำการ Insert ใหม่
+        savedRecord = await db.document_signatures.create({
+          application_id: Number(application_id),
+          document_type,
+          reference_id,
+          role_type,
+          signer_name: signer_name || null,
+          user_id: user_id || null,
+          status: 'signed',
+          signed_at: new Date(),
+          signature_image_url: result.fileUrl
+        });
+      }
+
+      // ส่ง Response กลับไปให้ Client
+      res.status(201).json({
+        success: true,
+        message: 'Signature uploaded successfully',
+        data: {
+          signature_record: savedRecord,
+          file_url: result.fileUrl,
+          file_name: result.fileName
+        }
+      });
+
+    } catch (error: any) {
+      const errResp = handleErrorResponse(error);
+      res.status(errResp.status).json(errResp);
+    }
+  }
+
 }
 
 export default new UploadController();
