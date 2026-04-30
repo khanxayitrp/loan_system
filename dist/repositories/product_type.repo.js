@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const init_models_1 = require("../models/init-models");
-const logger_1 = require("@/utils/logger");
+const logger_1 = require("../utils/logger");
 const sequelize_1 = require("sequelize");
 // 🟢 1. Import Helper ของเราเข้ามา
 const auditLogger_1 = require("../utils/auditLogger");

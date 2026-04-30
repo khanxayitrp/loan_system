@@ -1,7 +1,7 @@
 import { user_refresh_tokens, user_refresh_tokensAttributes, user_refresh_tokensCreationAttributes } from '../models/user_refresh_tokens';
 import { db } from '../models/init-models';
 import { Op, Sequelize, where } from 'sequelize';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger';
 
 class UserRefreshTokenRepository {
     async revokeToken(token: string): Promise<boolean> {

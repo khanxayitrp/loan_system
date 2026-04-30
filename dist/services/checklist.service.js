@@ -47,6 +47,8 @@ class CheckListService {
                 verified_last_name: data.verifiedLastName || data.verified_last_name || null,
                 verified_dob: data.verifiedDob || data.verified_dob || null,
                 verified_address: data.verifiedAddress || data.verified_address || null,
+                verified_province_id: data.verifiedProvinceId || data.verified_province_id || null,
+                verified_district_id: data.verifiedDistrictId || data.verified_district_id || null,
                 verified_product_type: data.verifiedProductType || data.verified_product_type || null,
                 verified_price: data.verifiedPrice || data.verified_price || null,
                 verified_down_payment: data.verifiedDownPayment || data.verified_down_payment || null,

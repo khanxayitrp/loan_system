@@ -85,6 +85,14 @@ class loan_contract extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.STRING(255),
                 allowNull: false
             },
+            cus_province_id: {
+                type: sequelize_1.DataTypes.STRING(2),
+                allowNull: true
+            },
+            cus_district_id: {
+                type: sequelize_1.DataTypes.STRING(4),
+                allowNull: true
+            },
             cus_lived_year: {
                 type: sequelize_1.DataTypes.INTEGER,
                 allowNull: false
@@ -292,6 +300,14 @@ class loan_contract extends sequelize_1.Model {
             ref_address: {
                 type: sequelize_1.DataTypes.STRING(255),
                 allowNull: false
+            },
+            ref_province_id: {
+                type: sequelize_1.DataTypes.STRING(2),
+                allowNull: true
+            },
+            ref_district_id: {
+                type: sequelize_1.DataTypes.STRING(4),
+                allowNull: true
             },
             ref_lived_year: {
                 type: sequelize_1.DataTypes.INTEGER,

@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  external-api:
+    image: khanxay/loan-external-api:v1.0  # 👈 ดึง Image จาก Docker Hub แทน
+    container_name: loan-external-api
+    restart: unless-stopped
+    ports:
+      - "15520:15520"
+    env_file:
+      - .env

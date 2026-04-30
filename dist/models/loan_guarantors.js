@@ -44,6 +44,14 @@ class loan_guarantors extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.TEXT,
                 allowNull: true
             },
+            province_id: {
+                type: sequelize_1.DataTypes.STRING(2),
+                allowNull: true
+            },
+            district_id: {
+                type: sequelize_1.DataTypes.STRING(4),
+                allowNull: true
+            },
             occupation: {
                 type: sequelize_1.DataTypes.STRING(100),
                 allowNull: true
@@ -62,6 +70,14 @@ class loan_guarantors extends sequelize_1.Model {
             },
             work_location: {
                 type: sequelize_1.DataTypes.TEXT,
+                allowNull: true
+            },
+            work_province_id: {
+                type: sequelize_1.DataTypes.STRING(2),
+                allowNull: true
+            },
+            work_district_id: {
+                type: sequelize_1.DataTypes.STRING(4),
                 allowNull: true
             },
             work_position: {

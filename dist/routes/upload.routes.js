@@ -15,7 +15,7 @@ const router = (0, express_1.Router)();
 router.use(auth_middleware_1.verifyToken);
 /**
  * @swagger
- * /upload/application/{application_id}/document:
+ * /upload/application/{customerId}/document:
  *   post:
  *     summary: Upload application document
  *     tags: [Upload]
@@ -23,7 +23,7 @@ router.use(auth_middleware_1.verifyToken);
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
@@ -43,10 +43,10 @@ router.use(auth_middleware_1.verifyToken);
  *       201:
  *         description: Document uploaded
  */
-router.post('/application/:application_id/document', upload_middleware_1.uploadDocument.single('file'), upload_controller_1.default.uploadApplicationDocument);
+router.post('/application/:customerId/document', upload_middleware_1.uploadDocument.single('file'), upload_controller_1.default.uploadApplicationDocument);
 /**
  * @swagger
- * /upload/application/{application_id}/documents:
+ * /upload/application/{customerId}/documents:
  *   post:
  *     summary: Upload multiple application documents
  *     tags: [Upload]
@@ -54,7 +54,7 @@ router.post('/application/:application_id/document', upload_middleware_1.uploadD
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
@@ -74,7 +74,7 @@ router.post('/application/:application_id/document', upload_middleware_1.uploadD
  *       201:
  *         description: Documents uploaded
  */
-router.post('/application/:application_id/documents', upload_middleware_1.uploadDocument.array('files', 10), upload_controller_1.default.uploadMultipleDocuments);
+router.post('/application/:customerId/documents', upload_middleware_1.uploadDocument.array('files', 10), upload_controller_1.default.uploadMultipleDocuments);
 /**
  * @swagger
  * /upload/application/{application_id}/documents:
@@ -292,61 +292,5 @@ router.post('/shop/:partner_id/logo', upload_middleware_1.uploadShopLogo.single(
  *         description: Proof uploaded
  */
 router.post('/payment/:transaction_id/proof', upload_middleware_1.uploadPaymentProof.single('file'), upload_controller_1.default.uploadPaymentProof);
+router.post('/signature/:application_id', upload_middleware_1.uploadSignature.single('file'), upload_controller_1.default.uploadSignature);
 exports.default = router;
-// Route Production
-/*
-import { Router } from 'express';
-import uploadController from '../controllers/upload.controller';
-import {
-    uploadDocument,
-    uploadProductImage,
-    uploadShopLogo,
-    uploadPaymentProof
-} from '../middlewares/upload.middleware';
-import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
-
-const router = Router();
-
-// 1. ใช้ verifyToken กับทุก Route ในไฟล์นี้
-router.use(verifyToken);
-
-// --- Application Documents (สำหรับระบบสินเชื่อ) ---
-router.post(
-    '/application/:application_id/document',
-    checkPermission('loan_document_upload'), // ต้องมีสิทธิ์อัปโหลดเอกสาร
-    uploadDocument.single('file'),
-    uploadController.uploadApplicationDocument
-);
-
-router.delete(
-    '/document/:document_id',
-    checkPermission('loan_document_delete'), // สิทธิ์ในการลบเอกสาร
-    uploadController.deleteDocument
-);
-
-// --- Product Images (สำหรับจัดการสินค้า) ---
-router.post(
-    '/product/:product_id/image',
-    checkPermission('product_management'), // ต้องมีสิทธิ์จัดการสินค้า
-    uploadProductImage.single('file'),
-    uploadController.uploadProductImage
-);
-
-// --- Shop Logo (สำหรับข้อมูลร้านค้า/Partner) ---
-router.post(
-    '/shop/:partner_id/logo',
-    checkPermission('shop_settings'), // สิทธิ์แก้ไขข้อมูลร้านค้า
-    uploadShopLogo.single('file'),
-    uploadController.uploadShopLogo
-);
-
-// --- Payment Proof (สำหรับฝ่ายการเงิน/ลูกค้า) ---
-router.post(
-    '/payment/:transaction_id/proof',
-    checkPermission('payment_upload'),
-    uploadPaymentProof.single('file'),
-    uploadController.uploadPaymentProof
-);
-
-export default router;
- */ 

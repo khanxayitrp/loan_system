@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const init_models_1 = require("../models/init-models");
-const logger_1 = require("@/utils/logger");
+const logger_1 = require("../utils/logger");
 class UserRefreshTokenRepository {
     async revokeToken(token) {
         try {

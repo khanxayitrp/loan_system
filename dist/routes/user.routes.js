@@ -105,7 +105,7 @@ router.get('/', auth_middleware_1.verifyToken, user_controller_1.default.getAllU
 router.put('/:id', auth_middleware_1.verifyToken, user_controller_1.default.updateUser);
 /**
  * @swagger
- * /users/{id}:
+ * /users/{id}/change-status:
  *   patch:
  *     summary: Change user status by ID
  *     tags: [User]
@@ -136,4 +136,6 @@ router.put('/:id', auth_middleware_1.verifyToken, user_controller_1.default.upda
  *         description: User not found
  */
 router.patch('/:id', auth_middleware_1.verifyToken, user_controller_1.default.changeStatus);
+// (ควรมี middleware ดักสิทธิ์ด้วยว่าให้เฉพาะ admin หรือคนที่มีสิทธิ์ลบได้เท่านั้น)
+router.delete('/:id', auth_middleware_1.verifyToken, user_controller_1.default.deleteUser);
 exports.default = router;

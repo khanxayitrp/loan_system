@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUploadMiddleware = exports.uploadPaymentProof = exports.uploadShopLogo = exports.uploadProductImage = exports.uploadVariantImage = exports.uploadLocationImage = exports.uploadDocument = void 0;
+exports.createUploadMiddleware = exports.uploadSignature = exports.uploadPaymentProof = exports.uploadShopLogo = exports.uploadProductImage = exports.uploadVariantImage = exports.uploadLocationImage = exports.uploadDocument = void 0;
 const multer_1 = __importDefault(require("multer"));
 const file_types_1 = require("../types/file.types");
 /**
@@ -77,6 +77,14 @@ exports.uploadPaymentProof = (0, multer_1.default)({
         fileSize: file_types_1.FILE_UPLOAD_CONFIG.PAYMENT_PROOFS.maxFileSize
     },
     fileFilter: createFileFilter(file_types_1.FILE_UPLOAD_CONFIG.PAYMENT_PROOFS.allowedMimeTypes)
+});
+// สำหรับรูปภาพเซ็นชื่อ
+exports.uploadSignature = (0, multer_1.default)({
+    storage: memoryStorage,
+    limits: {
+        fileSize: file_types_1.FILE_UPLOAD_CONFIG.SIGNATURE_IMAGES.maxFileSize
+    },
+    fileFilter: createFileFilter(file_types_1.FILE_UPLOAD_CONFIG.SIGNATURE_IMAGES.allowedMimeTypes)
 });
 /**
  * Generic upload middleware

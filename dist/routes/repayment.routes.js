@@ -75,6 +75,7 @@ const router = (0, express_1.Router)();
  *         description: Loan application not found or already closed
  */
 router.get('/early-payoff/:application_id', auth_middleware_1.verifyToken, repaymentController.getEarlyPayoffSummary);
+router.get('/schedule/:application_id', auth_middleware_1.verifyToken, repaymentController.getRepaymentSchedule);
 /**
  * @swagger
  * /repayment/pay:

@@ -18,8 +18,13 @@ const generatePdfBufferFromData = async (mappedData) => {
         const logoPath = path_1.default.resolve(__dirname, '../../public/image/LOGO INSEE.png');
         const logoBase64 = fs_1.default.existsSync(logoPath) ? fs_1.default.readFileSync(logoPath, 'base64') : '';
         const logoDataUri = logoBase64 ? `data:image/png;base64,${logoBase64}` : '';
-        const fontPath = path_1.default.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
-        const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
+        const fontPath = path_1.default.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
+        // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
+        // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
+        const fontBase64 = fs_1.default.existsSync(fontPath) ? fs_1.default.readFileSync(fontPath, 'base64') : '';
+        // 🟢 ສ້າງ Data URI ສຳລັບ Font
+        const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
         let htmlContent = templateSource;
         htmlContent = htmlContent.replace('{{logoPath}}', logoDataUri);
         htmlContent = htmlContent.replace('{{fontPath}}', fontUrl);
@@ -30,7 +35,8 @@ const generatePdfBufferFromData = async (mappedData) => {
             args: [
                 '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                 '--font-render-hinting=none', '--disable-web-security',
-                '--allow-file-access-from-files', '--allow-file-access'
+                '--allow-file-access-from-files', '--allow-file-access',
+                '--lang=lo-LA,en-US'
             ]
         });
         const page = await browser.newPage();
@@ -40,7 +46,7 @@ const generatePdfBufferFromData = async (mappedData) => {
         const rawPdf = await page.pdf({
             format: 'A4',
             printBackground: true,
-            margin: { top: '15mm', bottom: '25mm', left: '15mm', right: '15mm' },
+            margin: { top: '12mm', bottom: '15mm', left: '15mm', right: '15mm' },
             displayHeaderFooter: false,
             preferCSSPageSize: true
         });

@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const province_district_controller_1 = require("../controllers/province_district.controller");
+const router = (0, express_1.Router)();
+router.get('/provinces', province_district_controller_1.provinceDistrictController.getAllProvince);
+router.get('/provinces/:id', province_district_controller_1.provinceDistrictController.getProvinceById);
+router.get('/provinces/:provinceId/districts', province_district_controller_1.provinceDistrictController.getAllDistrictByProvinceId);
+router.get('/districts/:id', province_district_controller_1.provinceDistrictController.getDistrictById);
+exports.default = router;

@@ -39,6 +39,14 @@ class loan_basic_verifications extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.TEXT,
                 allowNull: true
             },
+            verified_province_id: {
+                type: sequelize_1.DataTypes.STRING(2),
+                allowNull: true
+            },
+            verified_district_id: {
+                type: sequelize_1.DataTypes.STRING(4),
+                allowNull: true
+            },
             verified_product_type: {
                 type: sequelize_1.DataTypes.STRING(100),
                 allowNull: true

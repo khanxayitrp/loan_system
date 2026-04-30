@@ -37,11 +37,21 @@ class users extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.BOOLEAN,
                 allowNull: true,
                 defaultValue: 1
+            },
+            // 🟢 เพิ่มฟิลด์ deleted_at ตรงนี้
+            deleted_at: {
+                type: sequelize_1.DataTypes.DATE,
+                allowNull: true
             }
         }, {
             sequelize,
             tableName: 'users',
             timestamps: true,
+            // 🟢 เพิ่ม 4 บรรทัดนี้ เพื่อเปิดโหมด Soft Delete และ Map ชื่อคอลัมน์
+            paranoid: true,
+            deletedAt: 'deleted_at',
+            createdAt: 'created_at',
+            updatedAt: 'updated_at',
             indexes: [
                 {
                     name: "PRIMARY",

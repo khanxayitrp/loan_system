@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ໃບສະເຫນີຂໍປ່ອຍສິນຄ້າປະເພດສິນເຊື່ອເພື່ອການຊົມໃຊ້</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Phetsarath OT';
+            src: url('{{fontPath}}') format('truetype');
+        }
+        
+        :root {
+            --text-color: #000;
+            --red-imi: #a11d20;
+            --border-color: #000;
+        }
+
+        body {
+            /* 🟢 2. ຕັ້ງຄ່າໃຫ້ໃຊ້ Noto Sans Lao ເປັນອັນດັບທຳອິດ */
+            font-family: 'Noto Sans Lao', 'Phetsarath OT', sans-serif;
+            font-size: 13px;
+            color: var(--text-color);
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+            background-color: #e5e7eb;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 12mm 20mm;
+            margin: 0 auto;
+            background: white;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .content-wrapper {
+            flex: 1 0 auto;
+        }
+
+        @media print {
+            body { background: white; }
+            .page {
+                margin: 0;
+                box-shadow: none;
+                border: none;
+                page-break-after: always;
+            }
+            .page:last-child {
+                page-break-after: auto;
+            }
+            @page { margin: 0; size: A4; }
+        }
+
+        .flex { display: flex; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .align-center { align-items: center; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: bold; }
+        .text-red { color: var(--red-imi); }
+        
+        .mt-1 { margin-top: 5px; }
+        .mt-2 { margin-top: 10px; }
+        .mb-2 { margin-bottom: 10px; }
+        .mb-4 { margin-bottom: 20px; }
+        .ml-2 { margin-left: 10px; }
+        .gap-8 { gap: 40px; }
+
+        .row {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 5px;
+            width: 100%;
+        }
+        .label { white-space: nowrap; }
+        .dot {
+            flex-grow: 1;
+            border-bottom: 1px dotted var(--text-color);
+            margin: 0 5px;
+            min-width: 20px;
+            position: relative;
+            top: -2px;
+            text-align: center;
+        }
+
+        table.form-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+            table-layout: fixed; 
+            page-break-inside: avoid; 
+        }
+        table.form-grid th,
+        table.form-grid td {
+            border: 1px solid var(--border-color);
+            padding: 4px 6px;
+            vertical-align: middle;
+            font-size: 13px;
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: clip; 
+        }
+        .td-label {
+            font-weight: bold;
+        }
+
+        .checkbox {
+            display: inline-flex;
+            width: 13px;
+            height: 13px;
+            border: 1px solid var(--text-color);
+            vertical-align: middle;
+            margin-right: 5px;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1;
+            padding-bottom: 2px;
+            position: relative;
+            top: -1px;
+        }
+
+        .line-solid {
+            display: inline-block;
+            border-bottom: 1px solid var(--text-color);
+            min-width: 40px;
+            margin: 0 5px;
+            text-align: center;
+        }
+
+        .section-title {
+            font-weight: bold;
+            font-size: 14px;
+            margin: 12px 0 4px 0;
+        }
+
+        .signature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px 40px;
+            margin-top: 20px;
+        }
+        .sig-col { text-align: center; }
+        .sig-title { font-weight: bold; font-size: 13px; text-decoration: underline; }
+        .sig-desc { font-size: 11px; color: #333; margin-top: 4px; line-height: 1.3; height: 30px;}
+        .sig-space { height: 60px; }
+        .remark-box { font-size: 12px; line-height: 1.5; text-align: justify; margin-top: 30px;}
+
+        .footer-wrapper {
+            flex-shrink: 0;
+            margin-top: 20px;
+        }
+        .page-num {
+            text-align: right;
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        .footer-note {
+            border-top: 4px solid var(--red-imi);
+            padding-top: 8px;
+            text-align: center;
+            font-size: 11px;
+            font-style: italic;
+            line-height: 1.4;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <div class="content-wrapper">
+            
+            <div style="position: relative; min-height: 90px;">
+                <div class="company-logo text-center" style="position: absolute; left: 0; top: 0; width: 140px;">
+                    <img src="{{logoPath}}" alt="IMI Logo" style="width: 60px; height: 60px; margin: 0 auto; display: block;" onerror="this.style.display='none'">
+                    <div class="font-bold text-red mt-1" style="font-size: 15px;">IMI</div>
+                    <div class="font-bold text-red" style="font-size: 10px; line-height: 1.2;">ສະຖາບັນການເງິນຈຸລະພາກ<br>ທີ່ບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ</div>
+                </div>
+
+                <div class="motto text-center" style="padding-top: 10px;">
+                    <div class="font-bold" style="font-size: 16px;">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
+                    <div style="font-size: 14px; margin-top: 2px;">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</div>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px; margin-bottom: 5px;">
+                <div style="width: 250px;">
+                    <div class="flex align-center">
+                        <span class="font-bold" style="white-space: nowrap;">ເລກທີສັນຍາ:</span>
+                        <span class="line-solid" style="flex-grow: 1;">{{contractNumber}}</span>
+                    </div>
+                    <div class="flex align-center mt-1">
+                        <span class="font-bold" style="white-space: nowrap;">ນະຄອນຫຼວງວຽງຈັນ: ວັນທີ່:</span>
+                        <span class="line-solid" style="width: 30px;">{{contractDay}}</span>/
+                        <span class="line-solid" style="width: 30px;">{{contractMonth}}</span>/
+                        <span class="line-solid" style="flex-grow: 1;">{{contractYear}}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center font-bold mb-4" style="font-size: 16px; text-decoration: underline;">
+                ໃບສະເຫນີຂໍປ່ອຍສິນຄ້າປະເພດສິນເຊື່ອເພື່ອການຊົມໃຊ້:
+            </div>
+
+            <div class="flex justify-center gap-8 mb-4 font-bold">
+                <div><span class="checkbox">{{checkGold}}</span> ສິນຄ້າຄໍາ</div>
+                <div><span class="checkbox">{{checkGeneral}}</span> ສິນຄ້າທົ່ວໄປ</div>
+                <div><span class="checkbox">{{checkMotorcycle}}</span> ສິນຄ້າລົດຈັກ</div>
+            </div>
+
+            <div class="section-title">I. ຂໍ້ມູນສ່ວນຕົວລູກຄ້າ:</div>
+            <table class="form-grid">
+                <tr>
+                    <td class="td-label" style="width: 20%;">ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ</td>
+                    <td colspan="3" style="width: 45%;">{{cusName}}</td>
+                    <td class="td-label" style="width: 15%;">ວັນເດືອນປີເກີດ:</td>
+                    <td style="width: 20%;">{{cusDob}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ເບີໂທລະສັບມືຖື:</td>
+                    <td colspan="3">{{cusPhone}}</td>
+                    <td class="td-label">ບັດປະຈຳຕົວ/ໜັງສືຜ່ານແດນເລກທີ:</td>
+                    <td>{{cusIdCard}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ທີ່ຢູ່ປັດຈຸບັນ ບ້ານ:</td>
+                    <td style="width: 18%;">{{cusVillage}}</td>
+                    <td class="td-label" style="width: 8%; text-align: center;">ເມືອງ:</td>
+                    <td style="width: 19%;">{{cusDistrict}}</td>
+                    <td class="td-label text-center">ແຂວງ:</td>
+                    <td>{{cusProvince}}</td>
+                </tr>
+            </table>
+
+            <div class="section-title">II. ຂໍ້ມູນຫ້ອງການບ່ອນເຮັດວຽກລູກຄ້າ:</div>
+            <table class="form-grid">
+                <tr>
+                    <td class="td-label" style="width: 20%;">ຊື່ຫ້ອງການ/ບໍລິສັດ:</td>
+                    <td colspan="3" style="width: 45%;">{{workName}}</td>
+                    <td class="td-label" style="width: 15%;">ບ້ານ:</td>
+                    <td style="width: 20%;">{{workVillage}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ເມືອງ:</td>
+                    <td style="width: 18%;">{{workDistrict}}</td>
+                    <td class="td-label text-center" style="width: 8%;">ແຂວງ:</td>
+                    <td style="width: 19%;">{{workProvince}}</td>
+                    <td class="td-label text-center">ພະແນກ</td>
+                    <td>{{workDepartment}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ປີການເຮັດວຽກ:</td>
+                    <td>{{workYears}}</td>
+                    <td class="td-label text-center">ຕຳແໜ່ງ:</td>
+                    <td>{{workPosition}}</td>
+                    <td class="td-label">ເງິນເດືອນ/ລາຍຮັບຕໍ່ເດືອນ:</td>
+                    <td>{{workSalary}}</td>
+                </tr>
+            </table>
+
+            <div class="section-title">III. ຕາຕະລາງລາຍລະອຽດຂອງສິນຄ້າ:</div>
+            <table class="form-grid">
+                <tr>
+                    <td class="td-label" style="width: 28%;">ລາຍລະອຽດສິນຄ້າ:</td>
+                    <td style="width: 22%;">{{prodDesc}}</td>
+                    <td class="td-label" style="width: 25%;">ປະເພດສິນຄ້າ:</td>
+                    <td style="width: 25%;">{{prodType}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ຍີ່ຫໍ້ສິນຄ້າ:</td>
+                    <td>{{prodBrand}}</td>
+                    <td class="td-label">ລຸ້ນສິນຄ້າ:</td>
+                    <td>{{prodModel}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ລາຄາສິນຄ້າທັງໝົດ:</td>
+                    <td><div class="flex justify-between"><span>{{prodPrice}}</span><span>ກີບ</span></div></td>
+                    <td class="td-label">ເງິນວາງດາວ(ຖ້າມີ):</td>
+                    <td><div class="flex justify-between"><span>{{prodDown}}</span><span>ກີບ</span></div></td>
+                </tr>
+                <tr>
+                    <td class="td-label">ວົງເງິນອະນຸມັດ:</td>
+                    <td><div class="flex justify-between"><span>{{prodApprove}}</span><span>ກີບ</span></div></td>
+                    <td class="td-label">ອັດຕາດອກເບ້ຍ:</td>
+                    <td><div class="flex justify-between"><span>{{prodInterest}}</span><span>%</span></div></td>
+                </tr>
+                <tr>
+                    <td class="td-label">ຈຳນວນງວດທີ່ກູ້</td>
+                    <td><div class="flex justify-between"><span>{{prodTerm}}</span><span>ເດືອນ</span></div></td>
+                    <td class="td-label">ຈຳນວນດອກເບ້ຍທັງໝົດ:</td>
+                    <td><div class="flex justify-between"><span>{{prodTotalInt}}</span><span>ກີບ</span></div></td>
+                </tr>
+                <tr>
+                    <td class="td-label">ຄ່າທຳນຽມCIB/ອື່ນໆ(ຖ້າມີ):</td>
+                    <td><div class="flex justify-between"><span>{{prodFee}}</span><span>ກີບ</span></div></td>
+                    <td class="td-label">ຄ່າງວດລາຍເດືອນ</td>
+                    <td><div class="flex justify-between"><span>{{prodMonthly}}</span><span>ກີບ/ເດືອນ</span></div></td>
+                </tr>
+                <tr>
+                    <td class="td-label">ຄ່າງວດເດືອນທຳອິດ:(ບວກຄ່າທຳນຽມ):</td>
+                    <td><div class="flex justify-between"><span>{{prodFirstInst}}</span><span>ກີບ</span></div></td>
+                    <td class="td-label">ມື້ກຳນົດການຊຳລະຄ່າງວດ:</td>
+                    <td><div class="flex justify-between" style="padding:0 5px;"><span>ຈ່າຍທຸກວັນທີ</span><span>{{prodPayDay}}</span><span>ຂອງເດືອນ</span></div></td>
+                </tr>
+                <tr>
+                    <td class="td-label">ຊື່ຮ້ານຄ້າຕົວແທນ:</td>
+                    <td>{{shopName}}</td>
+                    <td class="td-label">ສາຂາ:</td>
+                    <td>{{shopBranch}}</td>
+                </tr>
+            </table>
+
+            <div class="section-title flex align-center gap-2">
+                IV. ມູນສ່ວນຕົວ ແລະ ຫ້ອງການ ຂອງ <span class="checkbox">{{hasGuarantor}}</span> ຜູ້ຄຳປະກັນ / <span class="checkbox">{{hasReference}}</span> ຜູ້ອ້າງອີງ (ຖ້າມີ) ເຊິ່ງມີລາຍລະອຽດດັ່ງລຸ່ມນີ້
+            </div>
+            <table class="form-grid">
+                <tr>
+                    <td class="td-label" style="width: 20%;">ຊື່ ແລະ ນາມສະກຸນ</td>
+                    <td colspan="3" style="width: 45%;">{{guaName}}</td>
+                    <td class="td-label" style="width: 15%;">ວັນເດືອນປີເກີດ:</td>
+                    <td style="width: 20%;">{{guaDob}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ເບີໂທລະສັບມືຖື:</td>
+                    <td colspan="3">{{guaPhone}}</td>
+                    <td class="td-label">ບັດປະຈຳຕົວ/ໜັງສືຜ່ານແດນເລກທີ:</td>
+                    <td>{{guaIdCard}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ທີ່ຢູ່ປັດຈຸບັນ ບ້ານ:</td>
+                    <td style="width: 18%;">{{guaVillage}}</td>
+                    <td class="td-label text-center" style="width: 8%;">ເມືອງ:</td>
+                    <td style="width: 19%;">{{guaDistrict}}</td>
+                    <td class="td-label text-center">ແຂວງ:</td>
+                    <td>{{guaProvince}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ຫ້ອງການ/ບໍລິສັດ:</td>
+                    <td>{{guaWorkName}}</td>
+                    <td class="td-label text-center">ບ້ານ:</td>
+                    <td>{{guaWorkVillage}}</td>
+                    <td class="td-label text-center">ເມືອງ:</td>
+                    <td>{{guaWorkDistrict}}</td>
+                </tr>
+                <tr>
+                    <td class="td-label">ແຂວງ:</td>
+                    <td>{{guaWorkProvince}}</td>
+                    <td class="td-label text-center">ລາຍຮັບ:</td>
+                    <td>{{guaIncome}}</td>
+                    <td class="td-label text-center">ສາຍສຳພັນ:</td>
+                    <td>{{guaRelation}}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="footer-wrapper">
+            <div class="page-num">1</div>
+            <div class="footer-note">
+                ສະຖາບັນການເງິນ ຈຸລະພາກບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ ສຳນັກງານໃຫຍ່ຕັ້ງຢູ່ ຖະໜົນ 23 ສິງຫາ, ບ້ານ ໜອງບອນ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ<br>
+                INSEE Microfinance, 23 Singha Rd, Nongbone Village, Saysatha District, VTE<br>
+                ໂທລະສັບ/Tel 021 417775, 021 417776 (856-20) 5595 7755
+            </div>
+        </div>
+    </div>
+
+    <div class="page">
+        <div class="content-wrapper">
+            
+            <table class="form-grid mt-2">
+                <tr>
+                    <td style="width: 25%; vertical-align: top; padding: 10px;">
+                        <div class="font-bold mb-4" style="font-size: 13px;">❖ ຊ່ອງຄໍາຄິດເຫັນຂອງຜູ້ອະນຸມັດ</div>
+                        <div class="flex justify-center gap-4 mt-2">
+                            <div><span class="checkbox">{{approveChecked}}</span> ອະນຸມັດ</div>
+                            <div><span class="checkbox">{{rejectChecked}}</span> ປະຕິເສດ</div>
+                        </div>
+                    </td>
+                    <td style="width: 75%; vertical-align: top; padding: 10px; height: 100px;">
+                        <div class="font-bold" style="text-decoration: underline; margin-bottom: 5px;">ຄໍາຄິດເຫັນ:</div>
+                    </td>
+                </tr>
+            </table>
+
+            <div class="signature-grid">
+                
+                <div class="sig-col">
+                    <div class="sig-title">ເຊັນ ແລະ ຊື່ແຈ້ງ ຜູ້ກູ້</div>
+                    <div class="sig-desc">(ຂ້າພະເຈົ້າຂໍຢັ້ງຢືນວ່າ ຂ້າພະເຈົ້າໄດ້ຮັບສິນຄ້າແລ້ວ ແລະ<br>ໄດ້ເຊັນສັນຍາສະບັບນີ້ຢ່າງແທ້ຈິງ)</div>
+                    <div class="sig-space"></div>
+                    <div class="flex justify-center align-center">
+                        <span class="font-bold">ຊື່ແຈ້ງ:</span><span class="line-solid" style="width: 180px;"></span>
+                    </div>
+                    <div class="flex justify-center align-center mt-2">
+                        <span class="font-bold">ວັນທີ:</span>
+                        <span class="line-solid" style="width: 50px;"></span>/
+                        <span class="line-solid" style="width: 50px;"></span>/
+                        <span class="line-solid" style="width: 60px;"></span>
+                    </div>
+                </div>
+
+                <div class="sig-col">
+                    <div class="sig-title">ເຊັນ ແລະ ຊື່ແຈ້ງ (ຜູ້ໃຫ້ກູ້)</div>
+                    <div class="sig-desc">(ສະຖາບັນການເງິນຈຸລະພາກທີ່ບໍ່ຮັບເງິນຝາກອິນຊີ ຈຳກັດ)</div>
+                    <div class="sig-space"></div>
+                    <div class="flex justify-center align-center">
+                        <span class="font-bold">ຊື່ແຈ້ງ:</span><span class="line-solid" style="width: 180px;"></span>
+                    </div>
+                    <div class="flex justify-center align-center mt-2">
+                        <span class="font-bold">ວັນທີ:</span>
+                        <span class="line-solid" style="width: 50px;"></span>/
+                        <span class="line-solid" style="width: 50px;"></span>/
+                        <span class="line-solid" style="width: 60px;"></span>
+                    </div>
+                </div>
+
+                <div class="sig-col mt-4">
+                    <div class="sig-title">ເຊັນຫົວຫນ້າພະແນກສິນເຊື່ອ:</div>
+                    <div class="sig-space"></div>
+                    <div class="flex justify-center align-center">
+                        <span class="font-bold">ຊື່ແຈ້ງ:</span><span class="line-solid" style="width: 180px;"></span>
+                    </div>
+                    <div class="flex justify-center align-center mt-2">
+                        <span class="font-bold">ວັນທີ:</span>
+                        <span class="line-solid" style="width: 50px;"></span>/
+                        <span class="line-solid" style="width: 50px;"></span>/
+                        <span class="line-solid" style="width: 60px;"></span>
+                    </div>
+                </div>
+
+                <div class="sig-col mt-4">
+                    <div class="sig-title">ເຊັນພະນັກງານເຊວສິນເຊື່ອ:</div>
+                    <div class="sig-space"></div>
+                    <div class="flex justify-center align-center">
+                        <span class="font-bold">ຊື່ແຈ້ງ:</span><span class="line-solid" style="width: 180px;"></span>
+                    </div>
+                    <div class="flex justify-center align-center mt-2">
+                        <span class="font-bold">ວັນທີ:</span>
+                        <span class="line-solid" style="width: 50px;"></span>/
+                        <span class="line-solid" style="width: 50px;"></span>/
+                        <span class="line-solid" style="width: 60px;"></span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="remark-box font-bold">
+                ໝາຍເຫດ: <span style="font-weight: normal;">ໃບສະເຫນີນີ້ເປັນເອກະສານໃຊ້ສະເພາະພາຍໃນຂອງ ສະຖາບັນການເງິນ ເພື່ອຂໍປ່ອຍສິນຄ້າໃຫ້ລູກຄ້າທຸກຄັ້ງ ແລະ ເພື່ອ
+                ຢືນຢັນວ່າສັນຍາກູ້ຢືມໄດ້ຮັບການອະນຸມັດແລ້ວໂດຍຄະນະອໍານວຍການ ແລະ ຫົວຫນ້າພະແນກ. ຫຼັງຈາກການອະນຸມັດ ເອກະສານ
+                ສັນຍາຕົວຈິງຈະຖືກສົ່ງໃຫ້ພະນັກງານຂາຍສິນເຊື່ອ ເພື່ອດໍາເນີນການປ່ອຍສິນຄ້າໃຫ້ລູກຄ້າ. ເມື່ອລູກຄ້າໄດ້ຮັບສິນຄ້າແລ້ວ ລູກຄ້າຈະ
+                ຕ້ອງເຊັນຮັບເຄື່ອງໃນໜ້າສັນຍາຕົວຈິງ ພ້ອມຮູບຖ່າຍຄູ່ສັນຍາ ແລະ ສົ່ງຄືນໃຫ້ພະນັກງານຂາຍເພື່ອສົ່ງຕໍ່ໃຫ້ຄະນະອໍານວຍການເຊັນ
+                ຢືນຢັນໃນສັນຍາສະບັບແທ້ອີກຄັ້ງ ໂດຍຕ້ອງແນບໃບສະເຫນີຂໍອະນຸມັດທຸກຄັ້ງ ແລະ ພ້ອມກັບຊຸດເອກະສານປະກອບສະໝັກ.</span>
+            </div>
+        </div>
+
+        <div class="footer-wrapper">
+            <div class="page-num">2</div>
+            <div class="footer-note">
+                ສະຖາບັນການເງິນ ຈຸລະພາກບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ ສຳນັກງານໃຫຍ່ຕັ້ງຢູ່ ຖະໜົນ 23 ສິງຫາ, ບ້ານ ໜອງບອນ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ<br>
+                INSEE Microfinance, 23 Singha Rd, Nongbone Village, Saysatha District, VTE<br>
+                ໂທລະສັບ/Tel 021 417775, 021 417776 (856-20) 5595 7755
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

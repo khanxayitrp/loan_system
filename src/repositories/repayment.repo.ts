@@ -1,7 +1,7 @@
 import { repayment_schedules } from './../models/repayment_schedules';
 import { repayments, repaymentsAttributes, repaymentsCreationAttributes } from '../models/repayments';
 import { db } from '../models/init-models';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger';
 import { Op, Sequelize, where } from 'sequelize';
 import { logAudit } from '../utils/auditLogger';
 import { generateSignatureSlots } from '../utils/signatureGenerator';

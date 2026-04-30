@@ -27,6 +27,14 @@ class customer_work_info extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.TEXT,
                 allowNull: true
             },
+            province_id: {
+                type: sequelize_1.DataTypes.STRING(2),
+                allowNull: true
+            },
+            district_id: {
+                type: sequelize_1.DataTypes.STRING(4),
+                allowNull: true
+            },
             phone: {
                 type: sequelize_1.DataTypes.STRING(20),
                 allowNull: true

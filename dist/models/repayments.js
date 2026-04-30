@@ -73,6 +73,12 @@ class repayments extends sequelize_1.Model {
                 defaultValue: 0.00,
                 comment: "ยอดสะสมที่ตัดดอกเบี้ยไปแล้วในงวดนี้"
             },
+            paid_penalty: {
+                type: sequelize_1.DataTypes.DECIMAL(15, 2),
+                allowNull: true,
+                defaultValue: 0.00,
+                comment: "ยอดสะสมที่ตัดค่าปรับไปแล้วในงวดนี้"
+            },
             payment_status: {
                 type: sequelize_1.DataTypes.ENUM('unpaid', 'partial', 'paid', 'overdue'),
                 allowNull: true,
@@ -81,6 +87,11 @@ class repayments extends sequelize_1.Model {
             paid_at: {
                 type: sequelize_1.DataTypes.DATE,
                 allowNull: true
+            },
+            last_penalty_date: {
+                type: sequelize_1.DataTypes.DATEONLY,
+                allowNull: true,
+                comment: "วันที่ระบบคิดค่าปรับล่าสุด"
             }
         }, {
             sequelize,

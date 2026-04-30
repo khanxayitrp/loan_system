@@ -299,32 +299,38 @@ exports.sentApplyDraft = sentApplyDraft;
 const createWithCustomer = async (req, res, next) => {
     const transaction = await init_models_1.db.sequelize.transaction();
     try {
-        const { phone, otp, identity_number, first_name, last_name, address, age, occupation, income_per_month, other_debt, product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment, interest_type, interest_rate_type, existing_customer_id } = req.body;
-        const isStaffRequest = !!req.userPayload;
+        const { phone, otp, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt, product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment, interest_type, interest_rate_type, existing_customer_id } = req.body;
+        // 🔍 ກວດສອບກ່ອນວ່າມັກຈາກພະນັກງານ (Staff ຫຼື Admin) ຫຼື ບໍ່
+        const isEmployeeRequest = !!req.userPayload && (req.userPayload.role === 'staff' || req.userPayload.role === 'admin');
         const staffId = req.userPayload?.userId || null;
         const performedBy = staffId || 1;
-        // 1. Verify OTP
-        if (!phone || !otp) {
-            throw new errors_1.ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
+        // =======================================================
+        // 1. Verify OTP (ຂ້າມຂັ້ນຕອນນີ້ຖ້າເປັນພະນັກງານສະໝັກໃຫ້ລູກຄ້າ)
+        // =======================================================
+        if (!isEmployeeRequest) { // 👈 ປ່ຽນຊື່ຕົວແປຢູ່ບ່ອນນີ້
+            if (!phone || !otp) {
+                throw new errors_1.ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
+            }
+            const verificationResult = await otp_service_1.otpService.verifyOTP({
+                phoneNumber: phone,
+                otp
+            });
+            if (!verificationResult.success) {
+                throw new errors_1.BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
+            }
         }
-        const verificationResult = await otp_service_1.otpService.verifyOTP({
-            phoneNumber: phone,
-            otp
-        });
-        if (!verificationResult.success) {
-            throw new errors_1.BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
-        }
+        // =======================================================
         // 2. Get or Create Customer
+        // =======================================================
         let customer;
-        const customerPayload = { phone, identity_number, first_name, last_name, address, age, occupation, income_per_month, other_debt };
-        const customerUpdatePayload = { first_name, last_name, address, age, occupation, income_per_month, other_debt };
-        if (isStaffRequest && req.userPayload?.role === 'staff') {
-            // STAFF FLOW
+        const customerPayload = { phone, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
+        const customerUpdatePayload = { first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
+        if (isEmployeeRequest) {
+            // STAFF FLOW: ຈັດການຂໍ້ມູນລູກຄ້າໂດຍພະນັກງານ
             if (existing_customer_id) {
-                // customer = await customerRepo.findCustomerById(existing_customer_id);
                 customer = await init_models_1.db.customers.findByPk(existing_customer_id, {
                     transaction,
-                    lock: transaction.LOCK.UPDATE // 🔒 Lock ລູກຄ້າໄວ້ກ່ອນອັບເດດ
+                    lock: transaction.LOCK.UPDATE
                 });
                 if (!customer)
                     throw new errors_1.NotFoundError('ບໍ່ພົບລູກຄ້າ');
@@ -338,7 +344,7 @@ const createWithCustomer = async (req, res, next) => {
             }
         }
         else {
-            // CUSTOMER (PUBLIC) FLOW
+            // CUSTOMER (PUBLIC) FLOW: ລູກຄ້າສະໝັກເອງ (ຜ່ານ OTP ແລ້ວ)
             customer = await customer_repo_1.default.findCustomersByPhone(phone);
             if (!customer) {
                 customer = await customer_repo_1.default.createCustomer(customerPayload, { transaction });
@@ -350,12 +356,16 @@ const createWithCustomer = async (req, res, next) => {
                 await (0, auditLogger_1.logAudit)('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
             }
         }
+        // =======================================================
         // 3. Validate product
+        // =======================================================
         const product = await init_models_1.db.products.findByPk(product_id, { transaction, lock: transaction.LOCK.UPDATE });
         if (!product)
             throw new errors_1.NotFoundError('ບໍ່ພົບສິນຄ້າ');
         const final_total = total_amount || (product.price * quantity);
+        // =======================================================
         // 4. Create Loan Application
+        // =======================================================
         const loanPayload = {
             customer_id: customer.id,
             product_id,
@@ -370,6 +380,7 @@ const createWithCustomer = async (req, res, next) => {
             status: 'pending',
             requester_id: staffId || null
         };
+        console.log('Loan application payload:', loanPayload);
         const application = await loan_application_repo_1.default.createLoanApplication(loanPayload, { transaction });
         await (0, auditLogger_1.logAudit)('loan_applications', application.id, 'CREATE', null, application.toJSON(), performedBy, transaction);
         let requesterData = null;
@@ -385,13 +396,13 @@ const createWithCustomer = async (req, res, next) => {
         await transaction.commit();
         return res.status(201).json({
             success: true,
-            message: 'ສ້າງຮ່າງຄຳຂໍຜ່ອນຮຽບຮ້ອຍ',
+            message: isEmployeeRequest ? 'ພະນັກງານສ້າງຮ່າງຄຳຂໍໃຫ້ລູກຄ້າຮຽບຮ້ອຍ' : 'ສ້າງຮ່າງຄຳຂໍຜ່ອນຮຽບຮ້ອຍ',
             data: {
                 application_id: application.id,
                 customer_id: customer.id,
                 product_id,
                 loan_id: application.loan_id,
-                total_amount: total_amount,
+                total_amount: final_total,
                 loan_period: loan_period,
                 interest_rate_at_apply: interest_rate_at_apply,
                 interest_type: application.interest_type,
@@ -413,6 +424,8 @@ const createWithCustomer = async (req, res, next) => {
                     identity_number: identity_number,
                     first_name: first_name,
                     last_name: last_name,
+                    province_id: province_id,
+                    district_id: district_id,
                     address: address,
                     age: age,
                     occupation: occupation,
@@ -429,13 +442,13 @@ const createWithCustomer = async (req, res, next) => {
                 },
                 requester: requesterData,
                 approver: null,
-                is_staff_mode: !!req.userPayload?.role?.includes('staff')
+                is_staff_mode: isEmployeeRequest
             }
         });
     }
     catch (error) {
         await transaction.rollback();
-        next(error); // 👈 แค่โยน error ก็พอ Global Handler จะใช้ handleErrorResponse จัดการให้เอง!
+        next(error);
     }
 };
 exports.createWithCustomer = createWithCustomer;

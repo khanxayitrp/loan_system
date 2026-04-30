@@ -177,6 +177,25 @@ class RedisService {
             throw err;
         }
     }
+    // ເພີ່ມ Method ນີ້ລົງໃນ class RedisService ຂອງທ່ານ
+    async setLock(key, value, ttlSeconds) {
+        try {
+            // NX: true ໝາຍເຖິງ Set if Not Exists (ຈະຂຽນຄ່າລົງໄດ້ກໍຕໍ່ເມື່ອບໍ່ມີ Key ນີ້ມາກ່ອນ)
+            // EX: ttlSeconds ໝາຍເຖິງກຳນົດເວລາໝົດອາຍຸ
+            const result = await this.client.set(key, value, {
+                NX: true,
+                EX: ttlSeconds
+            });
+            // ຖ້າຈອງ Lock ໄດ້ ມັນຈະຕອບກັບມາເປັນ 'OK'
+            // ຖ້າມີຄົນຈອງແລ້ວ ມັນຈະຕອບກັບມາເປັນ null
+            return result === 'OK';
+        }
+        catch (error) {
+            const err = error;
+            console.error('Failed to set Redis Lock:', err.message);
+            return false; // ຖ້າ Error ໃຫ້ຖືວ່າຈອງບໍ່ໄດ້ ເພື່ອຄວາມປອດໄພ
+        }
+    }
     isClientConnected() {
         return this.isConnected;
     }

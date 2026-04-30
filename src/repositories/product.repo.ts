@@ -1,6 +1,6 @@
 import { products, productsAttributes, productsCreationAttributes } from "@/models/products";
 import { db } from '../models/init-models';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger';
 import { Op, Sequelize, where, Transaction } from 'sequelize';
 import { logAudit } from '../utils/auditLogger';
 

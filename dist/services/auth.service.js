@@ -11,27 +11,53 @@ const init_models_1 = require("../models/init-models");
 const auditLogger_1 = require("../utils/auditLogger");
 const errors_1 = require("../utils/errors");
 class AuthService {
-    // 🟢 เพิ่มการรับ Transaction และ performedBy เข้ามา
-    async createDefaultPermissions(userId, role, performedBy, t) {
+    // 🟢 เพิ่มการรับ Transaction, staffLevel และ performedBy เข้ามา
+    async createDefaultPermissions(userId, role, staffLevel, performedBy, t) {
         try {
-            const defaultPermissionsByRole = {
-                admin: [
+            let permissionCodes = [];
+            // 🟢 แยกแยะสิทธิ์ตาม Role และ Staff Level
+            if (role === 'admin') {
+                permissionCodes = [
                     'user_view', 'user_create', 'user_manage', 'permission_manage',
-                    'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_approve', 'user_changepass'
-                ],
-                staff: [
-                    'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_approve', 'user_changepass'
-                ],
-                partner: [
-                    'partner_manage', 'shop_view_report', 'user_changepass'
-                ],
-                customer: [
-                    'view_profile', 'loan_request', 'view_own_loans',
-                ]
-            };
-            const permissionCodes = defaultPermissionsByRole[role] || [];
+                    'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_edit', 'loan_approve', 'loan_reject',
+                    'doc_view', 'doc_upload', 'doc_delete',
+                    'payment_view', 'payment_create', 'payment_verify',
+                    'user_changepass'
+                ];
+            }
+            else if (role === 'partner') {
+                permissionCodes = ['partner_manage', 'shop_view_report', 'user_changepass'];
+            }
+            else if (role === 'customer') {
+                permissionCodes = ['cust_profile_view', 'loan_request', 'view_own_loans', 'payment_proof_upload', 'user_changepass'];
+            }
+            else if (role === 'staff') {
+                const level = staffLevel || '';
+                if (['sales', 'credit_officer'].includes(level)) {
+                    // 🟢 กลุ่มเจ้าหน้าที่ทั่วไป: ทำรายการสินเชื่อ, อัปโหลดเอกสาร, และบันทึกชำระเงิน
+                    permissionCodes = [
+                        'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_edit',
+                        'doc_upload', 'doc_view',
+                        'payment_view', 'payment_create',
+                        'user_changepass'
+                    ];
+                }
+                else if (['credit_manager', 'deputy_director', 'director'].includes(level)) {
+                    // 🟢 กลุ่มผู้บริหาร/หัวหน้า: ดูทั้งหมด, อนุมัติ/ปฏิเสธ, และยืนยันการชำระเงิน
+                    permissionCodes = [
+                        'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_edit', 'loan_approve', 'loan_reject',
+                        'doc_view', 'doc_upload', 'doc_delete',
+                        'payment_view', 'payment_create', 'payment_verify',
+                        'user_changepass'
+                    ];
+                }
+                else {
+                    // Fallback สำหรับ Staff ที่ไม่ได้ระบุ Level
+                    permissionCodes = ['loan_view_assigned', 'user_changepass'];
+                }
+            }
             if (permissionCodes.length === 0) {
-                console.log(`[Auth SERVICE] No default permissions for role: ${role}`);
+                console.log(`[Auth SERVICE] No default permissions for role: ${role}, level: ${staffLevel}`);
                 return;
             }
             const featuresList = await init_models_1.db.features.findAll({
@@ -52,7 +78,7 @@ class AuthService {
             // 🟢 บันทึก Audit Log (CREATE Permissions)
             const featureIds = userPermissions.map(p => p.feature_id);
             await (0, auditLogger_1.logAudit)('user_permissions', userId, 'CREATE', null, { features: featureIds }, performedBy, t);
-            console.log(`[AUTH SERVICE] Created ${userPermissions.length} default permissions for user ${userId}`);
+            console.log(`[AUTH SERVICE] Created ${userPermissions.length} default permissions for user ${userId} (Role: ${role}, Level: ${staffLevel || 'N/A'})`);
         }
         catch (error) {
             console.error('[AUTH SERVICE] Error creating default permissions:', error);
@@ -86,8 +112,9 @@ class AuthService {
             delete logData.password;
             // ให้ performedBy เป็น ID ของตัวเอง (เพราะสมัครเอง)
             await (0, auditLogger_1.logAudit)('users', newUser.id, 'CREATE', null, logData, newUser.id, transaction);
-            // 4. มอบสิทธิ์พื้นฐาน (Default Features)
-            const defaultFeatures = ['view_profile', 'loan_request', 'view_own_loans'];
+            // 4. มอบสิทธิ์พื้นฐาน (Default Features สำหรับ Customer)
+            // อัปเดตให้ตรงกับฐานข้อมูล Features ที่มี
+            const defaultFeatures = ['cust_profile_view', 'loan_request', 'view_own_loans', 'payment_proof_upload'];
             const features = await init_models_1.db.features.findAll({
                 where: { feature_name: defaultFeatures },
                 transaction
@@ -182,20 +209,19 @@ class AuthService {
             const newUser = await init_models_1.db.users.create({
                 ...userData,
                 password: hashedPassword,
-                is_active: 1,
+                is_active: Number(userData.is_active) === 0 ? 0 : 1 // กำหนดค่า is_active ตาม input หรือ default เป็น 1
             }, { transaction });
             // 🟢 บันทึก Audit Log (ลบ Password ออกก่อนเก็บ)
             const logData = newUser.toJSON();
             delete logData.password;
             await (0, auditLogger_1.logAudit)('users', newUser.id, 'CREATE', null, logData, performedBy, transaction);
-            // ✅ 4. สร้าง default permissions พร้อมส่ง Transaction และคนทำรายการเข้าไปด้วย
-            await this.createDefaultPermissions(newUser.id, userData.role, performedBy, transaction);
+            // ✅ 4. สร้าง default permissions พร้อมส่ง Transaction และคนทำรายการเข้าไปด้วย (เพิ่ม userData.staff_level ลงไป)
+            await this.createDefaultPermissions(newUser.id, userData.role, userData.staff_level, performedBy, transaction);
             await transaction.commit();
             return newUser;
         }
         catch (error) {
             await transaction.rollback();
-            // throw new Error(error.message);
             throw error;
         }
     }
@@ -225,7 +251,6 @@ class AuthService {
         }
         catch (error) {
             await transaction.rollback();
-            // throw new Error(error.message);
             throw error; // ส่ง error ตรงๆ เพื่อให้ controller จัดการและส่ง response ที่เหมาะสม
         }
     }

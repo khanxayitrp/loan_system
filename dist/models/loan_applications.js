@@ -78,7 +78,7 @@ class loan_applications extends sequelize_1.Model {
                 defaultValue: 0
             },
             status: {
-                type: sequelize_1.DataTypes.ENUM('pending', 'verifying', 'verified', 'approved', 'rejected', 'cancelled', 'completed', 'closed_early'),
+                type: sequelize_1.DataTypes.ENUM('pending', 'verifying', 'verified', 'approved', 'disbursed', 'rejected', 'cancelled', 'completed', 'closed_early'),
                 allowNull: true,
                 defaultValue: "pending"
             },

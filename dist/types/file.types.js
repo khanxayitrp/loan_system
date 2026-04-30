@@ -14,6 +14,18 @@ exports.FILE_UPLOAD_CONFIG = {
         ],
         uploadDir: 'uploads/documents'
     },
+    // Signature
+    SIGNATURE_IMAGES: {
+        maxFileSize: 2 * 1024 * 1024, // 2MB
+        allowedMimeTypes: [
+            'image/jpeg',
+            'image/jpg',
+            'image/png',
+            'image/webp',
+            'image/gif'
+        ],
+        uploadDir: 'uploads/signatures'
+    },
     // Location images
     LOCATION_IMAGES: {
         maxFileSize: 3 * 1024 * 1024, // 3MB

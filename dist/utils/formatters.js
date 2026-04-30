@@ -2,6 +2,9 @@
 // ==========================================
 // src/utils/formatters.ts
 // ==========================================
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mapGender = mapGender;
 exports.mapMaritalStatus = mapMaritalStatus;
@@ -9,6 +12,8 @@ exports.mapResidenceStatus = mapResidenceStatus;
 exports.formatDate = formatDate;
 exports.formatCurrency = formatCurrency;
 exports.getProductTypeName = getProductTypeName;
+exports.fulladdress = fulladdress;
+const locations_json_1 = __importDefault(require("./locations.json"));
 function mapGender(gender) {
     if (gender === 'male')
         return 'ຊາຍ';
@@ -62,4 +67,11 @@ function getProductTypeName(type) {
         'motorcycle': 'ສິນຄ້າລົດຈັກ', '3': 'ສິນຄ້າລົດຈັກ'
     };
     return types[typeStr] || '________________';
+}
+function fulladdress(address, districtId, provinceId) {
+    // ດຶງຄ່າຈາກ JSON (ຖ້າບໍ່ມີໃຫ້ສົ່ງຄ່າວ່າງ ຫຼື 'ບໍ່ລະບຸ')
+    const provinceName = locations_json_1.default.provinces[provinceId] || '';
+    const districtName = locations_json_1.default.districts[districtId] || '';
+    // ປະກອບເປັນ String ດຽວ
+    return `${address}, ${districtName}, ${provinceName}`;
 }

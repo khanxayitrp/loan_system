@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.db = exports.wishlists = exports.vouchers = exports.users = exports.user_refresh_tokens = exports.user_permissions = exports.repayments = exports.repayment_schedules = exports.promotions = exports.products = exports.product_variants = exports.product_types = exports.product_reviews = exports.product_gallery = exports.point_ledgers = exports.payment_transactions = exports.partners = exports.orders = exports.order_items = exports.loan_payments = exports.loan_income_assessments = exports.loan_guarantors = exports.loan_field_visits = exports.loan_contract = exports.loan_cib_history_details = exports.loan_cib_checks = exports.loan_call_verifications = exports.loan_basic_verifications = exports.loan_approval_logs = exports.loan_applications = exports.global_categories = exports.features = exports.document_signatures = exports.delivery_receipts = exports.customers = exports.customer_work_info = exports.customer_vouchers = exports.customer_points = exports.customer_locations = exports.customer_credits = exports.cus_requestform = exports.credit_ledgers = exports.carts = exports.cart_items = exports.audit_logs = exports.application_documents = void 0;
+exports.db = exports.wishlists = exports.vouchers = exports.users = exports.user_refresh_tokens = exports.user_permissions = exports.repayments = exports.repayment_schedules = exports.provinces = exports.promotions = exports.products = exports.product_variants = exports.product_types = exports.product_reviews = exports.product_gallery = exports.point_ledgers = exports.payment_transactions = exports.partners = exports.orders = exports.order_items = exports.loan_payments = exports.loan_income_assessments = exports.loan_guarantors = exports.loan_field_visits = exports.loan_contract = exports.loan_cib_history_details = exports.loan_cib_checks = exports.loan_call_verifications = exports.loan_basic_verifications = exports.loan_approval_logs = exports.loan_applications = exports.global_categories = exports.features = exports.document_signatures = exports.districts = exports.delivery_receipts = exports.customers = exports.customer_work_info = exports.customer_vouchers = exports.customer_points = exports.customer_locations = exports.customer_documents = exports.customer_credits = exports.cus_requestform = exports.credit_ledgers = exports.carts = exports.cart_items = exports.audit_logs = exports.application_documents = void 0;
 exports.initModels = initModels;
 const application_documents_1 = require("./application_documents");
 Object.defineProperty(exports, "application_documents", { enumerable: true, get: function () { return application_documents_1.application_documents; } });
@@ -19,6 +19,8 @@ const cus_requestform_1 = require("./cus_requestform");
 Object.defineProperty(exports, "cus_requestform", { enumerable: true, get: function () { return cus_requestform_1.cus_requestform; } });
 const customer_credits_1 = require("./customer_credits");
 Object.defineProperty(exports, "customer_credits", { enumerable: true, get: function () { return customer_credits_1.customer_credits; } });
+const customer_documents_1 = require("./customer_documents");
+Object.defineProperty(exports, "customer_documents", { enumerable: true, get: function () { return customer_documents_1.customer_documents; } });
 const customer_locations_1 = require("./customer_locations");
 Object.defineProperty(exports, "customer_locations", { enumerable: true, get: function () { return customer_locations_1.customer_locations; } });
 const customer_points_1 = require("./customer_points");
@@ -31,6 +33,8 @@ const customers_1 = require("./customers");
 Object.defineProperty(exports, "customers", { enumerable: true, get: function () { return customers_1.customers; } });
 const delivery_receipts_1 = require("./delivery_receipts");
 Object.defineProperty(exports, "delivery_receipts", { enumerable: true, get: function () { return delivery_receipts_1.delivery_receipts; } });
+const districts_1 = require("./districts");
+Object.defineProperty(exports, "districts", { enumerable: true, get: function () { return districts_1.districts; } });
 const document_signatures_1 = require("./document_signatures");
 Object.defineProperty(exports, "document_signatures", { enumerable: true, get: function () { return document_signatures_1.document_signatures; } });
 const features_1 = require("./features");
@@ -81,6 +85,8 @@ const products_1 = require("./products");
 Object.defineProperty(exports, "products", { enumerable: true, get: function () { return products_1.products; } });
 const promotions_1 = require("./promotions");
 Object.defineProperty(exports, "promotions", { enumerable: true, get: function () { return promotions_1.promotions; } });
+const provinces_1 = require("./provinces");
+Object.defineProperty(exports, "provinces", { enumerable: true, get: function () { return provinces_1.provinces; } });
 const repayment_schedules_1 = require("./repayment_schedules");
 Object.defineProperty(exports, "repayment_schedules", { enumerable: true, get: function () { return repayment_schedules_1.repayment_schedules; } });
 const repayments_1 = require("./repayments");
@@ -104,12 +110,14 @@ function initModels(sequelize) {
     const credit_ledgers = credit_ledgers_1.credit_ledgers.initModel(sequelize);
     const cus_requestform = cus_requestform_1.cus_requestform.initModel(sequelize);
     const customer_credits = customer_credits_1.customer_credits.initModel(sequelize);
+    const customer_documents = customer_documents_1.customer_documents.initModel(sequelize);
     const customer_locations = customer_locations_1.customer_locations.initModel(sequelize);
     const customer_points = customer_points_1.customer_points.initModel(sequelize);
     const customer_vouchers = customer_vouchers_1.customer_vouchers.initModel(sequelize);
     const customer_work_info = customer_work_info_1.customer_work_info.initModel(sequelize);
     const customers = customers_1.customers.initModel(sequelize);
     const delivery_receipts = delivery_receipts_1.delivery_receipts.initModel(sequelize);
+    const districts = districts_1.districts.initModel(sequelize);
     const document_signatures = document_signatures_1.document_signatures.initModel(sequelize);
     const features = features_1.features.initModel(sequelize);
     const global_categories = global_categories_1.global_categories.initModel(sequelize);
@@ -135,6 +143,7 @@ function initModels(sequelize) {
     const product_variants = product_variants_1.product_variants.initModel(sequelize);
     const products = products_1.products.initModel(sequelize);
     const promotions = promotions_1.promotions.initModel(sequelize);
+    const provinces = provinces_1.provinces.initModel(sequelize);
     const repayment_schedules = repayment_schedules_1.repayment_schedules.initModel(sequelize);
     const repayments = repayments_1.repayments.initModel(sequelize);
     const user_permissions = user_permissions_1.user_permissions.initModel(sequelize);
@@ -154,6 +163,8 @@ function initModels(sequelize) {
     customers.hasMany(cus_requestform, { as: "cus_requestforms", foreignKey: "customer_id" });
     customer_credits.belongsTo(customers, { as: "customer", foreignKey: "customer_id" });
     customers.hasOne(customer_credits, { as: "customer_credit", foreignKey: "customer_id" });
+    customer_documents.belongsTo(customers, { as: "customer", foreignKey: "customer_id" });
+    customers.hasMany(customer_documents, { as: "customer_documents", foreignKey: "customer_id" });
     customer_locations.belongsTo(customers, { as: "customer", foreignKey: "customer_id" });
     customers.hasMany(customer_locations, { as: "customer_locations", foreignKey: "customer_id" });
     customer_points.belongsTo(customers, { as: "customer", foreignKey: "customer_id" });
@@ -242,6 +253,8 @@ function initModels(sequelize) {
     products.hasMany(product_variants, { as: "product_variants", foreignKey: "product_id" });
     wishlists.belongsTo(products, { as: "product", foreignKey: "product_id" });
     products.hasMany(wishlists, { as: "wishlists", foreignKey: "product_id" });
+    districts.belongsTo(provinces, { as: "province", foreignKey: "province_id" });
+    provinces.hasMany(districts, { as: "districts", foreignKey: "province_id" });
     repayments.belongsTo(repayment_schedules, { as: "schedule", foreignKey: "schedule_id" });
     repayment_schedules.hasMany(repayments, { as: "repayments", foreignKey: "schedule_id" });
     payment_transactions.belongsTo(repayments, { as: "schedule", foreignKey: "schedule_id" });
@@ -296,6 +309,8 @@ function initModels(sequelize) {
     users.hasMany(user_refresh_tokens, { as: "user_refresh_tokens", foreignKey: "user_id" });
     customer_vouchers.belongsTo(vouchers, { as: "voucher", foreignKey: "voucher_id" });
     vouchers.hasMany(customer_vouchers, { as: "customer_vouchers", foreignKey: "voucher_id" });
+    customer_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by" });
+    users.hasMany(customer_documents, { as: "uploaded_customer_documents", foreignKey: "uploaded_by" });
     return {
         sequelize: sequelize,
         application_documents: application_documents,
@@ -305,12 +320,14 @@ function initModels(sequelize) {
         credit_ledgers: credit_ledgers,
         cus_requestform: cus_requestform,
         customer_credits: customer_credits,
+        customer_documents: customer_documents,
         customer_locations: customer_locations,
         customer_points: customer_points,
         customer_vouchers: customer_vouchers,
         customer_work_info: customer_work_info,
         customers: customers,
         delivery_receipts: delivery_receipts,
+        districts: districts,
         document_signatures: document_signatures,
         features: features,
         global_categories: global_categories,
@@ -336,6 +353,7 @@ function initModels(sequelize) {
         product_variants: product_variants,
         products: products,
         promotions: promotions,
+        provinces: provinces,
         repayment_schedules: repayment_schedules,
         repayments: repayments,
         user_permissions: user_permissions,

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const init_models_1 = require("../models/init-models");
-const logger_1 = require("@/utils/logger");
+const logger_1 = require("../utils/logger");
 const sequelize_1 = require("sequelize");
 const auditLogger_1 = require("../utils/auditLogger");
 const signatureGenerator_1 = require("../utils/signatureGenerator");
@@ -177,31 +177,35 @@ class RepaymentRepository {
             total_payoff_amount: total_payoff_amount
         };
     }
-    async findRepaymentById(repaymentId) {
-        return await init_models_1.db.repayments.findByPk(repaymentId, {
-            include: [
-                {
-                    model: init_models_1.db.repayment_schedules,
-                    as: 'schedule',
-                    attributes: ['id', 'version', 'status'],
-                    where: { status: 'approved' } // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
-                }
-            ]
+    async findRepaymentById(application_id) {
+        return await init_models_1.db.repayment_schedules.findOne({
+            where: { application_id: application_id },
+            order: [['version', 'DESC']],
+            limit: 1
+            // status: 'approved' }, // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+            // include: [
+            //     {
+            //         model: db.r,
+            //         as: 'schedule',
+            //         attributes: ['id', 'version', 'status'],
+            //         where: { status: 'approved' } // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
+            //     }
+            // ]
         });
     }
     async updateRepayment(repaymentId, data, transaction) {
         try {
             const repayment = await init_models_1.db.repayments.findByPk(repaymentId, {
                 transaction,
-                lock: transaction ? transaction.LOCK.UPDATE : undefined // 🟢 เพิ่ม Lock เฉพาะตอนมี Transaction
+                lock: transaction ? transaction.LOCK.UPDATE : undefined
             });
             if (!repayment) {
                 logger_1.logger.error(`Repayment with ID: ${repaymentId} not found`);
                 return null;
             }
+            // ✅ จุดที่แก้: ใส่ { transaction } เข้าไป เพื่อให้มันทำงานในท่อเดียวกัน
             const updateRepayment = await repayment.update(data, {
-                where: { id: repaymentId },
-                returning: true
+                transaction // 🟢 สำคัญมาก ห้ามลืม!
             });
             logger_1.logger.info(`Repayment with ID: ${repaymentId} updated successfully`);
             return updateRepayment;
@@ -230,19 +234,99 @@ class RepaymentRepository {
     async createReceipt(data, transaction) {
         return await init_models_1.db.payment_transactions.create(data, { transaction });
     }
-    // 2. ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid'
-    async markAllRemainingAsPaid(applicationId, transaction) {
-        return await init_models_1.db.repayments.update({ payment_status: 'paid', paid_at: new Date() }, {
+    // // 2. ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid'
+    // async markAllRemainingAsPaid(applicationId: number, transaction?: any): Promise<any> {
+    //     return await db.repayments.update(
+    //         { payment_status: 'paid', paid_at: new Date() },
+    //         { 
+    //             where: { 
+    //                 application_id: applicationId, 
+    //                 payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } 
+    //             },
+    //             transaction 
+    //         }
+    //     );
+    // }
+    // ==========================================
+    // ໃນໄຟລ໌ RepaymentRepository.ts (ເພີ່ມຟັງຊັນນີ້ແທນອັນເກົ່າ)
+    // ==========================================
+    // ສຳລັບ Early Payoff: ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ກາຍເປັນ 'paid' ພ້ອມຍັດຍອດເງິນ
+    async processEarlyPayoffSettlement(applicationId, transaction) {
+        // 1. ດຶງງວດທີ່ຍັງຄ້າງທັງໝົດ
+        const unpaidSchedules = await init_models_1.db.repayments.findAll({
             where: {
                 application_id: applicationId,
                 payment_status: { [sequelize_1.Op.in]: ['unpaid', 'overdue', 'partial'] }
             },
+            order: [['installment_no', 'ASC']],
+            lock: transaction ? transaction.LOCK.UPDATE : undefined,
             transaction
         });
+        const now = new Date();
+        // 2. ວົນ Loop ອັບເດດຍອດເງິນທີ່ຄວນຈະຈ່າຍ ໃຫ້ເຕັມ
+        for (let i = 0; i < unpaidSchedules.length; i++) {
+            const sch = unpaidSchedules[i];
+            // ສູດ Early Payoff: ດອກເບ້ຍເອົາສະເພາະງວດທຳອິດທີ່ຄ້າງ (i === 0), ງວດຖັດໄປດອກເບ້ຍເປັນ 0
+            const finalInterest = i === 0 ? Number(sch.interest_amount) : Number(sch.paid_interest || 0);
+            await sch.update({
+                paid_principal: Number(sch.principal_amount), // ຈ່າຍຕົ້ນທຶນເຕັມ
+                paid_interest: finalInterest, // ຈ່າຍດອກເບ້ຍຕາມສູດ
+                payment_status: 'paid',
+                paid_at: now
+            }, { transaction });
+        }
     }
     // 3. ອັບເດດສະຖານະຂອງສັນຍາ (ເຊັ່ນ: ປ່ຽນເປັນ 'completed' ຕອນປິດບັນຊີ)
     async updateLoanStatus(applicationId, status, transaction) {
         return await init_models_1.db.loan_applications.update({ status: status }, { where: { id: applicationId }, transaction });
+    }
+    // ==========================================
+    // 🟢 อนุมัติและปล่อยสินเชื่อ (ปรับวันที่ชำระเงิน และเปลี่ยนสถานะ)
+    // ==========================================
+    async approveAndDisburseLoan(applicationId, adminId, actualDisburseDate, transaction) {
+        try {
+            // 1. หาตารางผ่อนชำระที่เป็นฉบับร่าง (Draft)
+            const schedule = await init_models_1.db.repayment_schedules.findOne({
+                where: { application_id: applicationId, status: 'draft' },
+                transaction,
+                lock: transaction ? transaction.LOCK.UPDATE : undefined
+            });
+            if (!schedule) {
+                throw new Error('ບໍ່ພົບຕາຕະລາງຮ່າງ (Draft Schedule not found)');
+            }
+            // 2. ดึงงวดทั้งหมดที่ผูกกับตารางนี้
+            const repayments = await init_models_1.db.repayments.findAll({
+                where: { schedule_id: schedule.id },
+                order: [['installment_no', 'ASC']],
+                transaction,
+                lock: transaction ? transaction.LOCK.UPDATE : undefined
+            });
+            // 3. ⚖️ เลื่อนวันที่จ่ายเงิน (Shift Due Dates) ตามวันที่รับเงินจริง
+            let nextDueDate = new Date(actualDisburseDate);
+            for (const installment of repayments) {
+                nextDueDate.setMonth(nextDueDate.getMonth() + 1); // บวกทีละ 1 เดือน
+                await installment.update({
+                    due_date: nextDueDate.toISOString().split('T')[0],
+                    payment_status: 'unpaid' // เปลี่ยนจากร่าง เป็นรอชำระเงิน
+                }, { transaction });
+            }
+            const oldScheduleData = schedule.toJSON();
+            // 4. อัปเดต Header ของตารางให้เป็น 'approved' (ตารางผ่อนถูกใช้งานจริงแล้ว)
+            await schedule.update({
+                status: 'approved',
+                approved_by: adminId,
+                approved_at: new Date()
+            }, { transaction });
+            await (0, auditLogger_1.logAudit)('repayment_schedules', applicationId, 'UPDATE', oldScheduleData, schedule.toJSON(), adminId, transaction);
+            // 5. 🎯 🟢 อัปเดตสถานะของ Loan Application ให้เป็น 'disbursed'
+            // (เป็นการบอกว่าใบคำขอนี้ ลูกค้ารับเงิน/รับของไปเรียบร้อยแล้ว)
+            await this.updateLoanStatus(applicationId, 'disbursed', transaction);
+            return true;
+        }
+        catch (error) {
+            logger_1.logger.error(`Error in approveAndDisburseLoan: ${error.message}`);
+            throw error;
+        }
     }
 }
 exports.default = new RepaymentRepository();

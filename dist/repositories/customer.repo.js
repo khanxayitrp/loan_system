@@ -19,6 +19,12 @@ class CustomerRepository {
             if (!cleanCustomer.phone || cleanCustomer.phone.trim() === '') {
                 throw new Error('Phone number is required');
             }
+            if (!cleanCustomer.province_id || cleanCustomer.province_id.trim() === '') {
+                throw new Error('Province ID is required');
+            }
+            if (!cleanCustomer.district_id || cleanCustomer.district_id.trim() === '') {
+                throw new Error('District ID is required');
+            }
             if (!cleanCustomer.address || cleanCustomer.address.trim() === '') {
                 throw new Error('Address is required');
             }
@@ -41,7 +47,10 @@ class CustomerRepository {
                 first_name: cleanCustomer.first_name,
                 last_name: cleanCustomer.last_name,
                 phone: cleanCustomer.phone,
+                province_id: cleanCustomer.province_id,
+                district_id: cleanCustomer.district_id,
                 address: cleanCustomer.address,
+                age: cleanCustomer.age,
                 occupation: cleanCustomer.occupation,
                 income_per_month: cleanCustomer.income_per_month,
                 other_debt: cleanCustomer.other_debt || 0,
@@ -99,6 +108,9 @@ class CustomerRepository {
                 first_name: data.first_name || customer.first_name,
                 last_name: data.last_name || customer.last_name,
                 phone: data.phone || customer.phone,
+                age: data.age !== undefined ? data.age : customer.age,
+                province_id: data.province_id || customer.province_id,
+                district_id: data.district_id || customer.district_id,
                 address: data.address || customer.address,
                 occupation: data.occupation || customer.occupation,
                 income_per_month: data.income_per_month || customer.income_per_month,

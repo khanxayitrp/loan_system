@@ -34,7 +34,7 @@ const requestOtpForCustomer = async (req, res, next) => {
 exports.requestOtpForCustomer = requestOtpForCustomer;
 const createCustomer = async (req, res, next) => {
     try {
-        const { identity_number, first_name, last_name, phone, address, occupation, income_per_month, other_debt, otp } = req.body;
+        const { identity_number, first_name, last_name, phone, province_id, district_id, address, occupation, income_per_month, other_debt, otp } = req.body;
         if (!phone || !otp) {
             throw new errors_1.ValidationError('ກະລຸນາລະບຸເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
         }
@@ -52,6 +52,8 @@ const createCustomer = async (req, res, next) => {
             first_name,
             last_name,
             phone,
+            province_id,
+            district_id,
             address,
             occupation,
             income_per_month,

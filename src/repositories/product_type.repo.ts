@@ -1,6 +1,6 @@
 import { product_types, product_typesAttributes, product_typesCreationAttributes } from '../models/product_types';
 import { db } from '../models/init-models';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger';
 import { Op, Transaction } from 'sequelize';
 
 // 🟢 1. Import Helper ของเราเข้ามา

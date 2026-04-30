@@ -24,6 +24,7 @@ const delivery_receipt_routes_1 = __importDefault(require("./delivery_receipt.ro
 const customer_portal_routes_1 = __importDefault(require("./customer-portal.routes"));
 const global_categories_routes_1 = __importDefault(require("./global_categories.routes"));
 const repayment_routes_1 = __importDefault(require("./repayment.routes"));
+const province_district_routes_1 = __importDefault(require("./province_district.routes"));
 const router = express_1.default.Router();
 router.use('/auth', auth_routes_1.default);
 router.use('/upload', upload_routes_1.default);
@@ -45,4 +46,5 @@ router.use('/delivery-receipt', delivery_receipt_routes_1.default);
 router.use('/portal', customer_portal_routes_1.default);
 router.use('/global-categories', global_categories_routes_1.default);
 router.use('/repayments', repayment_routes_1.default);
+router.use('/address', province_district_routes_1.default);
 exports.default = router;

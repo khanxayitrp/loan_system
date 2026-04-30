@@ -190,12 +190,12 @@ class LoanApplicationRepository {
                 {
                     model: init_models_1.db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'province_id', 'district_id', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
                     include: [
                         {
                             model: init_models_1.db.customer_work_info,
                             as: 'customer_work_infos',
-                            attributes: ['id', 'company_name', 'address', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
+                            attributes: ['id', 'company_name', 'address', 'province_id', 'district_id', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
                         },
                         {
                             model: init_models_1.db.customer_locations,
@@ -234,12 +234,17 @@ class LoanApplicationRepository {
                 {
                     model: init_models_1.db.loan_guarantors,
                     as: 'loan_guarantors',
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_phone']
+                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_province_id', 'work_district_id', 'work_district_id', 'work_phone']
                 },
                 {
                     model: init_models_1.db.delivery_receipts,
                     as: 'delivery_receipt',
                     attributes: ['id', 'application_id', 'receipts_id', 'delivery_date', 'receiver_name', 'receipt_image_url', 'status', 'remark', 'approver_id', 'approved_at']
+                },
+                {
+                    model: init_models_1.db.loan_contract,
+                    as: 'loan_contracts',
+                    attributes: ['id', 'loan_contract_number']
                 }
             ],
         });
@@ -415,7 +420,9 @@ class LoanApplicationRepository {
                 await transaction.rollback();
                 return null;
             }
-            let customerId = data.customer_id;
+            console.log('Data received for updateDraftLoanApplication:', data);
+            console.log('Existing loan application data:', loanApplication.toJSON());
+            let customerId = data.customer_id || loanApplication.customer_id;
             if (customerId && typeof customerId === 'object') {
                 customerId = customerId.id || customerId.customer_id;
             }
@@ -431,6 +438,8 @@ class LoanApplicationRepository {
                 last_name: data.last_name !== undefined ? data.last_name : customer.last_name,
                 phone: data.phone !== undefined ? data.phone : customer.phone,
                 address: data.address !== undefined ? data.address : customer.address,
+                province_id: data.province_id !== undefined ? data.province_id : customer.province_id,
+                district_id: data.district_id !== undefined ? data.district_id : customer.district_id,
                 date_of_birth: data.date_of_birth !== undefined ? data.date_of_birth : customer.date_of_birth,
                 age: data.age !== undefined ? data.age : customer.age,
                 occupation: data.occupation !== undefined ? data.occupation : customer.occupation,
@@ -682,75 +691,83 @@ class LoanApplicationRepository {
             });
             if (!loanApplication) {
                 throw new errors_1.NotFoundError(`Loan application with ID: ${loanApplicationId} not found`);
+                await t.rollback();
+                return null;
             }
             const oldLoanData = loanApplication.toJSON();
             const updatePayload = { ...data };
             if (data.customer_id && typeof data.customer_id === 'object') {
                 updatePayload.customer_id = data.customer_id.id || data.customer_id.customer_id;
             }
-            let actionIntent = data.status; // 'verified' ຫລື 'approved'
+            let actionIntent = data.status; // 'verified', 'approved', 'rejected'
             let roleType = ''; // ຕົວແປສຳລັບເກັບບົດບາດໃນການເຊັນ
             // ==========================================
             // 🌟 STEP 2: ກວດສອບສິດ ແລະ ບັງຄັບລຳດັບການອະນຸມັດ (Sequential Guard)
             // ==========================================
-            // let actionIntent = data.status; 
-            // let roleType = '';
             if (data.approver_id && ['approved', 'verified', 'rejected'].includes(actionIntent)) {
                 const approverUser = await init_models_1.db.users.findByPk(data.approver_id, { transaction: t });
                 const staffLevel = approverUser?.staff_level ?? '';
                 if (approverUser?.role !== 'admin' && !['approver', 'credit_manager', 'deputy_director', 'director'].includes(staffLevel)) {
                     throw new errors_1.ForbiddenError('ທ່ານບໍ່ມີສິດໃນການອະນຸມັດ ຫຼື ກວດກາສິນເຊື່ອ');
                 }
-                // 🟢 2.1 ຈັດການ Role ຕາມຕຳແໜ່ງ (Mapping & Dynamic Assign)
-                if (staffLevel === 'credit_manager') {
-                    roleType = 'credit_head';
+                // 🟢 2.1 ກວດສອບວ່າ ຢູສເຊີນີ້ເຄີຍເຊັນເອກະສານນີ້ໄປແລ້ວຫຼືຍັງ? (ປ້ອງກັນການກົດອະນຸມັດຊ້ຳທຸກລະດັບ)
+                const mySignature = await init_models_1.db.document_signatures.findOne({
+                    where: {
+                        application_id: loanApplicationId,
+                        user_id: data.approver_id,
+                        document_type: 'approval_summary',
+                        status: ['signed', 'rejected'] // ກວດທັງເຄີຍອະນຸມັດ ແລະ ເຄີຍປະຕິເສດ
+                    },
+                    transaction: t
+                });
+                if (mySignature) {
+                    throw new errors_1.BadRequestError('ທ່ານໄດ້ກວດກາ ແລະ ຢືນຢັນເອກະສານນີ້ໄປແລ້ວ! ບໍ່ສາມາດເຮັດລາຍການຊ້ຳໄດ້.');
                 }
-                else if (staffLevel === 'deputy_director') {
-                    // ກວດສອບວ່າ ຮອງຜູ້ອຳນວຍການ ທ່ານນີ້ເຄີຍເຊັນເອກະສານນີ້ແລ້ວຫຼືຍັງ? (ປ້ອງກັນກົດຊ້ຳຄົນດຽວ)
-                    const mySignature = await init_models_1.db.document_signatures.findOne({
-                        where: { application_id: loanApplicationId, user_id: data.approver_id, document_type: 'approval_summary', status: 'signed' },
-                        transaction: t
-                    });
-                    if (mySignature) {
-                        throw new errors_1.BadRequestError('ທ່ານໄດ້ກວດກາ ແລະ ຢືນຢັນເອກະສານນີ້ໄປແລ້ວ!');
+                // 🟢 2.2 ຈັດການ Role ແລະ ລຳດັບການອະນຸມັດ ຖ້າບໍ່ແມ່ນການປະຕິເສດ (Rejected)
+                if (actionIntent === 'rejected') {
+                    // ຖ້າເປັນການປະຕິເສດ ໃຫ້ກຳນົດ Role ຕາມຕຳແໜ່ງ ແລ້ວໃຫ້ຕົກໄປສະຖານະ Rejected ເລີຍ
+                    roleType = staffLevel === 'credit_manager' ? 'credit_head' : 'approver_1';
+                }
+                else {
+                    // ຖ້າເປັນການອະນຸມັດ (Verified / Approved)
+                    if (staffLevel === 'credit_manager') {
+                        // ຫົວໜ້າສິນເຊື່ອ ກົດໄດ້ແຄ່ Verify
+                        roleType = 'credit_head';
+                        actionIntent = 'verified';
                     }
-                    // ກວດສອບວ່າ ຕຳແໜ່ງ approver_2 ມີຮອງຜູ້ອຳນວຍການທ່ານອື່ນເຊັນແລ້ວຫຼືຍັງ?
-                    const existingApp2 = await init_models_1.db.document_signatures.findOne({
-                        where: { application_id: loanApplicationId, role_type: 'approver_2', document_type: 'approval_summary', status: 'signed' },
-                        transaction: t
-                    });
-                    // ຖ້າຍັງບໍ່ມີໃຜເຊັນ, ໃຫ້ຄົນນີ້ເປັນ approver_2 / ຖ້າມີແລ້ວ ໃຫ້ຄົນນີ້ເປັນ approver_3
-                    if (!existingApp2) {
-                        roleType = 'approver_2';
-                    }
-                    else {
-                        roleType = 'approver_3';
-                    }
-                }
-                else if (['director', 'approver'].includes(staffLevel)) {
-                    roleType = 'approver_1'; // ຜູ້ອຳນວຍການສູງສຸດ
-                }
-                // 🟢 2.2 ບັງຄັບ Status (Manager ແລະ Deputy ເຮັດໄດ້ແຄ່ verified ເທົ່ານັ້ນ)
-                if ((staffLevel === 'credit_manager' || staffLevel === 'deputy_director') && actionIntent === 'approved') {
-                    actionIntent = 'verified';
-                }
-                // 🛡️ 2.3 GUARD LOGIC: ດ່ານກວດກາຂອງຜູ້ອຳນວຍການ (Director)
-                if (actionIntent === 'approved' && roleType === 'approver_1') {
-                    // ບັງຄັບໃຫ້ຕ້ອງມີລາຍເຊັນຂອງ ຫົວໜ້າສິນເຊື່ອ (1) ແລະ ຮອງຜູ້ອຳນວຍການ (2) ຄົບຖ້ວນ!
-                    const requiredRoles = ['credit_head', 'approver_2', 'approver_3'];
-                    // ນັບຈຳນວນລາຍເຊັນທີ່ເຊັນສຳເລັດແລ້ວ
-                    const signedCount = await init_models_1.db.document_signatures.count({
-                        where: {
-                            application_id: loanApplicationId,
-                            document_type: 'approval_summary',
-                            role_type: requiredRoles,
-                            status: 'signed'
-                        },
-                        transaction: t
-                    });
-                    // ຖ້ານັບແລ້ວໄດ້ໜ້ອຍກວ່າ 3 ແປວ່າຍັງມີຄົນບໍ່ເຊັນ (ເຊັ່ນ Deputy ເຊັນແຄ່ຄົນດຽວ)
-                    if (signedCount < 3) {
-                        throw new errors_1.BadRequestError('ບໍ່ສາມາດອະນຸມັດໄດ້! ຕ້ອງລໍຖ້າໃຫ້ "ຫົວໜ້າສິນເຊື່ອ" ແລະ "ຮອງຜູ້ອຳນວຍການ (ທັງ 2 ທ່ານ)" ກວດກາໃຫ້ຄົບຖ້ວນກ່ອນ.');
+                    else if (['deputy_director', 'director', 'approver'].includes(staffLevel)) {
+                        // ກຸ່ມຜູ້ບໍລິຫານ (ຕ້ອງໃຫ້ Credit Manager ຜ່ານກ່ອນ)
+                        const cmSignature = await init_models_1.db.document_signatures.findOne({
+                            where: { application_id: loanApplicationId, document_type: 'approval_summary', role_type: 'credit_head', status: 'signed' },
+                            transaction: t
+                        });
+                        if (!cmSignature) {
+                            throw new errors_1.BadRequestError('ບໍ່ສາມາດອະນຸມັດໄດ້! ຕ້ອງຜ່ານການກວດກາຈາກ "ຫົວໜ້າສິນເຊື່ອ (Credit Manager)" ກ່ອນ.');
+                        }
+                        // ນັບຈຳນວນຜູ້ບໍລິຫານທີ່ເຄີຍເຊັນແລ້ວ (ບໍ່ລວມ credit_head)
+                        const existingHighLevelSigs = await init_models_1.db.document_signatures.count({
+                            where: {
+                                application_id: loanApplicationId,
+                                document_type: 'approval_summary',
+                                role_type: ['approver_1', 'approver_2'],
+                                status: 'signed'
+                            },
+                            transaction: t
+                        });
+                        if (existingHighLevelSigs === 0) {
+                            // ຜູ້ບໍລິຫານຄົນທີ 1 ເຊັນ -> ສະຖານະຍັງເປັນ verified ລໍຖ້າຄົນທີ 2
+                            roleType = 'approver_1';
+                            actionIntent = 'verified';
+                        }
+                        else if (existingHighLevelSigs === 1) {
+                            // ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນ -> ອະນຸມັດສົມບູນ (Approved)
+                            roleType = 'approver_2';
+                            actionIntent = 'approved';
+                        }
+                        else {
+                            // ຖ້າມີ 2 ຄົນເຊັນແລ້ວ ຖືວ່າສຳເລັດແລ້ວ
+                            throw new errors_1.BadRequestError('ເອກະສານນີ້ໄດ້ຮັບການອະນຸມັດສຳເລັດສົມບູນແລ້ວ!');
+                        }
                     }
                 }
                 updatePayload.approver_id = data.approver_id;
@@ -763,6 +780,7 @@ class LoanApplicationRepository {
             if (finalStatus === 'verifying' && !loanApplication.applied_at) {
                 updatePayload.applied_at = new Date();
             }
+            // ຈະລົງເວລາ Approved ກໍຕໍ່ເມື່ອ finalStatus ເປັນ approved ແທ້ໆ (ເຊັນຄົບ 2 ຄົນ)
             if (finalStatus === 'approved' && updatePayload.approver_id && !loanApplication.approved_at) {
                 updatePayload.approved_at = new Date();
             }
@@ -778,18 +796,17 @@ class LoanApplicationRepository {
             // 🌟 STEP 4: ປະທັບຕາລາຍເຊັນ (ອັບເດດ document_signatures)
             // ==========================================
             if (['approved', 'verified', 'rejected'].includes(finalStatus) && updatePayload.approver_id && roleType) {
+                const signatureStatus = finalStatus === 'rejected' ? 'rejected' : 'signed';
                 // 4.1 ອັບເດດລາຍເຊັນໃນໃບ Approval Summary
                 const existingSummarySig = await init_models_1.db.document_signatures.findOne({
                     where: { application_id: loanApplicationId, document_type: 'approval_summary', role_type: roleType },
                     transaction: t
                 });
-                const signatureStatus = finalStatus === 'rejected' ? 'rejected' : 'signed';
                 if (existingSummarySig) {
                     await existingSummarySig.update({ user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date() }, { transaction: t });
                     await (0, auditLogger_1.logAudit)('document_signatures', existingSummarySig.id, 'UPDATE', existingSummarySig.toJSON(), { status: signatureStatus }, performedBy, t);
                 }
                 else {
-                    // ຖ້າບໍ່ເຄີຍມີ Recordມາກ່ອນ ໃຫ້ສ້າງໃໝ່ເລີຍ
                     const newSummarySig = await init_models_1.db.document_signatures.create({
                         application_id: loanApplicationId, document_type: 'approval_summary', reference_id: loanApplicationId,
                         role_type: roleType, user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date()
@@ -815,7 +832,7 @@ class LoanApplicationRepository {
                             role_type: roleType, user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date()
                         }, { transaction: t });
                     }
-                    // 🟢 4.3 ຖ້າສະຖານະສຸດທ້າຍຄື Approved ແທ້ໆ ຈຶ່ງຄອນເຟີມສັນຍາ ແລະ ຕາຕະລາງຜ່ອນ
+                    // 🟢 4.3 ຖ້າສະຖານະສຸດທ້າຍຄື Approved ແທ້ໆ (ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນ) ຈຶ່ງຄອນເຟີມສັນຍາ ແລະ ຕາຕະລາງຜ່ອນ
                     if (finalStatus === 'approved') {
                         const oldContractData = contract.toJSON();
                         await contract.update({ is_confirmed: 1, updated_by: updatePayload.approver_id }, { transaction: t });
@@ -827,12 +844,12 @@ class LoanApplicationRepository {
             // ==========================================
             // STEP 5: ບັນທຶກ Approval Log (Timeline)
             // ==========================================
-            if (loanApplication.status !== finalStatus) {
+            if (loanApplication.status !== finalStatus || data.approver_id) {
                 let actionLogType = '';
                 if (finalStatus === 'approved')
                     actionLogType = 'approved';
-                else if (finalStatus === 'verified')
-                    actionLogType = 'verified'; // 🟢 ບັນທຶກວ່າ Verified
+                else if (actionIntent === 'verified')
+                    actionLogType = 'verified'; // ບັນທຶກທຸກຄັ້ງທີ່ມີຄົນກົດອະນຸມັດຜ່ານ
                 else if (finalStatus === 'rejected')
                     actionLogType = 'rejected';
                 if (actionLogType) {
