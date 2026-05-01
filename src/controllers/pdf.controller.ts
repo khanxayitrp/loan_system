@@ -834,6 +834,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
     try {
         const { loanData, receiptData, receiverPhone, deliveryAddress } = req.body;
         const receiptId = receiptData?.receipts_id || loanData?.delivery_receipts?.[0]?.receipts_id;
+        console.log('check data', loanData)
 
         // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
@@ -883,30 +884,74 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const receipt = receiptData || loanData?.delivery_receipts?.[0] || {};
         const today = new Date();
 
+        // =========================================================
+        // 🟢 1. ปรับ getVal ให้กำจัดข้อความว่า 'undefined'
+        // =========================================================
         const getVal = (val: any, defaultStr = '________________') => {
-            if (val === null || val === undefined || val === '') return defaultStr;
+            // เช็คทั้งค่าว่าง null และ String คำว่า 'undefined'
+            if (
+                val === null || 
+                val === undefined || 
+                val === '' || 
+                String(val).trim().toLowerCase() === 'undefined'
+            ) {
+                return defaultStr;
+            }
             return val;
         };
 
+        // =========================================================
+        // 🟢 2. ปรับ parseAddress ให้ล้างคำว่า 'undefined' ออกจากข้อมูล
+        // =========================================================
         const parseAddress = (addressStr: string | null | undefined) => {
             const defAddr = { village: '', district: '', province: '' };
-            if (!addressStr) return defAddr;
+            
+            if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined') {
+                return defAddr;
+            }
+
+            // ฟังก์ชันช่วยทำความสะอาด ลบคำว่า 'undefined' ออกจากชิ้นส่วนที่โดนหั่น
+            const clean = (p: string) => {
+                if (!p) return '';
+                const trimmed = p.trim();
+                return trimmed.toLowerCase() === 'undefined' ? '' : trimmed;
+            };
+
             if (addressStr.includes(',')) {
-                const parts = addressStr.split(',').map(p => p.trim());
+                const parts = addressStr.split(',').map(clean);
                 return { village: parts[0] || '', district: parts[1] || '', province: parts[2] || '' };
             } else {
-                const parts = addressStr.split(' ').map(p => p.trim()).filter(Boolean);
+                const parts = addressStr.split(' ').map(clean).filter(Boolean);
                 if (parts.length >= 3) {
                     return { province: parts.pop() || '', district: parts.pop() || '', village: parts.join(' ') };
                 }
-                return { village: addressStr, district: '', province: '' };
+                return { village: clean(addressStr), district: '', province: '' };
             }
         };
 
-        const cusAddr = parseAddress(customer.address);
-        const workAddr = parseAddress(workInfo.address || workInfo.location);
-        const guaAddr = parseAddress(guarantor?.address);
-        const guaWorkAddr = parseAddress(guarantorWork?.address || guarantorWork?.location);
+        // =========================================================
+        // 🟢 ແກ້ໄຂໃໝ່: ໃຊ້ fulladdress() ເພື່ອດຶງຂໍ້ມູນເປັນຊຸດດຽວກ່ອນ
+        // =========================================================
+        const fullCusAddressStr = fulladdress(customer?.address, customer?.district_id, customer?.province_id) || customer?.address;
+        
+        const fullWorkAddressStr = fulladdress(workInfo?.address || workInfo?.location, workInfo?.district_id, workInfo?.province_id) || (workInfo?.address || workInfo?.location);
+        
+        const fullGuaAddressStr = fulladdress(guarantor?.address, guarantor?.district_id, guarantor?.province_id) || guarantor?.address;
+        
+        const fullGuaWorkAddressStr = fulladdress(guarantorWork?.address || guarantorWork?.location, guarantorWork?.district_id, guarantorWork?.province_id) || (guarantorWork?.address || guarantorWork?.location);
+
+        // =========================================================
+        // 🟢 ຈາກນັ້ນນຳມາແຍກ ບ້ານ, ເມືອງ, ແຂວງ ດ້ວຍ parseAddress ອີກຄັ້ງ
+        // =========================================================
+        const cusAddr = parseAddress(fullCusAddressStr);
+        const workAddr = parseAddress(fullWorkAddressStr);
+        const guaAddr = parseAddress(fullGuaAddressStr);
+        const guaWorkAddr = parseAddress(fullGuaWorkAddressStr);
+
+        // const cusAddr = parseAddress(customer.address);
+        // const workAddr = parseAddress(workInfo.address || workInfo.location);
+        // const guaAddr = parseAddress(guarantor?.address);
+        // const guaWorkAddr = parseAddress(guarantorWork?.address || guarantorWork?.location);
 
         const price = Number(loanData?.total_amount || product.price || 0);
         const downPayment = Number(loanData?.down_payment || 0);

@@ -4,7 +4,7 @@ module.exports = {
       name: 'apiserver',
       script: './dist/server.js',
       // interpreter: 'tsx',
-      cwd: '/home/prod/external_apiserver',
+      cwd: '/app',
       env: {
         NODE_ENV: 'production',
         PORT: 15520,
@@ -21,9 +21,9 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '500M',
-      error_file: './logs/pm2-error.log',
-      out_file: './logs/pm2-out.log',
-      log_file: './logs/pm2-combined.log',
+      // error_file: './logs/pm2-error.log',
+      // out_file: './logs/pm2-out.log',
+      // log_file: './logs/pm2-combined.log',
       time: true,
       
       // additional Production

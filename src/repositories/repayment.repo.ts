@@ -337,7 +337,7 @@ class RepaymentRepository {
     // ==========================================
     // 🟢 อนุมัติและปล่อยสินเชื่อ (ปรับวันที่ชำระเงิน และเปลี่ยนสถานะ)
     // ==========================================
-    async approveAndDisburseLoan(applicationId: number, adminId: number, actualDisburseDate: Date, transaction?: any): Promise<boolean> {
+    /* async approveAndDisburseLoan(applicationId: number, adminId: number, actualDisburseDate: Date, transaction?: any): Promise<boolean> {
         try {
             // 1. หาตารางผ่อนชำระที่เป็นฉบับร่าง (Draft)
             const schedule = await db.repayment_schedules.findOne({
@@ -390,6 +390,86 @@ class RepaymentRepository {
         } catch (error) {
             logger.error(`Error in approveAndDisburseLoan: ${(error as Error).message}`);
             throw error;
+        }
+    } */
+    async activateAndShiftRepaymentSchedule(
+        applicationId: number,
+        adminId: number,
+        paymentDay: number,
+        approvalDate: Date,
+        transaction: any
+    ): Promise<boolean> {
+        try {
+            // 1. หาตารางร่าง (Draft)
+            const schedule = await db.repayment_schedules.findOne({
+                where: { application_id: applicationId, status: 'draft' },
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+
+            if (!schedule) throw new Error('ບໍ່ພົບຕາຕະລາງຮ່າງ (Draft Schedule not found)');
+
+            // 2. ดึงงวดทั้งหมด
+            const repayments = await db.repayments.findAll({
+                where: { schedule_id: schedule.id },
+                order: [['installment_no', 'ASC']],
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+
+            // ==========================================
+            // 🌟 3. โลจิกคำนวณเดือนที่จะเริ่มจ่ายงวดแรก
+            // ==========================================
+            const currentDay = approvalDate.getDate(); // วันที่ปัจจุบัน
+            let startMonthOffset = 0;
+
+            // ถ้า payment_day > วันที่อนุมัติ -> ให้เริ่มเดือนนี้เลย (offset = 0)
+            // ถ้า payment_day <= วันที่อนุมัติ -> ให้ขยับไปเดือนหน้า (offset = 1)
+            if (paymentDay <= currentDay) {
+                startMonthOffset = 1;
+            }
+
+            const baseYear = approvalDate.getFullYear();
+            const baseMonth = approvalDate.getMonth(); // 0 = Jan, 11 = Dec
+
+            // 4. อัปเดต Due Date ทีละงวด
+            for (let i = 0; i < repayments.length; i++) {
+                // คำนวณเดือนเป้าหมาย (งวดแรกคือ i=0, งวดถัดไปคือ i=1, 2, ...)
+                const targetMonth = baseMonth + startMonthOffset + i;
+
+                // สร้าง Date object สำหรับวันครบกำหนด
+                let targetDueDate = new Date(baseYear, targetMonth, paymentDay);
+
+                // ⚠️ ป้องกัน Edge Case ของระบบการเงิน (เช่น payment_day = 31 แต่เดือนนั้นเป็นเดือน ก.พ. หรือ เม.ย. ที่มี 28, 30 วัน)
+                // ถ้าเซ็ตวันที่ 31 ก.พ. JS จะปัดเป็นวันที่ 2 หรือ 3 มี.ค. อัตโนมัติ (เดือนเปลี่ยน)
+                // เราต้องเช็คว่าถ้าเดือนเพี้ยนไปจากที่ควรจะเป็น ให้ถอยกลับมาเป็นวันสุดท้ายของเดือนเป้าหมาย
+                if (targetDueDate.getMonth() !== (targetMonth % 12)) {
+                    // เซ็ตวันเป็น 0 จะได้วันสุดท้ายของเดือนก่อนหน้า
+                    targetDueDate = new Date(baseYear, targetMonth + 1, 0);
+                }
+
+                // อัปเดตข้อมูล
+                await repayments[i].update({
+                    due_date: targetDueDate.toISOString().split('T')[0], // แปลงเป็น YYYY-MM-DD
+                    payment_status: 'unpaid'
+                }, { transaction });
+            }
+
+            // 5. อัปเดต Header เป็น Approved
+            const oldScheduleData = schedule.toJSON();
+            await schedule.update({
+                status: 'approved',
+                approved_by: adminId,
+                approved_at: approvalDate
+            }, { transaction });
+
+            await logAudit('repayment_schedules', applicationId, 'UPDATE', oldScheduleData, schedule.toJSON(), adminId, transaction);
+
+            return true;
+
+        } catch (error) {
+            logger.error(`Error in activateAndShiftRepaymentSchedule: ${(error as Error).message}`);
+            throw error; // พ่น Error กลับไปให้ updateLoanApplication ทำการ Rollback
         }
     }
 }
