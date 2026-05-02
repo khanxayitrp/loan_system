@@ -519,7 +519,7 @@ class LoanApplicationRepository {
         });
         
         if (!loanApplication) {
-            await t.rollback(); // ย้าย rollback ขึ้นมา
+            await t.rollback();
             throw new NotFoundError(`Loan application with ID: ${loanApplicationId} not found`);
         }
 
@@ -536,7 +536,6 @@ class LoanApplicationRepository {
         // ==========================================
         // 🌟 STEP 2: ກວດສອບສິດ ແລະ ບັງຄັບລຳດັບການອະນຸມັດ (Sequential Guard)
         // ==========================================
-        // 🟢 เปลี่ยนจาก 'approved' เป็น 'disbursed' ในรายการที่รองรับ
         if (data.approver_id && ['disbursed', 'approved', 'verified', 'rejected'].includes(actionIntent)) {
             const approverUser = await db.users.findByPk(data.approver_id, { transaction: t });
             const staffLevel = approverUser?.staff_level ?? '';
@@ -560,11 +559,10 @@ class LoanApplicationRepository {
                 throw new BadRequestError('ທ່ານໄດ້ກວດກາ ແລະ ຢືນຢັນເອກະສານນີ້ໄປແລ້ວ! ບໍ່ສາມາດເຮັດລາຍການຊ້ຳໄດ້.');
             }
 
-            // 🟢 2.2 ຈັດການ Role ແລະ ລຳດັບການອະນຸມັດ ຖ້າບໍ່ແມ່ນການປະຕິເສດ (Rejected)
+            // 🟢 2.2 ຈັດການ Role ແລະ ລຳດັບການອະນຸມັດ
             if (actionIntent === 'rejected') {
                 roleType = staffLevel === 'credit_manager' ? 'credit_head' : 'approver_1';
             } else {
-                // ຖ້າເປັນການອະນຸມັດ (Verified / Disbursed)
                 if (staffLevel === 'credit_manager') {
                     // ຫົວໜ້າສິນເຊື່ອ ກົດໄດ້ແຄ່ Verify
                     roleType = 'credit_head';
@@ -593,11 +591,10 @@ class LoanApplicationRepository {
                     });
 
                     if (existingHighLevelSigs === 0) {
-                        // ຜູ້ບໍລິຫານຄົນທີ 1 ເຊັນ -> ສະຖານະຍັງເປັນ verified ລໍຖ້າຄົນທີ 2
                         roleType = 'approver_1';
                         actionIntent = 'verified';
                     } else if (existingHighLevelSigs === 1) {
-                        // 🌟 ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນ -> ປ່ອຍສິນເຊື່ອທັນທີ (Disbursed)
+                        // ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນ -> ປ່ອຍສິນເຊື່ອທັນທີ (Disbursed)
                         roleType = 'approver_2';
                         actionIntent = 'disbursed'; 
                     } else {
@@ -618,7 +615,6 @@ class LoanApplicationRepository {
         if (finalStatus === 'verifying' && !loanApplication.applied_at) {
             updatePayload.applied_at = new Date();
         }
-        // 🌟 ລົງເວລາ Approved/Disbursed ເມື່ອ finalStatus ເປັນ disbursed
         if (finalStatus === 'disbursed' && updatePayload.approver_id && !loanApplication.approved_at) {
             updatePayload.approved_at = new Date(); // ใช้วันนี้เป็นวันอนุมัติ/ปล่อยกู้
         }
@@ -636,9 +632,8 @@ class LoanApplicationRepository {
 
 
         // ==========================================
-        // 🌟 STEP 4: ປະທັບຕາລາຍເຊັນ (ອັບເດດ document_signatures)
+        // 🌟 STEP 4: ປະທັບຕາລາຍເຊັນ ແລະ ຈັດການຕາຕະລາງຜ່ອນຊຳລະ
         // ==========================================
-        // 🟢 เปลี่ยนจากเช็ค 'approved' เป็น 'disbursed' ด้วย
         if (['disbursed', 'approved', 'verified', 'rejected'].includes(finalStatus) && updatePayload.approver_id && roleType) {
 
             const signatureStatus = finalStatus === 'rejected' ? 'rejected' : 'signed';
@@ -651,13 +646,11 @@ class LoanApplicationRepository {
 
             if (existingSummarySig) {
                 await existingSummarySig.update({ user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date() }, { transaction: t });
-                await logAudit('document_signatures', existingSummarySig.id, 'UPDATE', existingSummarySig.toJSON(), { status: signatureStatus }, performedBy, t);
             } else {
-                const newSummarySig = await db.document_signatures.create({
+                await db.document_signatures.create({
                     application_id: loanApplicationId, document_type: 'approval_summary', reference_id: loanApplicationId,
                     role_type: roleType as any, user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date()
                 }, { transaction: t });
-                await logAudit('document_signatures', newSummarySig.id, 'CREATE', null, newSummarySig.toJSON(), performedBy, t);
             }
 
             // 4.2 ອັບເດດລາຍເຊັນໃນ Contract
@@ -681,22 +674,37 @@ class LoanApplicationRepository {
                     }, { transaction: t });
                 }
 
-                // 🟢 4.3 ຖ້າສະຖານະສຸດທ້າຍຄື Disbursed ແທ້ໆ (ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນ) ຈຶ່ງຄອນເຟີມສັນຍາ ແລະ **ຈັດການຕາຕະລາງຜ່ອນ**
+                // ==========================================
+                // 🎯 4.3 ຈັດການຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule) - ແຍກເປັນ 2 ຈັງຫວະ
+                // ==========================================
+
+                // ຈັງຫວະທີ 1: ຫົວໜ້າສິນເຊື່ອ (Credit Manager) ກວດຜ່ານ (Verify)
+                // ໃຫ້ອັບເດດວັນທີຈ່າຍໃນຕາຕະລາງ (ແຕ່ຍັງເປັນ Draft ເພື່ອໃຫ້ພະນັກງານພິມອອກມາໄດ້)
+                if (finalStatus === 'verified' && roleType === 'credit_head') {
+                    const verifyDate = new Date();
+
+                    // 🌟 🟢 ແກ້ໄຂ: ຕ້ອງດຶງ payment_day ຈາກ 'updatePayload' ເພາະເປັນຄ່າໃໝ່ທີ່ສົ່ງມາຈາກໜ້າບ້ານ
+    const finalPaymentDay = Number(updatePayload.payment_day) || Number(loanApplication.payment_day) || 1;
+                    await RepaymentRepository.shiftDraftScheduleDates(
+                        loanApplicationId,
+                        finalPaymentDay,
+                        verifyDate,
+                        t
+                    );
+                }
+
+                // ຈັງຫວະທີ 2: ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນອະນຸມັດ (Disbursed)
+                // ຄອນເຟີມສັນຍາ ແລະ ລັອກສະຖານະຕາຕະລາງເປັນ Approved (ຫ້າມແກ້ໄຂວັນທີແລ້ວ)
                 if (finalStatus === 'disbursed') {
-                    // อัปเดตสถานะสัญญา
                     const oldContractData = contract.toJSON();
                     await contract.update({ is_confirmed: 1, updated_by: updatePayload.approver_id }, { transaction: t });
                     await logAudit('loan_contract', contract.id, 'UPDATE', oldContractData, contract.toJSON(), performedBy, t);
 
-                    // 🎯 🌟 เรียกใช้ฟังก์ชันปรับวันที่และอนุมัติตารางผ่อนชำระ
-                    // ส่ง loanApplication.payment_day ที่ดึงมาใน STEP 1 ไปคำนวณ
-                    const approvalDate = new Date();
-                    await RepaymentRepository.activateAndShiftRepaymentSchedule(
+                    await RepaymentRepository.finalizeScheduleApproval(
                         loanApplicationId,
                         updatePayload.approver_id,
-                        loanApplication.payment_day || 1, // เผื่อกรณี null ให้ default เป็น 1
-                        approvalDate,
-                        t // 📌 สำคัญมาก! ต้องส่ง Transaction ไปด้วย
+                        new Date(),
+                        t
                     );
                 }
             }
@@ -707,13 +715,12 @@ class LoanApplicationRepository {
         // ==========================================
         if (loanApplication.status !== finalStatus || data.approver_id) {
             let actionLogType = '';
-            // 🟢 เปลี่ยนเงื่อนไขรองรับ disbursed
             if (finalStatus === 'disbursed' || finalStatus === 'approved') actionLogType = 'approved'; 
             else if (actionIntent === 'verified') actionLogType = 'verified'; 
             else if (finalStatus === 'rejected') actionLogType = 'rejected';
 
             if (actionLogType) {
-                await this.logApprovalAction( // สมมติว่ามีฟังก์ชันนี้อยู่ในคลาสนี้
+                await this.logApprovalAction(
                     loanApplicationId,
                     actionLogType as any,
                     loanApplication.status,
