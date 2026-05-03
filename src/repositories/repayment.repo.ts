@@ -368,6 +368,7 @@ class RepaymentRepository {
             const baseMonth = baseDate.getMonth(); // 0 = ມັງກອນ, 11 = ທັນວາ
 
             // ອັບເດດວັນທີຈ່າຍຂອງແຕ່ລະງວດ
+            // ອັບເດດວັນທີຈ່າຍຂອງແຕ່ລະງວດ
             for (let i = 0; i < repayments.length; i++) {
                 const targetMonth = baseMonth + startMonthOffset + i;
                 let targetDueDate = new Date(baseYear, targetMonth, paymentDay);
@@ -378,9 +379,17 @@ class RepaymentRepository {
                     targetDueDate = new Date(baseYear, targetMonth + 1, 0);
                 }
 
+                // ==========================================
+                // 🌟 🟢 ແກ້ໄຂ: ແປງວັນທີແບບ Manual ເພື່ອປ້ອງກັນບັກ Timezone GMT+7 
+                // ==========================================
+                const y = targetDueDate.getFullYear();
+                const m = String(targetDueDate.getMonth() + 1).padStart(2, '0');
+                const d = String(targetDueDate.getDate()).padStart(2, '0');
+                const localDateString = `${y}-${m}-${d}`; // ຈະໄດ້ YYYY-MM-DD ທີ່ຖືກຕ້ອງສະເໝີ
+
                 // ອັບເດດແຄ່ວັນທີ ແລະ ໃຫ້ສະຖານະຍັງເປັນ unpaid
                 await repayments[i].update({
-                    due_date: targetDueDate.toISOString().split('T')[0],
+                    due_date: localDateString, // 👈 ໃຊ້ຕົວແປທີ່ເຮົາປະກອບເອງ
                     payment_status: 'unpaid'
                 }, { transaction });
             }
