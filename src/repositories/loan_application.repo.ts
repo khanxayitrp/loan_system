@@ -5,6 +5,7 @@ import { Op, Transaction } from 'sequelize';
 import { NotFoundError, ValidationError, handleErrorResponse, BadRequestError, ForbiddenError } from '../utils/errors';
 import { logAudit } from "../utils/auditLogger";
 import RepaymentRepository from './repayment.repo';
+import delivery_receiptRepo from "./delivery_receipt.repo";
 
 export type action = "submitted" | "verified_basic" | "verified_call" | "verified_cib" | "verified_field" | "assessed_income" | "verified_delivery_receipt" | "approved" | "rejected" | "returned_for_edit" | "cancelled";
 
@@ -412,7 +413,8 @@ class LoanApplicationRepository {
                 { model: db.users, as: 'requester', attributes: ['id', 'username', 'full_name'] },
                 { model: db.users, as: 'approver', attributes: ['id', 'username', 'full_name'] },
                 { model: db.delivery_receipts, as: 'delivery_receipt', attributes: ['id', 'application_id', 'receipts_id', 'status'] },
-                { model: db.loan_contract, as: 'loan_contracts', attributes: ['id'] }
+                { model: db.loan_contract, as: 'loan_contracts', attributes: ['id'] },
+                { model: db.document_signatures, as: 'document_signatures', attributes: ['id', 'document_type', 'status'], where: { document_type: 'delivery_note' }, required: false }
             ],
             order: [['created_at', 'DESC']],
             limit: limitNum,
@@ -706,6 +708,23 @@ class LoanApplicationRepository {
                         new Date(),
                         t
                     );
+                    // ==========================================
+                    // 🌟 🟢 ເພີ່ມໃໝ່: Auto-Approve Delivery Receipt
+                    // ເມື່ອຜູ້ບໍລິຫານອະນຸມັດສິນເຊື່ອແລ້ວ ໃຫ້ປ່ຽນສະຖານະໃບມອບຮັບເປັນ approved ພ້ອມກັນເລີຍ
+                    // ==========================================
+                    const deliveryReceipt = await delivery_receiptRepo.findDeliveryReceiptsByApplicationId(loanApplicationId);
+                    
+                    if (deliveryReceipt && deliveryReceipt.status === 'pending') {
+                        await delivery_receiptRepo.updateDeliveryReceipt(
+                            deliveryReceipt.id,
+                            { 
+                                status: 'approved', 
+                                remark: 'ອະນຸມັດອັດຕະໂນມັດ ພ້ອມກັບການປ່ອຍສິນເຊື່ອ (Auto-approved with disbursement)' 
+                            },
+                            performedBy, // ໃຊ້ user_id ຂອງຄົນທີ່ກົດອະນຸມັດ
+                            { transaction: t } // 👈 ສົ່ງ transaction ເຂົ້າໄປເພື່ອກະທຳພ້ອມກັນ
+                        );
+                    }
                 }
             }
         }
