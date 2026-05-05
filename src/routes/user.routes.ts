@@ -138,6 +138,30 @@ router.put('/:id', verifyToken, userController.updateUser);
  */
 router.patch('/:id', verifyToken, userController.changeStatus);
 
+/**
+ * @swagger
+ * /users/{id}:
+ *   delete:
+ *     summary: Delete user by ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       403:
+ *         description: Forbidden - insufficient permissions
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 // (ควรมี middleware ดักสิทธิ์ด้วยว่าให้เฉพาะ admin หรือคนที่มีสิทธิ์ลบได้เท่านั้น)
 router.delete('/:id', verifyToken, userController.deleteUser);
 

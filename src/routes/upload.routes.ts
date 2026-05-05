@@ -208,6 +208,28 @@ router.post(
   uploadController.uploadProductImage
 );
 
+/**
+ * @swagger
+ * /upload/variant-image:
+ *   post:
+ *     summary: Upload variant image
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Variant image uploaded
+ */
 router.post('/variant-image', uploadVariantImage.single('file'), uploadController.uploadVariantImage);
 
 /**
@@ -248,7 +270,7 @@ router.post(
 
 /**
  * @swagger
- * /upload/location/{customer_id}/image:
+ * /upload/location/{customer_id}/image/{application_id}:
  *   post:
  *     summary: Upload customer location image
  *     tags: [Upload]
@@ -257,6 +279,11 @@ router.post(
  *     parameters:
  *       - in: path
  *         name: customer_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: application_id
  *         required: true
  *         schema:
  *           type: integer
@@ -350,6 +377,34 @@ router.post(
   uploadController.uploadPaymentProof
 );
 
+/**
+ * @swagger
+ * /upload/signature/{application_id}:
+ *   post:
+ *     summary: Upload signature image
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Signature uploaded
+ */
 router.post(
   '/signature/:application_id',
   uploadSignature.single('file'),

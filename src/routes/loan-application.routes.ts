@@ -105,6 +105,29 @@ router.get('/loanID/:LoanId', verifyToken, loanCtrl.getLoanByLoanID);
  */
 router.post('/', verifyToken, loanCtrl.createLoanApplication);
 
+/**
+ * @swagger
+ * /loan-application/{id}/print-summary:
+ *   post:
+ *     summary: Mark approval summary as printed
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Loan application ID
+ *     responses:
+ *       200:
+ *         description: Successfully marked as printed
+ *       404:
+ *         description: Loan application not found
+ *       500:
+ *         description: Server error
+ */
 router.post('/:id/print-summary', verifyToken, loanCtrl.markApprovalSummaryPrinted);
 
 /**
