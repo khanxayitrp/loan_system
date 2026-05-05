@@ -208,6 +208,28 @@ router.post(
   uploadController.uploadProductImage
 );
 
+/**
+ * @swagger
+ * /upload/variant-image:
+ *   post:
+ *     summary: Upload variant image
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Successful response
+ */
 router.post('/variant-image', uploadVariantImage.single('file'), uploadController.uploadVariantImage);
 
 /**
@@ -350,6 +372,35 @@ router.post(
   uploadController.uploadPaymentProof
 );
 
+
+/**
+ * @swagger
+ * /upload/signature/{application_id}:
+ *   post:
+ *     summary: Upload signature
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Successful response
+ */
 router.post(
   '/signature/:application_id',
   uploadSignature.single('file'),

@@ -42,6 +42,22 @@ const router = Router();
  */
 router.get('/early-payoff/:application_id', verifyToken, repaymentController.getEarlyPayoffSummary);
 
+/**
+ * @swagger
+ * /repayments/schedule/{application_id}:
+ *   get:
+ *     summary: GET /repayments/schedule/{application_id}
+ *     tags: [Repayment]
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Successful response
+ */
 router.get('/schedule/:application_id', verifyToken, repaymentController.getRepaymentSchedule);
 
 /**

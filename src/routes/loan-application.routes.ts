@@ -105,6 +105,22 @@ router.get('/loanID/:LoanId', verifyToken, loanCtrl.getLoanByLoanID);
  */
 router.post('/', verifyToken, loanCtrl.createLoanApplication);
 
+/**
+ * @swagger
+ * /loan-application/{id}/print-summary:
+ *   post:
+ *     summary: POST /loan-application/{id}/print-summary
+ *     tags: [Loan-Application]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Successful response
+ */
 router.post('/:id/print-summary', verifyToken, loanCtrl.markApprovalSummaryPrinted);
 
 /**

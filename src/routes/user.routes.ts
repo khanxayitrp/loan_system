@@ -139,6 +139,22 @@ router.put('/:id', verifyToken, userController.updateUser);
 router.patch('/:id', verifyToken, userController.changeStatus);
 
 // (ควรมี middleware ดักสิทธิ์ด้วยว่าให้เฉพาะ admin หรือคนที่มีสิทธิ์ลบได้เท่านั้น)
+/**
+ * @swagger
+ * /users/{id}:
+ *   delete:
+ *     summary: DELETE /users/{id}
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Successful response
+ */
 router.delete('/:id', verifyToken, userController.deleteUser);
 
 export default router;
