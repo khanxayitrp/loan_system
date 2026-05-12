@@ -20,6 +20,7 @@ import custPortalRouter from './customer-portal.routes';
 import globalCategoriesRouter from './global_categories.routes';
 import repaymentRouter from './repayment.routes';
 import addressRouter from './province_district.routes';
+import loanSuperAppRouter from './loan_superapp.routes';
 
 const router = express.Router();
 
@@ -65,6 +66,8 @@ router.use('/global-categories', globalCategoriesRouter);
 router.use('/repayments', repaymentRouter);
 
 router.use('/address', addressRouter);
+ 
+router.use('/loan-superapp', loanSuperAppRouter);
 
 
 export default router;
