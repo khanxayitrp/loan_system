@@ -238,7 +238,10 @@ router.patch('/:id/apply', verifyToken, loanCtrl.sentApplyDraft);
  * @swagger
  * /loan-application/create-with-customer:
  *   post:
- *     summary: Create loan application with customer
+ *     summary: Create loan application and customer record (Supports Staff & Public flow)
+ *     description: |
+ *       - **Public Flow**: `phone` and `otp` are REQUIRED.
+ *       - **Staff/Admin Flow**: Token required. OTP is skipped. Can provide `existing_customer_id`.
  *     tags: [Loan Application]
  *     security:
  *       - bearerAuth: []
@@ -248,9 +251,98 @@ router.patch('/:id/apply', verifyToken, loanCtrl.sentApplyDraft);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - first_name
+ *               - last_name
+ *               - product_id
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: Required for Public flow
+ *               otp:
+ *                 type: string
+ *                 description: Required for Public flow
+ *               identity_number:
+ *                 type: string
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               province_id:
+ *                 type: integer
+ *               district_id:
+ *                 type: integer
+ *               address:
+ *                 type: string
+ *               age:
+ *                 type: integer
+ *               occupation:
+ *                 type: string
+ *               income_per_month:
+ *                 type: number
+ *               other_debt:
+ *                 type: number
+ *               product_id:
+ *                 type: integer
+ *               quantity:
+ *                 type: integer
+ *                 default: 1
+ *               total_amount:
+ *                 type: number
+ *                 description: If null, system calculates based on product price * quantity
+ *               loan_period:
+ *                 type: integer
+ *               interest_rate_at_apply:
+ *                 type: number
+ *               monthly_pay:
+ *                 type: number
+ *               down_payment:
+ *                 type: number
+ *               interest_type:
+ *                 type: string
+ *                 enum: [flat_rate, effective_rate]
+ *                 default: flat_rate
+ *               interest_rate_type:
+ *                 type: string
+ *                 enum: [monthly, yearly]
+ *                 default: monthly
+ *               existing_customer_id:
+ *                 type: integer
+ *                 description: Only used in Staff flow to link existing customer
  *     responses:
  *       201:
- *         description: Application and customer created
+ *         description: Loan application draft created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     application_id:
+ *                       type: integer
+ *                     status:
+ *                       type: string
+ *                     customer:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                         first_name:
+ *                           type: string
+ *                     product:
+ *                       type: object
+ *                     is_staff_mode:
+ *                       type: boolean
+ *       400:
+ *         description: Validation Error (Missing OTP or Invalid Data)
+ *       404:
+ *         description: Product or Customer not found
  */
 router.post('/create-with-customer', optionalVerifyToken , loanCtrl.createWithCustomer)
 

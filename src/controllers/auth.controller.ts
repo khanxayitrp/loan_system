@@ -243,6 +243,44 @@ class AuthController {
       maxAge: refreshMaxAge,
     });
   }
+
+  // ============================================================================
+  // 🟢 Login ผ่าน Super App (สำหรับ Webview)
+  // ============================================================================
+  public async superAppWebviewLogin(req: Request, res: Response, next: NextFunction) {
+    try {
+      // รับ Token ชั่วคราวที่ Super App ส่งมาให้
+      const { tempToken } = req.body; 
+
+      if (!tempToken) {
+        throw new BadRequestError('ກະລຸນາສົ່ງ Temp Token ຈາກ Super App');
+      }
+
+      // นำไปประมวลผลผ่าน Service
+      const { customer, token } = await authService.processSuperAppLogin(tempToken);
+
+      // (Optional) ถ้า Webview ของคุณใช้ Cookie ในการแนบ Token ก็สามารถเซ็ตได้ที่นี่
+      // res.cookie('customerToken', token, { httpOnly: true, secure: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+      // ส่งข้อมูลกลับไปให้หน้า Webview เพื่อเรนเดอร์หน้าหลัก
+      return res.status(200).json({
+        success: true,
+        message: 'ເຂົ້າສູ່ລະບົບຜ່ານ Super App ສຳເລັດ',
+        token: token, // ส่ง Token อายุ 7 วันกลับไปให้ Webview ใช้เรียก API อื่นๆ
+        customer: {
+          id: customer.id,
+          phone: customer.phone,
+          first_name: customer.first_name,
+          last_name: customer.last_name,
+          kyc_status: customer.kyc_status,
+          // ส่งข้อมูลอื่นๆ ที่จำเป็นต้องแสดงในหน้าแรกของ Webview
+        }
+      });
+
+    } catch (error) {
+      next(error); 
+    }
+  }
 }
 
 export default new AuthController();

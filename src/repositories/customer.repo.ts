@@ -14,9 +14,9 @@ class CustomerRepository {
             if (!cleanCustomer.first_name || cleanCustomer.first_name.trim() === '') {
                 throw new Error('First name is required');
             }
-            if (!cleanCustomer.last_name || cleanCustomer.last_name.trim() === '') {
-                throw new Error('Last name is required');
-            }
+            // if (!cleanCustomer.last_name || cleanCustomer.last_name.trim() === '') {
+            //     throw new Error('Last name is required');
+            // }
             if (!cleanCustomer.phone || cleanCustomer.phone.trim() === '') {
                 throw new Error('Phone number is required');
             }
@@ -48,7 +48,7 @@ class CustomerRepository {
             const mapData: any = {
                 identity_number: cleanCustomer.identity_number,
                 first_name: cleanCustomer.first_name,
-                last_name: cleanCustomer.last_name,
+                last_name: cleanCustomer.last_name || '', // กรณี last_name เป็น null ให้เซ็ตเป็น empty string
                 phone: cleanCustomer.phone,
                 province_id: cleanCustomer.province_id,
                 district_id: cleanCustomer.district_id,
@@ -123,7 +123,7 @@ class CustomerRepository {
             const mapData: any = {
                 identity_number: data.identity_number || customer.identity_number,
                 first_name: data.first_name || customer.first_name,
-                last_name: data.last_name || customer.last_name,
+                last_name: data.last_name || customer.last_name || '', // กรณี last_name เป็น null ให้เซ็ตเป็น empty string
                 phone: data.phone || customer.phone,
                 age: data.age !== undefined ? data.age : customer.age,
                 province_id: data.province_id || customer.province_id,

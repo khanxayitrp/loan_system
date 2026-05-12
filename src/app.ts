@@ -35,10 +35,11 @@ const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
 class App {
     public app: express.Application;
     private corsOptions: cors.CorsOptions = {
-        origin: ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.118:5173'], // Replace with your allowed origins
-        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-        allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
+        origin: ["http://localhost:5173","http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.118:5173'], // Replace with your allowed origins
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token","Accept", "Origin", "X-Requested-With"],
         credentials: true,
+        optionsSuccessStatus: 204
     };
     private swaggerOptions = {
         definition: {
@@ -67,7 +68,10 @@ class App {
                 },
             },
         },
-        apis: ['./src/routes/*.ts'], // paths to files with annotations
+        apis: [
+            path.join(__dirname, './routes/*.ts'), // สำหรับตอนรันบน Mac (dev)
+            path.join(__dirname, './routes/*.js')  // สำหรับตอนรันบน Server (production)
+        ],
     };
 
     constructor() {
@@ -77,6 +81,7 @@ class App {
     }
 
     private middleware(): void {
+        this.app.use(cors(this.corsOptions));
         this.app.set('trust proxy', 1); // ✅ Fix express-rate-limit warning
 
         // ✅ ເພີ່ມ timeout middleware ກ່ອນ routes
@@ -93,7 +98,7 @@ class App {
         this.app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
         this.app.use(this.requestLogger);
-        this.app.use(cors(this.corsOptions));
+        
         this.app.use(express.json({ limit: "50mb" }));
         this.app.use(express.urlencoded({ extended: true }));
         this.app.use(cookieParser());

@@ -21,7 +21,7 @@ export interface customersAttributes {
   identity_number: string;
   census_number?: string;
   first_name: string;
-  last_name: string;
+  last_name?: string;
   date_of_birth?: string;
   phone: string;
   address?: string;
@@ -52,7 +52,7 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   identity_number!: string;
   census_number?: string;
   first_name!: string;
-  last_name!: string;
+  last_name?: string;
   date_of_birth?: string;
   phone!: string;
   address?: string;
@@ -248,7 +248,7 @@ export class customers extends Model<customersAttributes, customersCreationAttri
     },
     last_name: {
       type: DataTypes.STRING(100),
-      allowNull: false
+      allowNull: true
     },
     date_of_birth: {
       type: DataTypes.DATEONLY,

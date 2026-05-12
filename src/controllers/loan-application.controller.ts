@@ -628,4 +628,111 @@ export const markApprovalSummaryPrinted = async (req: Request, res: Response, ne
         next(error);
     }
 }
+
+export const createFromSuperAppWebview = async (req: Request, res: Response, next: NextFunction) => {
+    const transaction = await db.sequelize.transaction();
+    try {
+        // 1. ດຶງຂໍ້ມູນລູກຄ້າອອກມາຈາກ Token 
+        const customerId = req.customerPayload!.userId; 
+        const phone = req.customerPayload!.phone;
+
+        const {
+            otp, // 👈 ຮັບຄ່າ OTP ຈາກໜ້າບ້ານ
+            first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
+            product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
+            interest_type, interest_rate_type
+        } = req.body;
+
+        // =======================================================
+        // 2. ກວດສອບ OTP ໂດຍໃຊ້ເບີໂທຈາກ Token ເພື່ອຄວາມປອດໄພ
+        // =======================================================
+        if (!phone || !otp) {
+                throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
+            }
+
+            const verificationResult = await otpService.verifyOTP({
+                phoneNumber: phone,
+                otp
+            });
+
+            if (!verificationResult.success) {
+                 throw new BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
+            }
+
+        // =======================================================
+        // 3. ກວດສອບ ແລະ ອັບເດດຂໍ້ມູນລູກຄ້າ (Customer)
+        // =======================================================
+        const customer = await db.customers.findByPk(customerId, { 
+            transaction, 
+            lock: transaction.LOCK.UPDATE 
+        });
+
+        if (!customer) {
+            throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້າໃນລະບົບ ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່');
+        }
+
+        const customerUpdatePayload = { 
+            first_name: first_name || customer.first_name, 
+            last_name: last_name || customer.last_name, 
+            province_id, district_id, address, age, occupation, income_per_month, other_debt 
+        };
+        const oldCustomerData = customer.toJSON();
+        
+        await customer.update(customerUpdatePayload, { transaction });
+        
+        await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, customer.id, transaction);
+
+        // =======================================================
+        // 4. ກວດສອບສິນຄ້າ (Validate Product)
+        // =======================================================
+        const product = await db.products.findByPk(product_id, { transaction });
+        if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
+
+        const final_total = total_amount || (product.price * quantity);
+
+        // =======================================================
+        // 5. ສ້າງຄຳຂໍສິນເຊື່ອ (Create Loan Application)
+        // =======================================================
+        const loanPayload = {
+            customer_id: customer.id,
+            product_id,
+            total_amount: final_total,
+            loan_period: loan_period || 0,
+            interest_rate_at_apply: interest_rate_at_apply || 0,
+            interest_type: interest_type || 'flat_rate',       
+            interest_rate_type: interest_rate_type || 'monthly', 
+            down_payment: down_payment || 0,
+            monthly_pay: monthly_pay,
+            is_confirmed: 0, 
+            status: 'pending',
+            requester_id: null 
+        };
+
+        const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
+
+        await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), customer.id, transaction);
+
+        await transaction.commit();
+
+        return res.status(201).json({
+            success: true,
+            message: 'ຍື່ນຄຳຂໍສິນເຊື່ອຜ່ານ Super App ສຳເລັດແລ້ວ',
+            data: {
+                application_id: application.id,
+                loan_id: application.loan_id,
+                status: application.status,
+                customer_id: customer.id,
+                total_amount: application.total_amount,
+                product: {
+                    product_id: product.id,
+                    product_name: product.product_name
+                }
+            }
+        });
+
+    } catch (error) {
+        await transaction.rollback();
+        next(error); 
+    }
+};
   

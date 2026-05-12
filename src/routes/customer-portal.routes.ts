@@ -3,14 +3,22 @@
 // ============================================================================
 import { Router } from 'express';
 import { verifyCustomerToken } from '../middlewares/auth.middleware';
+import authController from '../controllers/auth.controller';
 import { checkLoanOwnership } from '../middlewares/customer.middleware';
 import { uploadDocument } from '../middlewares/upload.middleware';
 import uploadController from '../controllers/upload.controller';
 import LoanContractController from '../controllers/loan_contract.controller';
 import { getCustomerLoanContractPDF } from '../controllers/pdf.controller';
-import { getAllLoanByCustomerId, getLoanbyCusIDandLoanID, cancelLoanApplicationbyCustomer } from '../controllers/loan-application.controller';
+import { getAllLoanByCustomerId, getLoanbyCusIDandLoanID, cancelLoanApplicationbyCustomer, createFromSuperAppWebview } from '../controllers/loan-application.controller';
 
 const router = Router();
+
+// ==========================================================
+// 🟢 ส่วนของ Super App / Webview
+// ==========================================================
+
+// 1. เส้นทางนี้ "ไม่ต้องมี Middleware" เพราะใช้สำหรับ Login แลก Token
+router.post('/superapp-login', authController.superAppWebviewLogin);
 
 /**
  * @swagger
@@ -37,6 +45,34 @@ const router = Router();
 
 // ลูกค้าทุกคนต้องมี Token (Login แล้ว)
 router.use(verifyCustomerToken);
+
+/**
+ * @swagger
+ * /loan-application/superapp-create:
+ *   post:
+ *     summary: ຍື່ນຄຳຂໍສິນເຊື່ອສຳລັບລູກຄ້າ Super App (Webview)
+ *     description: ຕ້ອງການ Token ຈາກການເຂົ້າສູ່ລະບົບ ແລະ OTP ເພື່ອຢືນຢັນການຍື່ນຄຳຂໍ
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - product_id
+ *               - otp    # 👈 ເພີ່ມ otp ເຂົ້າໄປໃນ required
+ *             properties:
+ *               otp:
+ *                 type: string
+ *                 description: ລະຫັດ OTP ທີ່ສົ່ງໄປຫາເບີໂທລະສັບລູກຄ້າ
+ *               product_id:
+ *                 type: integer
+ *               # ... fields ອື່ນໆ ...
+ */
+router.post('/superapp-create', createFromSuperAppWebview);
 
 /**
  * @swagger

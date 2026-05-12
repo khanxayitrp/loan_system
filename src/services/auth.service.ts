@@ -25,10 +25,10 @@ class AuthService {
           'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_edit', 'loan_approve', 'loan_reject',
           'doc_view', 'doc_upload', 'doc_delete',
           'payment_view', 'payment_create', 'payment_verify',
-          'user_changepass'
+          'user_changepass', 'view_admin_dashboard'
         ];
       } else if (role === 'partner') {
-        permissionCodes = ['partner_manage', 'shop_view_report', 'user_changepass'];
+        permissionCodes = ['partner_manage', 'shop_view_report', 'user_changepass', 'view_partner_dashboard'];
       } else if (role === 'customer') {
         permissionCodes = ['cust_profile_view', 'loan_request', 'view_own_loans', 'payment_proof_upload', 'user_changepass'];
       } else if (role === 'staff') {
@@ -295,6 +295,76 @@ class AuthService {
     } catch (error: any) {
       await transaction.rollback();
       throw error; // ส่ง error ตรงๆ เพื่อให้ controller จัดการและส่ง response ที่เหมาะสม
+    }
+  }
+
+  // 🟢 1. ฟังก์ชันจำลองการยิง API ไปเช็คกับ Super App (ปรับใช้ axios จริงตามเอกสารของ Super App)
+  private async verifyWithSuperAppServer(tempToken: string): Promise<any> {
+    try {
+      // 🚨 ตำแหน่งสำหรับใส่ axios ยิงไปหา Super App Server
+      // const response = await axios.post('SUPER_APP_URL/verify', { token: tempToken });
+      // return response.data;
+
+      // 🟢 MOCKUP สำหรับทดสอบ
+      if (tempToken === 'VALID_TEMP_TOKEN') {
+        return {
+          isValid: true,
+          phone: '02099998888',
+          firstName: 'ລູກຄ້າ',
+          lastName: 'SuperApp'
+        };
+      }
+      return { isValid: false };
+    } catch (error) {
+      console.error('[AUTH SERVICE] Error verifying with Super App:', error);
+      return { isValid: false };
+    }
+  }
+
+  // 🟢 2. ลอจิกหลัก: รับ Temp Token -> เช็ค -> ค้นหา/สร้าง Customer -> คืนค่า
+  public async processSuperAppLogin(tempToken: string) {
+    const transaction = await db.sequelize.transaction();
+    
+    try {
+      // Step 1 & 2: ส่งไป verify และรับข้อมูลกลับมา
+      const superAppInfo = await this.verifyWithSuperAppServer(tempToken);
+
+      if (!superAppInfo || !superAppInfo.isValid) {
+        throw new UnauthorizedError('Token ຊົ່ວຄາວຈາກ Super App ບໍ່ຖືກຕ້ອງ (Invalid Temp Token)');
+      }
+
+      const phone = superAppInfo.phone;
+
+      // Step 3: เช็คเบอร์โทรกับตาราง customers
+      let customer = await db.customers.findOne({ 
+        where: { phone: phone },
+        transaction 
+      });
+
+      // Step 4 & 5: ถ้าไม่เจอให้สร้างข้อมูลใหม่ในตาราง customers
+      if (!customer) {
+        customer = await db.customers.create({
+          phone: phone,
+          first_name: superAppInfo.firstName || '-',
+          last_name: superAppInfo.lastName || '-',
+          identity_number: `TEMP-${Date.now()}`, // จำเป็นต้องใส่เพราะตารางคุณบังคับ NOT NULL
+          kyc_status: 'unverified'
+        }, { transaction });
+        
+        console.log(`[AUTH SERVICE] Created new customer from Super App: ID ${customer.id}`);
+      }
+
+      // Step 6: เรียกใช้ TokenService ตัวเดิมของคุณ เพื่อสร้าง Token สำหรับ Webview
+      const webviewToken = tokenService.generateCustomerToken(customer.id, customer.phone);
+
+      await transaction.commit();
+
+      // ส่งกลับไปให้ Controller
+      return { customer, token: webviewToken };
+
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
   }
 
