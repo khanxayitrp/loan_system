@@ -289,7 +289,8 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        // await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // ✅ 8. Generate PDF
@@ -653,7 +654,10 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        // await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        // 🟢 เพิ่มบรรทัดนี้เข้าไป เพื่อบังคับให้รอ Base64 Font โหลดเข้าหน้าเว็บเสร็จ 100%
+        await page.evaluateHandle('document.fonts.ready');
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const rawPdf = await page.pdf({
@@ -793,7 +797,8 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
 
-        await page.setContent(html, { waitUntil: 'load', timeout: 60000 });
+        // await page.setContent(html, { waitUntil: 'load', timeout: 60000 });
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.evaluateHandle('document.fonts.ready');
         await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -890,9 +895,9 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const getVal = (val: any, defaultStr = '________________') => {
             // เช็คทั้งค่าว่าง null และ String คำว่า 'undefined'
             if (
-                val === null || 
-                val === undefined || 
-                val === '' || 
+                val === null ||
+                val === undefined ||
+                val === '' ||
                 String(val).trim().toLowerCase() === 'undefined'
             ) {
                 return defaultStr;
@@ -905,7 +910,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         // =========================================================
         const parseAddress = (addressStr: string | null | undefined) => {
             const defAddr = { village: '', district: '', province: '' };
-            
+
             if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined') {
                 return defAddr;
             }
@@ -933,11 +938,11 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         // 🟢 ແກ້ໄຂໃໝ່: ໃຊ້ fulladdress() ເພື່ອດຶງຂໍ້ມູນເປັນຊຸດດຽວກ່ອນ
         // =========================================================
         const fullCusAddressStr = fulladdress(customer?.address, customer?.district_id, customer?.province_id) || customer?.address;
-        
+
         const fullWorkAddressStr = fulladdress(workInfo?.address || workInfo?.location, workInfo?.district_id, workInfo?.province_id) || (workInfo?.address || workInfo?.location);
-        
+
         const fullGuaAddressStr = fulladdress(guarantor?.address, guarantor?.district_id, guarantor?.province_id) || guarantor?.address;
-        
+
         const fullGuaWorkAddressStr = fulladdress(guarantorWork?.address || guarantorWork?.location, guarantorWork?.district_id, guarantorWork?.province_id) || (guarantorWork?.address || guarantorWork?.location);
 
         // =========================================================
@@ -1049,7 +1054,8 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         await page.setViewport({ width: 1200, height: 800 });
 
         try {
-            await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+            // await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+            await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
             await page.evaluateHandle('document.fonts.ready');
         } catch (e: any) {
             console.warn('⚠️ ຂໍ້ຄວາມເຕືອນ: ໜ້າເວັບໂຫຼດຊ້າກວ່າປົກກະຕິ. ລະບົບກຳລັງບັງຄັບສ້າງ PDF ຕໍ່ໄປ...');

@@ -28,7 +28,8 @@ RUN apk add --no-cache \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    openjdk11-jre
 
 # ✅ 3. ບອກໃຫ້ Puppeteer ໃຂ້ Chromium ຂອງລະບົບແທນຕົວທີ່ມັນໂຫລດມາເອງ
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
@@ -44,6 +45,10 @@ COPY --from=builder /app/dist ./dist
 
 # ✅ 6. ເພີ້ມແຖວນີ້: ກ໊ອບປີ້ໂຟເດີ້ຮູບພາບ (public) ເຂົ້າມາໃນ Docker 
 COPY --from=builder /app/public ./public
+
+# ✨ 7. (สำคัญ) ກ໊ອບປີ້ໄຟລ໌ encrypt.jar ມາໄວ້ໃນ Production ນຳ 
+# เพราะ Path ในโค้ดคุณอ้างอิงเป็น "./src/utils/encrypt.jar"
+COPY --from=builder /app/src/utils/encrypt.jar ./src/utils/encrypt.jar
 
 # 1. ຕິດຕັ້ງ PM2 ແບບ Global ລົງໃນ Docker
 RUN npm install -g pm2

@@ -40,7 +40,10 @@ export const generatePdfBufferFromData = async (mappedData: any): Promise<Buffer
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        // await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        // 🟢 เพิ่มบรรทัดนี้เข้าไป เพื่อบังคับให้รอ Base64 Font โหลดเข้าหน้าเว็บเสร็จ 100%
+        await page.evaluateHandle('document.fonts.ready');
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const rawPdf = await page.pdf({
