@@ -28,7 +28,7 @@ export const checkLoanOwnership = async (req: Request, res: Response, next: Next
     }
 
     // 🟢 ตรวจสอบสถานะ (ทางเลือก): ถ้าสินเชื่ออนุมัติหรือปฏิเสธไปแล้ว อาจจะไม่ให้แก้เอกสาร
-    if (loan.status !== 'pending' && loan.is_confirmed !== 0 && loan.status !== 'verifying') {
+    if (loan.status !== 'pending' && loan.is_confirmed !== 0 && loan.status !== 'verifying' && loan.status !== 'verified' && loan.status !== 'approved') {
         return res.status(400).json({ message: 'ໃບຄຳຂໍນີ້ຢູ່ໃນສະຖານະທີ່ບໍ່ສາມາດອັບໂຫຼດເອກະສານເພີ່ມໄດ້ແລ້ວ' });
     }
 

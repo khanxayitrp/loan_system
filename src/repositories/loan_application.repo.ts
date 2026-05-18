@@ -352,7 +352,18 @@ class LoanApplicationRepository {
             attributes: ['id', 'loan_id', 'total_amount', 'is_confirmed', 'status', 'created_at', 'updated_at'],
             include: [
                 { model: db.customers, as: 'customer', attributes: ['id', 'first_name', 'last_name'] },
-                { model: db.products, as: 'product', attributes: ['id', 'product_name', 'image_url'] },
+                { model: db.products, as: 'product', attributes: ['id', 'product_name', 'image_url'],
+                    include: [
+                        {
+                            model: db.partners,
+                            as: 'partner',
+                            attributes: ['id', 'shop_name']
+                        }
+                    ]
+                 },
+                 { model: db.repayments, as: 'repayments', attributes: ['id', 'due_date', 'amount', 'status'] }
+                
+
 
             ],
             order: [['created_at', 'DESC']],

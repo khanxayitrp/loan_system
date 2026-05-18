@@ -76,7 +76,7 @@ router.post('/superapp-create', createFromSuperAppWebview);
 
 /**
  * @swagger
- * /portal/application/{application_id}/document:
+ * /portal/application/{customerId}/document:
  *   post:
  *     summary: Upload application document (Customer Portal)
  *     description: Upload a single document (image or PDF) for a loan application. Customer must own the application.
@@ -85,11 +85,11 @@ router.post('/superapp-create', createFromSuperAppWebview);
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
- *         description: Loan application ID
+ *         description: Customer ID
  *     requestBody:
  *       required: true
  *       content:
@@ -130,7 +130,7 @@ router.post('/superapp-create', createFromSuperAppWebview);
  *         description: Server error
  */
 router.post(
-  '/application/:application_id/document',
+  '/application/:customerId/document',
   checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
   uploadDocument.single('file'),  // 2. รับไฟล์ภาพ/PDF
   uploadController.uploadApplicationDocument // 3. ใช้ Controller เดิมบันทึกไฟล์ได้เลย!
@@ -138,7 +138,7 @@ router.post(
 
 /**
  * @swagger
- * /portal/application/{application_id}/documents:
+ * /portal/application/{customerId}/documents:
  *   post:
  *     summary: Upload multiple application documents (Customer Portal)
  *     description: Upload multiple documents (max 10 files) for a loan application. Customer must own the application.
@@ -147,11 +147,11 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
- *         description: Loan application ID
+ *         description: Customer ID
  *     requestBody:
  *       required: true
  *       content:
@@ -194,7 +194,7 @@ router.post(
  *         description: Server error
  */
 router.post(
-  '/application/:application_id/documents',
+  '/application/:customerId/documents',
   checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
   uploadDocument.array('files', 10),
   uploadController.uploadMultipleDocuments
