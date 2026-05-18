@@ -37,7 +37,7 @@ export const globalLimiter = rateLimit({
 export const heavyTaskLimiter = rateLimit({
   store: getRedisStore('rate-limit:heavy:'), // 👈 ใส่ Prefix สำหรับ Heavy Task
     windowMs: 5 * 60 * 1000, // 5 ນາທີ
-    max: 25, // ອະນຸຍາດແຄ່ 25 Request ຕໍ່ 1 IP (ປ້ອງກັນ Server ຄ້າງ)
+    max: 60, // ອະນຸຍາດແຄ່ 60 Request ຕໍ່ 1 IP (ປ້ອງກັນ Server ຄ້າງ)
     message: {
         success: false,
         message: "ສ້າງເອກະສານຫຼາຍເກີນໄປ ເພື່ອປ້ອງກັນເຊີບເວີເຮັດວຽກໜັກ, ກະລຸນາລອງໃໝ່ໃນອີກ 5 ນາທີ"

@@ -7,7 +7,7 @@ import {db} from '../models/init-models';
 export const checkLoanOwnership = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // 1. เช็คชื่อ Parameter ให้ตรงกับ Route ของคุณ (ถ้า Route เป็น /:loanId ให้เปลี่ยนจาก application_id เป็น loanId)
-    const paramId = req.params.application_id || req.params.loanId; 
+    const paramId = req.params.application_id || req.params.loanId || req.body.application_id || req.body.loan_id; 
     
     if (!paramId) {
       return res.status(400).json({ message: 'Bad Request: ບໍ່ມີລະຫັດໃບຄຳຂໍ (Missing application ID)' });
