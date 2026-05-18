@@ -361,7 +361,7 @@ class LoanApplicationRepository {
                         }
                     ]
                  },
-                 { model: db.repayments, as: 'repayments', attributes: ['id', 'due_date', 'amount', 'status'] }
+                 { model: db.repayments, as: 'repayments', attributes: ['id', 'due_date'] }
                 
 
 
