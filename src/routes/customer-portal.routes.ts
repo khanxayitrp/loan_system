@@ -131,8 +131,8 @@ router.post('/superapp-create', createFromSuperAppWebview);
  */
 router.post(
   '/application/:customerId/document',
-  checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
   uploadDocument.single('file'),  // 2. รับไฟล์ภาพ/PDF
+  checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
   uploadController.uploadApplicationDocument // 3. ใช้ Controller เดิมบันทึกไฟล์ได้เลย!
 );
 
@@ -195,8 +195,8 @@ router.post(
  */
 router.post(
   '/application/:customerId/documents',
-  checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
   uploadDocument.array('files', 10),
+  checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
   uploadController.uploadMultipleDocuments
 );
 

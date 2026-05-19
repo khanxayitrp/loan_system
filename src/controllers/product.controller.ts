@@ -128,10 +128,6 @@ class ProductController {
     }
 
     // =======================================================
-    // 🟢 4. นำเข้าสินค้าจาก Excel (With Transaction & Audit Log)
-    // =======================================================
-
-    // =======================================================
     // 🟢 4. นำเข้าสินค้าจาก Excel (With Transaction & Smart Grouping)
     // =======================================================
     public async importProductsFromExcel(req: Request, res: Response, next: NextFunction) {
@@ -149,12 +145,22 @@ class ProductController {
 
             if (!rawData?.length) throw new ValidationError('ບໍ່ພົບຂໍ້ມູນໃນໄຟລ໌ Excel');
 
-            // 🌟 1. จัดกลุ่มอัจฉริยะ: ใช้ Parent SKU ก่อน ถ้าไม่มีให้ใช้ "ชื่อสินค้า" เป็นตัวจัดกลุ่มแทน
+            // 🌟 1. ดึง Global Categories ทั้งหมดที่จำเป็นมาเก็บไว้ใน Memory ก่อน (Pre-fetching)
+            // เพื่อลดการยิง Database ซ้ำซ้อนในลูป
+            const prefixCodes = [...new Set(rawData.map((r: any) => r['Global_Cat_Prefix'] || r['ຕົວຫຍໍ້ໝວດໝູ່ຫຼັກ']).filter(Boolean))];
+            const categoryMap = new Map<string, number>();
+            if (prefixCodes.length > 0) {
+                const categories = await db.global_categories.findAll({
+                    where: { prefix_code: { [Op.in]: prefixCodes } },
+                    attributes: ['id', 'prefix_code']
+                });
+                categories.forEach((c: any) => categoryMap.set(c.prefix_code, c.id));
+            }
+
+            // 🌟 2. จัดกลุ่มอัจฉริยะ
             const groupedProducts = new Map<string, any[]>();
             rawData.forEach((row: any) => {
-                // ดึงค่า SKU หรือ ชื่อสินค้า มาเป็น Key ในการจัดกลุ่ม
                 const groupKey = row['Parent_Merchant_SKU'] || row['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || row['Product_Name'] || row['ຊື່ສິນຄ້າ'];
-                
                 if (groupKey && String(groupKey).trim() !== '') {
                     const keyString = String(groupKey).trim();
                     if (!groupedProducts.has(keyString)) groupedProducts.set(keyString, []);
@@ -165,28 +171,19 @@ class ProductController {
             let importedCount = 0;
 
             for (const [groupKey, rows] of groupedProducts.entries()) {
-                // หาแถวแรกสุดที่มีชื่อสินค้า (บางทีแถวแรกร้านค้าอาจจะเว้นชื่อสินค้าไว้ แต่ใส่ในแถวที่ 2)
                 const mainRow = rows.find(r => r['Product_Name'] || r['ຊື່ສິນຄ້າ']) || rows[0];
 
                 const productName = String(mainRow['Product_Name'] || mainRow['ຊື່ສິນຄ້າ'] || '');
-                if (!productName) continue; // ถ้าหาชื่อสินค้าไม่เจอเลย ให้ข้ามกลุ่มนี้ไป
+                if (!productName) continue;
 
-                let globalCategoryId = null;
+                // ⚡ ดึง Category ID จาก Memory ได้เลย (เร็วกว่า 100 เท่า)
                 const prefixCode = mainRow['Global_Cat_Prefix'] || mainRow['ຕົວຫຍໍ້ໝວດໝູ່ຫຼັກ'];
-                if (prefixCode) {
-                    const category: any = await db.global_categories.findOne({
-                        where: { prefix_code: prefixCode },
-                        attributes: ['id']
-                    });
-                    if (category) globalCategoryId = category.id;
-                }
+                const globalCategoryId = prefixCode ? (categoryMap.get(prefixCode) || null) : null;
 
                 const model = String(mainRow['Model'] || mainRow['ລຸ້ນ'] || '');
                 const basePrice = Number(mainRow['Price'] || mainRow['ລາຄາ'] || 0);
-                
-                // คำนวณสต๊อกรวมจากทุกแถวในกลุ่ม
-                const totalStock = rows.reduce((sum, r) => sum + Number(r['Stock'] || r['ສະຕັອກ'] || 0), 0);
 
+                const totalStock = rows.reduce((sum, r) => sum + Number(r['Stock'] || r['ສະຕັອກ'] || 0), 0);
                 const baseSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model);
 
                 // บันทึกสินค้าหลัก
@@ -195,7 +192,7 @@ class ProductController {
                     productType_id: Number(mainRow['Local_Cat_ID'] || mainRow['ລະຫັດປະເພດສິນຄ້າ'] || 1),
                     global_category_id: globalCategoryId || undefined,
                     system_sku: baseSystemSku,
-                    merchant_sku: mainRow['Parent_Merchant_SKU'] || mainRow['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || null, // ใช้ SKU ถ้ามี
+                    merchant_sku: mainRow['Parent_Merchant_SKU'] || mainRow['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || null,
                     product_name: productName,
                     brand: String(mainRow['Brand'] || mainRow['ຍີ່ຫໍ້'] || ''),
                     model: model,
@@ -206,7 +203,6 @@ class ProductController {
                     is_active: 1
                 }, { transaction: t });
 
-                // 🟢 บันทึก Audit Log สำหรับสินค้าที่ Import (CREATE)
                 await logAudit('products', newProduct.id, 'CREATE', null, newProduct.toJSON(), userId, t);
 
                 const variants = [];
@@ -215,7 +211,6 @@ class ProductController {
                     const color = row['Color'] || row['ສີ'];
                     const size = row['Size_Capacity'] || row['ຂະໜາດ/ຄວາມຈຸ'];
 
-                    // 🌟 สร้าง Variant เมื่อมีข้อมูลระบุความต่าง หรือเป็นสินค้าชิ้นเดียวที่บังคับสร้าง Variant
                     if (color || size || variantSku || rows.length === 1) {
                         const vCode = `${color || ''}${size || ''}`;
                         const vSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model, vCode);
@@ -237,10 +232,11 @@ class ProductController {
                 if (variants.length > 0) {
                     const createdVariants = await db.product_variants.bulkCreate(variants, { transaction: t });
 
-                    // 🟢 บันทึก Audit Log สำหรับ Variants ที่ Import
-                    for (const variant of createdVariants) {
-                        await logAudit('product_variants', variant.id || 0, 'CREATE', null, variant.toJSON(), userId, t);
-                    }
+                    // ⚡ ใช้ Promise.all เพื่อบันทึก Audit แบบขนาน (เร็วกว่า for...of ปกติ)
+                    const auditPromises = createdVariants.map((variant: any) =>
+                        logAudit('product_variants', variant.id || 0, 'CREATE', null, variant.toJSON(), userId, t)
+                    );
+                    await Promise.all(auditPromises);
                 }
                 importedCount++;
             }
@@ -252,34 +248,29 @@ class ProductController {
             await t.rollback();
             logger.error('Import Product Error:', error);
 
-            // ====================================================================
-            // 🌟 ดักจับ Error รหัส SKU ซ้ำกัน (ครอบคลุมทั้งตารางหลัก และ ตารางย่อย)
-            // ====================================================================
             if (error.name === 'SequelizeUniqueConstraintError') {
-                const duplicateError = error.errors?.find((e: any) => 
-                    e.path === 'unique_merchant_sku' || // ของตาราง variants
-                    e.path === 'product_variants.unique_merchant_sku' || // ของตาราง variants (บางเวอร์ชัน)
-                    e.path === 'unique_product_merchant_sku' || // 🟢 เพิ่มของตาราง products
-                    e.path === 'products.unique_product_merchant_sku' // 🟢 เพิ่มของตาราง products (บางเวอร์ชัน)
+                const duplicateError = error.errors?.find((e: any) =>
+                    e.path === 'unique_merchant_sku' ||
+                    e.path === 'product_variants.unique_merchant_sku' ||
+                    e.path === 'unique_product_merchant_sku' ||
+                    e.path === 'products.unique_product_merchant_sku'
                 );
-                
+
                 if (duplicateError) {
-                    // ตัดเอาเฉพาะรหัส SKU มาแสดง (เอาตัวเลข ID ด้านหน้าออก)
                     const rawValue = duplicateError.value || '';
                     const skuOnly = rawValue.includes('-') ? rawValue.split('-').slice(1).join('-') : rawValue;
 
-                    // ส่ง Status 400 พร้อมข้อความแจ้งเตือนภาษาลาว
                     return res.status(400).json({
                         success: false,
                         message: `ພົບລະຫັດສິນຄ້າຊ້ຳກັນ: '${skuOnly}' ໃນຖານຂໍ້ມູນ ຫຼື ໄຟລ໌ Excel. ກະລຸນາກວດສອບ ແລະ ແກ້ໄຂລະຫັດ Merchant SKU ບໍ່ໃຫ້ຊ້ຳກັນ.`
                     });
                 }
             }
-
-            // ถ้าเป็น Error อื่นๆ ให้โยนไปหา Error Handler หลัก
             next(error);
         }
     }
+
+
     // public async importProductsFromExcel(req: Request, res: Response, next: NextFunction) {
     //     const t = await db.sequelize.transaction();
     //     try {
@@ -295,19 +286,27 @@ class ProductController {
 
     //         if (!rawData?.length) throw new ValidationError('ບໍ່ພົບຂໍ້ມູນໃນໄຟລ໌ Excel');
 
+    //         // 🌟 1. จัดกลุ่มอัจฉริยะ: ใช้ Parent SKU ก่อน ถ้าไม่มีให้ใช้ "ชื่อสินค้า" เป็นตัวจัดกลุ่มแทน
     //         const groupedProducts = new Map<string, any[]>();
     //         rawData.forEach((row: any) => {
-    //             const parentSku = row['Parent_Merchant_SKU'] || row['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'];
-    //             if (parentSku) {
-    //                 if (!groupedProducts.has(parentSku)) groupedProducts.set(parentSku, []);
-    //                 groupedProducts.get(parentSku)!.push(row);
+    //             // ดึงค่า SKU หรือ ชื่อสินค้า มาเป็น Key ในการจัดกลุ่ม
+    //             const groupKey = row['Parent_Merchant_SKU'] || row['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || row['Product_Name'] || row['ຊື່ສິນຄ້າ'];
+
+    //             if (groupKey && String(groupKey).trim() !== '') {
+    //                 const keyString = String(groupKey).trim();
+    //                 if (!groupedProducts.has(keyString)) groupedProducts.set(keyString, []);
+    //                 groupedProducts.get(keyString)!.push(row);
     //             }
     //         });
 
     //         let importedCount = 0;
 
-    //         for (const [parentSku, rows] of groupedProducts.entries()) {
-    //             const mainRow = rows[0];
+    //         for (const [groupKey, rows] of groupedProducts.entries()) {
+    //             // หาแถวแรกสุดที่มีชื่อสินค้า (บางทีแถวแรกร้านค้าอาจจะเว้นชื่อสินค้าไว้ แต่ใส่ในแถวที่ 2)
+    //             const mainRow = rows.find(r => r['Product_Name'] || r['ຊື່ສິນຄ້າ']) || rows[0];
+
+    //             const productName = String(mainRow['Product_Name'] || mainRow['ຊື່ສິນຄ້າ'] || '');
+    //             if (!productName) continue; // ถ้าหาชื่อสินค้าไม่เจอเลย ให้ข้ามกลุ่มนี้ไป
 
     //             let globalCategoryId = null;
     //             const prefixCode = mainRow['Global_Cat_Prefix'] || mainRow['ຕົວຫຍໍ້ໝວດໝູ່ຫຼັກ'];
@@ -320,11 +319,9 @@ class ProductController {
     //             }
 
     //             const model = String(mainRow['Model'] || mainRow['ລຸ້ນ'] || '');
-    //             const productName = String(mainRow['Product_Name'] || mainRow['ຊື່ສິນຄ້າ'] || '');
-
-    //             if (!productName) continue;
-
     //             const basePrice = Number(mainRow['Price'] || mainRow['ລາຄາ'] || 0);
+
+    //             // คำนวณสต๊อกรวมจากทุกแถวในกลุ่ม
     //             const totalStock = rows.reduce((sum, r) => sum + Number(r['Stock'] || r['ສະຕັອກ'] || 0), 0);
 
     //             const baseSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model);
@@ -335,7 +332,7 @@ class ProductController {
     //                 productType_id: Number(mainRow['Local_Cat_ID'] || mainRow['ລະຫັດປະເພດສິນຄ້າ'] || 1),
     //                 global_category_id: globalCategoryId || undefined,
     //                 system_sku: baseSystemSku,
-    //                 merchant_sku: parentSku,
+    //                 merchant_sku: mainRow['Parent_Merchant_SKU'] || mainRow['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || null, // ใช้ SKU ถ้ามี
     //                 product_name: productName,
     //                 brand: String(mainRow['Brand'] || mainRow['ຍີ່ຫໍ້'] || ''),
     //                 model: model,
@@ -355,7 +352,8 @@ class ProductController {
     //                 const color = row['Color'] || row['ສີ'];
     //                 const size = row['Size_Capacity'] || row['ຂະໜາດ/ຄວາມຈຸ'];
 
-    //                 if (color || size || variantSku) {
+    //                 // 🌟 สร้าง Variant เมื่อมีข้อมูลระบุความต่าง หรือเป็นสินค้าชิ้นเดียวที่บังคับสร้าง Variant
+    //                 if (color || size || variantSku || rows.length === 1) {
     //                     const vCode = `${color || ''}${size || ''}`;
     //                     const vSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model, vCode);
 
@@ -367,7 +365,7 @@ class ProductController {
     //                         size_or_capacity: size || null,
     //                         price: Number(row['Price'] || row['ລາຄາ'] || basePrice),
     //                         stock_quantity: Number(row['Stock'] || row['ສະຕັອກ'] || 0),
-    //                         weight_gram: Number(row['ນ້ຳໜັກ(ກຣາມ)'] || 0),
+    //                         weight_gram: Number(row['Weight_Gram'] || row['ນ້ຳໜັກ(ກຣາມ)'] || 0),
     //                         image_url: row['Image_URL'] || row['ລິ້ງຮູບພາບ'] || null
     //                     });
     //                 }
@@ -390,9 +388,36 @@ class ProductController {
     //     } catch (error: any) {
     //         await t.rollback();
     //         logger.error('Import Product Error:', error);
+
+    //         // ====================================================================
+    //         // 🌟 ดักจับ Error รหัส SKU ซ้ำกัน (ครอบคลุมทั้งตารางหลัก และ ตารางย่อย)
+    //         // ====================================================================
+    //         if (error.name === 'SequelizeUniqueConstraintError') {
+    //             const duplicateError = error.errors?.find((e: any) => 
+    //                 e.path === 'unique_merchant_sku' || // ของตาราง variants
+    //                 e.path === 'product_variants.unique_merchant_sku' || // ของตาราง variants (บางเวอร์ชัน)
+    //                 e.path === 'unique_product_merchant_sku' || // 🟢 เพิ่มของตาราง products
+    //                 e.path === 'products.unique_product_merchant_sku' // 🟢 เพิ่มของตาราง products (บางเวอร์ชัน)
+    //             );
+
+    //             if (duplicateError) {
+    //                 // ตัดเอาเฉพาะรหัส SKU มาแสดง (เอาตัวเลข ID ด้านหน้าออก)
+    //                 const rawValue = duplicateError.value || '';
+    //                 const skuOnly = rawValue.includes('-') ? rawValue.split('-').slice(1).join('-') : rawValue;
+
+    //                 // ส่ง Status 400 พร้อมข้อความแจ้งเตือนภาษาลาว
+    //                 return res.status(400).json({
+    //                     success: false,
+    //                     message: `ພົບລະຫັດສິນຄ້າຊ້ຳກັນ: '${skuOnly}' ໃນຖານຂໍ້ມູນ ຫຼື ໄຟລ໌ Excel. ກະລຸນາກວດສອບ ແລະ ແກ້ໄຂລະຫັດ Merchant SKU ບໍ່ໃຫ້ຊ້ຳກັນ.`
+    //                 });
+    //             }
+    //         }
+
+    //         // ถ้าเป็น Error อื่นๆ ให้โยนไปหา Error Handler หลัก
     //         next(error);
     //     }
     // }
+
 
     // =======================================================
     // 🟢 5. ดึงข้อมูล (Get By ID & All)
@@ -464,9 +489,9 @@ class ProductController {
             if (!partner) throw new UnauthorizedError('ຜູ້ໃຊ້ນີ້ບໍ່ມີສິດເປັນພານເນີ');
 
             // 2. ค้นหาสินค้าเดิมที่จะแก้ไข
-            const product = await db.products.findOne({ 
+            const product = await db.products.findOne({
                 where: { id: productId, partner_id: partner.id },
-                transaction: t 
+                transaction: t
             });
 
             if (!product) {
@@ -478,11 +503,11 @@ class ProductController {
 
             // 3. อัปเดตข้อมูลสินค้าหลัก (กรองเฉพาะฟิลด์ที่อนุญาต)
             const allowedFields = [
-                'productType_id', 'global_category_id', 'product_name', 
-                'description', 'brand', 'model', 'price', 'image_url', 
+                'productType_id', 'global_category_id', 'product_name',
+                'description', 'brand', 'model', 'price', 'image_url',
                 'merchant_sku', 'stock_quantity', 'reserved_stock', 'allowed_loan_type', 'is_active'
             ];
-            
+
             const filteredUpdateData: any = {};
             for (const field of allowedFields) {
                 if (updateData[field] !== undefined) {
@@ -556,23 +581,23 @@ class ProductController {
                 }
 
                 const variantsToDelete = await db.product_variants.findAll({ where: deleteCondition, transaction: t });
-                
+
                 // บันทึก Audit Log ให้ตัวที่จะถูกลบ
                 for (const item of variantsToDelete) {
                     await logAudit('product_variants', item.id, 'DELETE', item.toJSON(), null, userId, t);
                 }
-                
+
                 // สั่งลบออกจาก Database ของจริง
                 await db.product_variants.destroy({ where: deleteCondition, transaction: t });
             }
 
             await t.commit();
             await redisService.delByPattern('cache:products:*');
-            
-            return res.status(200).json({ 
-                success: true, 
-                message: 'ອັບເດດສິນຄ້າສຳເລັດ', 
-                data: product 
+
+            return res.status(200).json({
+                success: true,
+                message: 'ອັບເດດສິນຄ້າສຳເລັດ',
+                data: product
             });
         } catch (error: any) {
             await t.rollback();

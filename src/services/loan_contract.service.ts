@@ -110,7 +110,7 @@ class LoanContractService {
                 motor_color: data.motorColor || null, 
                 tank_number: data.tankNumber || null, 
                 motor_warranty: data.motorWarranty || null,
-                partner_id: data.partnerId || null,
+                partner_id: data.partner_id || null,
                 shop_branch: data.shopBranch,
                 shop_id: data.shopId,
                 ref_name: data.refName,
