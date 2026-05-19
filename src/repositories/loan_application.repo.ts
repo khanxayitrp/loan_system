@@ -349,7 +349,7 @@ class LoanApplicationRepository {
         // 🟢 2. ດຶງຂໍ້ມູນລາຍລະອຽດ (Pagination)
         const result = await db.loan_applications.findAndCountAll({
             where: whereClause,
-            attributes: ['id', 'loan_id', 'total_amount', 'is_confirmed', 'status', 'created_at', 'updated_at'],
+            attributes: ['id', 'loan_id', 'total_amount','loan_period', 'is_confirmed', 'status', 'created_at', 'updated_at'],
             include: [
                 { model: db.customers, as: 'customer', attributes: ['id', 'first_name', 'last_name'] },
                 { model: db.products, as: 'product', attributes: ['id', 'product_name', 'image_url'],
@@ -360,11 +360,7 @@ class LoanApplicationRepository {
                             attributes: ['id', 'shop_name']
                         }
                     ]
-                 },
-                 { model: db.repayments, as: 'repayments', attributes: ['id', 'due_date'] }
-                
-
-
+                 }
             ],
             order: [['created_at', 'DESC']],
             limit: limitNum,

@@ -4,7 +4,7 @@
 import { Router } from 'express';
 import { verifyCustomerToken } from '../middlewares/auth.middleware';
 import authController from '../controllers/auth.controller';
-import { checkLoanOwnership } from '../middlewares/customer.middleware';
+import { checkLoanOwnership, allowViewDocument } from '../middlewares/customer.middleware';
 import { uploadDocument } from '../middlewares/upload.middleware';
 import uploadController from '../controllers/upload.controller';
 import LoanContractController from '../controllers/loan_contract.controller';
@@ -132,7 +132,8 @@ router.post('/superapp-create', createFromSuperAppWebview);
 router.post(
   '/application/:customerId/document',
   uploadDocument.single('file'),  // 2. รับไฟล์ภาพ/PDF
-  checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
+  allowViewDocument,
+  // checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
   uploadController.uploadApplicationDocument // 3. ใช้ Controller เดิมบันทึกไฟล์ได้เลย!
 );
 
@@ -196,7 +197,8 @@ router.post(
 router.post(
   '/application/:customerId/documents',
   uploadDocument.array('files', 10),
-  checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
+  allowViewDocument,
+  // checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
   uploadController.uploadMultipleDocuments
 );
 
