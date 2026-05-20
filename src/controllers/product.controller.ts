@@ -41,7 +41,7 @@ class ProductController {
             }
         }
 
-        const modelCode = (modelName || 'BASE').toUpperCase().replace(/\s+/g, '').substring(0, 10);
+        const modelCode = (modelName || 'BASE').toUpperCase().replace(/\s+/g, '').substring(0, 15);
 
         if (variantName) {
             const vCode = variantName.toUpperCase().replace(/\s+/g, '').substring(0, 10);
@@ -673,18 +673,18 @@ class ProductController {
                 ]
             });
             if (!variants) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນ Variant');
-        // 3. ส่งข้อมูลกลับ
-        return res.status(200).json({
-            success: true,
-            message: 'ດຶງຂໍ້ມູນລາຍການຍ່ອຍສຳເລັດ',
-            data: variants
-        });
+            // 3. ส่งข้อมูลกลับ
+            return res.status(200).json({
+                success: true,
+                message: 'ດຶງຂໍ້ມູນລາຍການຍ່ອຍສຳເລັດ',
+                data: variants
+            });
 
-    } catch (error) {
-        console.error('🔥 Get Variants Error:', error);
-        next(error); // โยนให้ Error Handler จัดการ
+        } catch (error) {
+            console.error('🔥 Get Variants Error:', error);
+            next(error); // โยนให้ Error Handler จัดการ
+        }
     }
-}
 
 
 }
