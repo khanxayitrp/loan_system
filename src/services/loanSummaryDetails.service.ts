@@ -40,6 +40,7 @@ export const getCustomerLoanSummary = async (customerId: number) => {
     let totalMonthlyPay = 0;
     const activeLoans: any[] = [];
     const completedLoans: any[] = [];
+    const loanDetails: any[] = [];
 
     // 2. ลูปคำนวณข้อมูลทีละรายการ
     for (const loan of loans) {
@@ -94,6 +95,7 @@ export const getCustomerLoanSummary = async (customerId: number) => {
         } else {
             completedLoans.push(mappedLoan);
         }
+        loanDetails.push(mappedLoan);
     }
 
     // 3. ส่งข้อมูลกลับ
@@ -102,8 +104,10 @@ export const getCustomerLoanSummary = async (customerId: number) => {
             active_count: totalActiveLoans,
             total_monthly_pay: totalMonthlyPay
         },
-        active_loans: activeLoans,
-        completed_loans: completedLoans
+        // active_loans: activeLoans,
+        // completed_loans: completedLoans
+
+        details: loanDetails
     };
 };
 
