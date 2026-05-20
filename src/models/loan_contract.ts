@@ -3,6 +3,7 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
 import type { partners, partnersId } from './partners';
 import type { product_types, product_typesId } from './product_types';
+import type { product_variants, product_variantsId } from './product_variants';
 import type { users, usersId } from './users';
 
 export interface loan_contractAttributes {
@@ -42,8 +43,11 @@ export interface loan_contractAttributes {
   cus_income_other_source: string;
   product_detail?: string;
   producttype_id?: number;
+  variant_id?: number;
   product_brand?: string;
   product_model?: string;
+  product_color?: string;
+  product_size?: string;
   product_price?: number;
   product_down_payment?: number;
   total_amount?: number;
@@ -101,7 +105,7 @@ export interface loan_contractAttributes {
 
 export type loan_contractPk = "id";
 export type loan_contractId = loan_contract[loan_contractPk];
-export type loan_contractOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "cus_date_of_birth" | "cus_id_pass_date" | "cus_census_number" | "cus_census_created" | "cus_province_id" | "cus_district_id" | "cus_occupation" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "product_detail" | "producttype_id" | "product_brand" | "product_model" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "shop_branch" | "shop_id" | "ref_date_of_birth" | "ref_id_pass_date" | "ref_census_number" | "ref_census_created" | "ref_province_id" | "ref_district_id" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
+export type loan_contractOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "cus_date_of_birth" | "cus_id_pass_date" | "cus_census_number" | "cus_census_created" | "cus_province_id" | "cus_district_id" | "cus_occupation" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "product_detail" | "producttype_id" | "variant_id" | "product_brand" | "product_model" | "product_color" | "product_size" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "shop_branch" | "shop_id" | "ref_date_of_birth" | "ref_id_pass_date" | "ref_census_number" | "ref_census_created" | "ref_province_id" | "ref_district_id" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
 export type loan_contractCreationAttributes = Optional<loan_contractAttributes, loan_contractOptionalAttributes>;
 
 export class loan_contract extends Model<loan_contractAttributes, loan_contractCreationAttributes> implements loan_contractAttributes {
@@ -141,8 +145,11 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   cus_income_other_source!: string;
   product_detail?: string;
   producttype_id?: number;
+  variant_id?: number;
   product_brand?: string;
   product_model?: string;
+  product_color?: string;
+  product_size?: string;
   product_price?: number;
   product_down_payment?: number;
   total_amount?: number;
@@ -212,6 +219,11 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   getProducttype!: Sequelize.BelongsToGetAssociationMixin<product_types>;
   setProducttype!: Sequelize.BelongsToSetAssociationMixin<product_types, product_typesId>;
   createProducttype!: Sequelize.BelongsToCreateAssociationMixin<product_types>;
+  // loan_contract belongsTo product_variants via variant_id
+  variant!: product_variants;
+  getVariant!: Sequelize.BelongsToGetAssociationMixin<product_variants>;
+  setVariant!: Sequelize.BelongsToSetAssociationMixin<product_variants, product_variantsId>;
+  createVariant!: Sequelize.BelongsToCreateAssociationMixin<product_variants>;
   // loan_contract belongsTo users via created_by
   created_by_user!: users;
   getCreated_by_user!: Sequelize.BelongsToGetAssociationMixin<users>;
@@ -384,11 +396,27 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
         key: 'id'
       }
     },
+    variant_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'product_variants',
+        key: 'id'
+      }
+    },
     product_brand: {
       type: DataTypes.STRING(100),
       allowNull: true
     },
     product_model: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    product_color: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    product_size: {
       type: DataTypes.STRING(100),
       allowNull: true
     },
@@ -674,6 +702,13 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
         using: "BTREE",
         fields: [
           { name: "updated_by" },
+        ]
+      },
+      {
+        name: "fk_contract_variant",
+        using: "BTREE",
+        fields: [
+          { name: "variant_id" },
         ]
       },
     ]
