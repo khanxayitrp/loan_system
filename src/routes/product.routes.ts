@@ -98,6 +98,8 @@ router.post('/import', verifyToken, upload.single('file'), productController.imp
  */
 router.get('/:id', productController.getProductById);
 
+router.get('/:productId/variants',verifyToken, productController.getVariantsByProductId);
+
 /**
  * @swagger
  * /products/{id}:

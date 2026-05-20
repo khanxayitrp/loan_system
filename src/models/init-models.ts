@@ -370,6 +370,7 @@ export function initModels(sequelize: Sequelize) {
   repayments.belongsTo(loan_applications, { as: "application", foreignKey: "application_id"});
   loan_applications.hasMany(repayments, { as: "repayments", foreignKey: "application_id"});
   loan_applications.belongsTo(orders, { as: "order", foreignKey: "order_id"});
+  loan_applications.belongsTo(product_variants, { as: "variant", foreignKey: "variant_id"});
   orders.hasMany(loan_applications, { as: "loan_applications", foreignKey: "order_id"});
   order_items.belongsTo(orders, { as: "order", foreignKey: "order_id"});
   orders.hasMany(order_items, { as: "order_items", foreignKey: "order_id"});

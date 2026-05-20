@@ -58,6 +58,7 @@ class LoanApplicationRepository {
             const mapData: any = {
                 customer_id: cleanLoanApplication.customer_id,
                 product_id: cleanLoanApplication.product_id,
+                variant_id: cleanLoanApplication.variant_id || null,
                 loan_id: formattedId,
                 total_amount: cleanLoanApplication.total_amount,
                 interest_rate_at_apply: cleanLoanApplication.interest_rate_at_apply,
@@ -235,6 +236,12 @@ class LoanApplicationRepository {
                         }
                     ]
                 },
+                // 🟢 ເພີ່ມ Include ສຳລັບ Product Variants ຢູ່ນີ້!
+                {
+                    model: db.product_variants,
+                    as: 'variant', // ⚠️ ໝາຍເຫດ: ກວດເບິ່ງ Alias (as) ໃນໄຟລ໌ init-models.ts ຂອງທ່ານອີກຮອບວ່າຕັ້ງຊື່ເປັນ 'variant' ຫຼື 'product_variant'
+                    attributes: ['id', 'color', 'size_or_capacity', 'merchant_sku', 'price']
+                },
                 {
                     model: db.users,
                     as: 'requester',
@@ -248,7 +255,7 @@ class LoanApplicationRepository {
                 {
                     model: db.loan_guarantors,
                     as: 'loan_guarantors',
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_province_id', 'work_district_id', 'work_district_id', 'work_phone']
+                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_province_id', 'work_district_id', 'work_phone']
                 },
                 {
                     model: db.delivery_receipts,
@@ -485,6 +492,7 @@ class LoanApplicationRepository {
             // 🟢 3. ทำแบบเดียวกันกับ Loan Application เพื่อความปลอดภัยสูงสุด
             const mapData: any = {
                 product_id: data.product_id !== undefined ? data.product_id : loanApplication.product_id,
+                variant_id: data.variant_id !== undefined ? data.variant_id : loanApplication.variant_id,
                 total_amount: data.total_amount !== undefined ? data.total_amount : loanApplication.total_amount,
                 interest_rate_at_apply: data.interest_rate_at_apply !== undefined ? data.interest_rate_at_apply : loanApplication.interest_rate_at_apply,
                 monthly_pay: data.monthly_pay !== undefined ? data.monthly_pay : loanApplication.monthly_pay,

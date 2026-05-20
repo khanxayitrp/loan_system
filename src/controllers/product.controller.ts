@@ -444,15 +444,7 @@ class ProductController {
             if (validationErrors.length > 0) throw new ValidationError(validationErrors.join(', '));
 
             const { search, searchText, status, type, limit, page, getAllData, shop_id } = req.query;
-            // const options = {
-            //     search: (search || searchText) as string,
-            //     limit: Number(limit),
-            //     page: Number(page),
-            //     getAllData: getAllData === 'true',
-            //     shop_id: shop_id ? Number(shop_id) : undefined,
-            //     is_active: status !== undefined ? Number(status) : undefined,
-            //     productType_id: type !== undefined ? Number(type) : undefined
-            // };
+
             // 🟢 แก้ไขการเช็คค่าว่างเพื่อป้องกัน Number("") กลายเป็น 0
             const options = {
                 search: (search || searchText) as string,
@@ -657,6 +649,42 @@ class ProductController {
             next(error);
         }
     }
+
+    public async getVariantsByProductId(req: Request, res: Response, next: NextFunction) {
+        try {
+            const productId = parseInt(req.params.productId, 10);
+            // 1. ตรวจสอบว่ามีรับค่า ID มาหรือไม่
+            if (!productId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Bad Request: ບໍ່ມີລະຫັດສິນຄ້າ (Missing Product ID)'
+                });
+            }
+            const cacheKey = `cache:products:variants:${productId}`;
+            const cached = await redisService.get(cacheKey);
+            if (cached) return res.status(200).json({ success: true, data: JSON.parse(cached) });
+
+            const variants = await db.product_variants.findAll({
+                where: { product_id: productId },
+                attributes: ['id', 'system_sku', 'merchant_sku', 'color', 'size_or_capacity', 'price', 'stock_quantity', 'weight_gram', 'image_url'],
+                order: [
+                    ['color', 'ASC'],
+                    ['size_or_capacity', 'ASC']
+                ]
+            });
+            if (!variants) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນ Variant');
+        // 3. ส่งข้อมูลกลับ
+        return res.status(200).json({
+            success: true,
+            message: 'ດຶງຂໍ້ມູນລາຍການຍ່ອຍສຳເລັດ',
+            data: variants
+        });
+
+    } catch (error) {
+        console.error('🔥 Get Variants Error:', error);
+        next(error); // โยนให้ Error Handler จัดการ
+    }
+}
 
 
 }

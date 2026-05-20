@@ -17,6 +17,7 @@ import type { loan_income_assessments, loan_income_assessmentsCreationAttributes
 import type { loan_payments, loan_paymentsId } from './loan_payments';
 import type { orders, ordersId } from './orders';
 import type { payment_transactions, payment_transactionsId } from './payment_transactions';
+import type { product_variants, product_variantsId } from './product_variants';
 import type { products, productsId } from './products';
 import type { repayment_schedules, repayment_schedulesId } from './repayment_schedules';
 import type { repayments, repaymentsId } from './repayments';
@@ -27,6 +28,7 @@ export interface loan_applicationsAttributes {
   loan_flow_type: 'single_item' | 'bnpl_cart';
   customer_id: number;
   product_id: number;
+  variant_id?: number;
   order_id?: number;
   loan_id: string;
   total_amount: number;
@@ -56,7 +58,7 @@ export interface loan_applicationsAttributes {
 
 export type loan_applicationsPk = "id";
 export type loan_applicationsId = loan_applications[loan_applicationsPk];
-export type loan_applicationsOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "interest_type" | "interest_rate_type" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at" | "down_payment" | "fee" | "first_installment_amount" | "payment_day" | "borrower_signature_date" | "guarantor_signature_date" | "staff_signature_date";
+export type loan_applicationsOptionalAttributes = "id" | "loan_flow_type" | "variant_id" | "order_id" | "interest_type" | "interest_rate_type" | "is_confirmed" | "status" | "requester_id" | "approver_id" | "applied_at" | "approved_at" | "credit_score" | "remarks" | "created_at" | "updated_at" | "down_payment" | "fee" | "first_installment_amount" | "payment_day" | "borrower_signature_date" | "guarantor_signature_date" | "staff_signature_date";
 export type loan_applicationsCreationAttributes = Optional<loan_applicationsAttributes, loan_applicationsOptionalAttributes>;
 
 export class loan_applications extends Model<loan_applicationsAttributes, loan_applicationsCreationAttributes> implements loan_applicationsAttributes {
@@ -64,6 +66,7 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   loan_flow_type!: 'single_item' | 'bnpl_cart';
   customer_id!: number;
   product_id!: number;
+  variant_id?: number;
   order_id?: number;
   loan_id!: string;
   total_amount!: number;
@@ -283,6 +286,11 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   getOrder!: Sequelize.BelongsToGetAssociationMixin<orders>;
   setOrder!: Sequelize.BelongsToSetAssociationMixin<orders, ordersId>;
   createOrder!: Sequelize.BelongsToCreateAssociationMixin<orders>;
+  // loan_applications belongsTo product_variants via variant_id
+  variant!: product_variants;
+  getVariant!: Sequelize.BelongsToGetAssociationMixin<product_variants>;
+  setVariant!: Sequelize.BelongsToSetAssociationMixin<product_variants, product_variantsId>;
+  createVariant!: Sequelize.BelongsToCreateAssociationMixin<product_variants>;
   // loan_applications belongsTo products via product_id
   product!: products;
   getProduct!: Sequelize.BelongsToGetAssociationMixin<products>;
@@ -325,6 +333,14 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       allowNull: false,
       references: {
         model: 'products',
+        key: 'id'
+      }
+    },
+    variant_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'product_variants',
         key: 'id'
       }
     },
@@ -488,6 +504,13 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
         using: "BTREE",
         fields: [
           { name: "order_id" },
+        ]
+      },
+      {
+        name: "fk_loan_variant",
+        using: "BTREE",
+        fields: [
+          { name: "variant_id" },
         ]
       },
     ]

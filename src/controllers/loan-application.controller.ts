@@ -335,7 +335,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
     try {
         const {
             phone, otp, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
-            product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
+            product_id, variant_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
             interest_type, interest_rate_type, 
             existing_customer_id 
         } = req.body;
@@ -405,7 +405,23 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
         const product = await db.products.findByPk(product_id, { transaction, lock: transaction.LOCK.UPDATE });
         if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
 
-        const final_total = total_amount || (product.price * quantity);
+        let variant = null;
+        let basePriceToUse = product.price; // ຕັ້ງຕົ້ນດ້ວຍລາຄາສິນຄ້າຫຼັກ
+
+        // ຖ້າມີການສົ່ງ variant_id ມາ ໃຫ້ກວດສອບກ່ອນ
+        if (variant_id) {
+            variant = await db.product_variants.findByPk(variant_id, { transaction });
+            if (!variant) throw new NotFoundError('ບໍ່ພົບຕົວເລືອກຍ່ອຍ (Variant) ທີ່ເລືອກ');
+            
+            // ກວດສອບຄວາມປອດໄພ: Variant ຕ້ອງຂຶ້ນກັບ Product ໂຕນີ້ແທ້
+            if (Number(variant.product_id) !== Number(product.id)) {
+                throw new BadRequestError('ຕົວເລືອກຍ່ອຍນີ້ ບໍ່ໄດ້ຂຶ້ນກັບສິນຄ້າທີ່ເລືອກ');
+            }
+
+            basePriceToUse = variant.price; // ປ່ຽນໄປໃຊ້ລາຄາຂອງ Variant ແທນ
+        }
+
+        const final_total = total_amount || (basePriceToUse * quantity);
 
         // =======================================================
         // 4. Create Loan Application
@@ -413,6 +429,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
         const loanPayload = {
             customer_id: customer.id,
             product_id,
+            variant_id: variant_id || null,
             total_amount: final_total,
             loan_period: loan_period || 0,
             interest_rate_at_apply: interest_rate_at_apply || 0,
@@ -451,6 +468,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
                 application_id: application.id,
                 customer_id: customer.id,
                 product_id,
+                variant_id: application.variant_id || null,
                 loan_id: application.loan_id,
                 total_amount: final_total,
                 loan_period: loan_period,
@@ -488,7 +506,14 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
                     productType_id: product.productType_id,
                     product_name: product.product_name,
                     price: product.price,
-                    interest_rate: interest_rate_at_apply
+                    interest_rate: interest_rate_at_apply,
+                    // 🟢 4. ແນບຂໍ້ມູນ Variant ກັບຄືນໄປພ້ອມ
+                    variant: variant ? {
+                        id: variant.id,
+                        color: variant.color,
+                        size: variant.size_or_capacity,
+                        merchant_sku: variant.merchant_sku
+                    } : null
                 },
                 requester: requesterData,
                 approver: null,
