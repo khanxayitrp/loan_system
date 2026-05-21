@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="lo">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,7 @@
             font-family: 'Phetsarath OT';
             src: url('{{fontPath}}') format('truetype');
         }
-        
+
         :root {
             --text-color: #000;
             --red-imi: #a11d20;
@@ -39,41 +40,117 @@
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            position: relative;
+            /* ສຳຄັນສຳລັບຈັດຕຳແໜ່ງຮູບພາບ */
+            padding: 0;
+            /* ລຶບ padding ອອກ ເພື່ອໃຫ້ຮູບພາບຍືດໄດ້ເຕັມ */
         }
-        
+
         .content-wrapper {
             flex: 1 0 auto;
+            /* margin-top: 10px; ເວັ້ນໄລຍະຫ່າງຈາກຮູບ Header */
+            padding: 30mm 20mm 20mm 20mm;
+            /* 🟢 ຍ້າຍ padding ມາໃສ່ບ່ອນນີ້ແທນ ເພື່ອໃຫ້ເນື້ອຫາບໍ່ຕິດຂອບ */
+        }
+
+        /* 🟢 ຈັດການຮູບພາບ Header */
+        .header-banner {
+            /* width: 100%;
+            display: block;
+            margin-bottom: 5px; */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* 🟢 ຈັດການຮູບພາບ Footer (Fixed ຢູ່ລຸ່ມສຸດ) */
+        .footer-banner {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            display: block;
         }
 
         @media print {
-            body { background: white; }
+            body {
+                background: white;
+            }
+
             .page {
                 margin: 0;
                 box-shadow: none;
                 border: none;
                 page-break-after: always;
             }
+
             .page:last-child {
                 page-break-after: auto;
             }
-            @page { margin: 0; size: A4; }
+
+            @page {
+                margin: 0;
+                size: A4;
+            }
         }
 
-        .flex { display: flex; }
-        .justify-between { justify-content: space-between; }
-        .justify-center { justify-content: center; }
-        .align-center { align-items: center; }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .font-bold { font-weight: bold; }
-        .text-red { color: var(--red-imi); }
-        
-        .mt-1 { margin-top: 5px; }
-        .mt-2 { margin-top: 10px; }
-        .mb-2 { margin-bottom: 10px; }
-        .mb-4 { margin-bottom: 20px; }
-        .ml-2 { margin-left: 10px; }
-        .gap-8 { gap: 40px; }
+        .flex {
+            display: flex;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .justify-center {
+            justify-content: center;
+        }
+
+        .align-center {
+            align-items: center;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        .text-red {
+            color: var(--red-imi);
+        }
+
+        .mt-1 {
+            margin-top: 5px;
+        }
+
+        .mt-2 {
+            margin-top: 10px;
+        }
+
+        .mb-2 {
+            margin-bottom: 10px;
+        }
+
+        .mb-4 {
+            margin-bottom: 20px;
+        }
+
+        .ml-2 {
+            margin-left: 10px;
+        }
+
+        .gap-8 {
+            gap: 40px;
+        }
 
         .row {
             display: flex;
@@ -81,7 +158,11 @@
             margin-bottom: 5px;
             width: 100%;
         }
-        .label { white-space: nowrap; }
+
+        .label {
+            white-space: nowrap;
+        }
+
         .dot {
             flex-grow: 1;
             border-bottom: 1px dotted var(--text-color);
@@ -96,24 +177,26 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10px;
-            table-layout: fixed; 
-            page-break-inside: avoid; 
+            table-layout: fixed;
+            page-break-inside: avoid;
         }
+
         table.form-grid th,
         table.form-grid td {
             border: 1px solid var(--border-color);
             padding: 4px 6px;
             vertical-align: middle;
             font-size: 13px;
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: clip; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: clip;
         }
+
         .td-label {
             font-weight: bold;
         }
 
-        .checkbox {
+        /* .checkbox {
             display: inline-flex;
             width: 13px;
             height: 13px;
@@ -128,6 +211,23 @@
             padding-bottom: 2px;
             position: relative;
             top: -1px;
+        } */
+        .checkbox {
+            display: inline-flex;
+            width: 13px;
+            height: 13px;
+            border: 1px solid var(--text-color);
+            vertical-align: middle;
+            margin-right: 5px;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .checkbox.checked::before {
+            content: '✓';
         }
 
         .line-solid {
@@ -150,22 +250,55 @@
             gap: 20px 40px;
             margin-top: 20px;
         }
-        .sig-col { text-align: center; }
-        .sig-title { font-weight: bold; font-size: 13px; text-decoration: underline; }
-        .sig-desc { font-size: 11px; color: #333; margin-top: 4px; line-height: 1.3; height: 30px;}
-        .sig-space { height: 60px; }
-        .remark-box { font-size: 12px; line-height: 1.5; text-align: justify; margin-top: 30px;}
+
+        .sig-col {
+            text-align: center;
+        }
+
+        .sig-title {
+            font-weight: bold;
+            font-size: 13px;
+            text-decoration: underline;
+        }
+
+        .sig-desc {
+            font-size: 11px;
+            color: #333;
+            margin-top: 4px;
+            line-height: 1.3;
+            height: 30px;
+        }
+
+        .sig-space {
+            height: 60px;
+        }
+
+        .remark-box {
+            font-size: 12px;
+            line-height: 1.5;
+            text-align: justify;
+            margin-top: 30px;
+        }
 
         .footer-wrapper {
             flex-shrink: 0;
             margin-top: 20px;
         }
+
         .page-num {
-            text-align: right;
+            /* text-align: right;
             font-size: 13px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 2px; */
+            position: absolute;
+            bottom: 15px;
+            /* ປັບໃຫ້ເໝາະສົມກັບຮູບ Footer */
+            right: 20mm;
+            font-size: 12px;
+            font-weight: bold;
         }
+
+        /*         
         .footer-note {
             border-top: 4px solid var(--red-imi);
             padding-top: 8px;
@@ -173,16 +306,18 @@
             font-size: 11px;
             font-style: italic;
             line-height: 1.4;
-        }
-
+        } */
     </style>
 </head>
+
 <body>
 
     <div class="page">
+        <img src="{{headerImagePath}}" alt="Header" class="header-banner" onerror="this.style.display='none'">
+
         <div class="content-wrapper">
-            
-            <div style="position: relative; min-height: 90px;">
+
+            <!-- <div style="position: relative; min-height: 90px;">
                 <div class="company-logo text-center" style="position: absolute; left: 0; top: 0; width: 140px;">
                     <img src="{{logoPath}}" alt="IMI Logo" style="width: 60px; height: 60px; margin: 0 auto; display: block;" onerror="this.style.display='none'">
                     <div class="font-bold text-red mt-1" style="font-size: 15px;">IMI</div>
@@ -193,8 +328,8 @@
                     <div class="font-bold" style="font-size: 16px;">ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ</div>
                     <div style="font-size: 14px; margin-top: 2px;">ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ</div>
                 </div>
-            </div>
-            
+            </div> -->
+
             <div style="display: flex; justify-content: flex-end; margin-top: 10px; margin-bottom: 5px;">
                 <div style="width: 250px;">
                     <div class="flex align-center">
@@ -286,33 +421,54 @@
                 </tr>
                 <tr>
                     <td class="td-label">ລາຄາສິນຄ້າທັງໝົດ:</td>
-                    <td><div class="flex justify-between"><span>{{prodPrice}}</span><span>ກີບ</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodPrice}}</span><span>ກີບ</span></div>
+                    </td>
                     <td class="td-label">ເງິນວາງດາວ(ຖ້າມີ):</td>
-                    <td><div class="flex justify-between"><span>{{prodDown}}</span><span>ກີບ</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodDown}}</span><span>ກີບ</span></div>
+                    </td>
                 </tr>
                 <tr>
                     <td class="td-label">ວົງເງິນອະນຸມັດ:</td>
-                    <td><div class="flex justify-between"><span>{{prodApprove}}</span><span>ກີບ</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodApprove}}</span><span>ກີບ</span></div>
+                    </td>
                     <td class="td-label">ອັດຕາດອກເບ້ຍ:</td>
-                    <td><div class="flex justify-between"><span>{{prodInterest}}</span><span>%</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodInterest}}</span><span>%</span></div>
+                    </td>
                 </tr>
                 <tr>
                     <td class="td-label">ຈຳນວນງວດທີ່ກູ້</td>
-                    <td><div class="flex justify-between"><span>{{prodTerm}}</span><span>ເດືອນ</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodTerm}}</span><span>ເດືອນ</span></div>
+                    </td>
                     <td class="td-label">ຈຳນວນດອກເບ້ຍທັງໝົດ:</td>
-                    <td><div class="flex justify-between"><span>{{prodTotalInt}}</span><span>ກີບ</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodTotalInt}}</span><span>ກີບ</span></div>
+                    </td>
                 </tr>
                 <tr>
                     <td class="td-label">ຄ່າທຳນຽມCIB/ອື່ນໆ(ຖ້າມີ):</td>
-                    <td><div class="flex justify-between"><span>{{prodFee}}</span><span>ກີບ</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodFee}}</span><span>ກີບ</span></div>
+                    </td>
                     <td class="td-label">ຄ່າງວດລາຍເດືອນ</td>
-                    <td><div class="flex justify-between"><span>{{prodMonthly}}</span><span>ກີບ/ເດືອນ</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodMonthly}}</span><span>ກີບ/ເດືອນ</span></div>
+                    </td>
                 </tr>
                 <tr>
                     <td class="td-label">ຄ່າງວດເດືອນທຳອິດ:(ບວກຄ່າທຳນຽມ):</td>
-                    <td><div class="flex justify-between"><span>{{prodFirstInst}}</span><span>ກີບ</span></div></td>
+                    <td>
+                        <div class="flex justify-between"><span>{{prodFirstInst}}</span><span>ກີບ</span></div>
+                    </td>
                     <td class="td-label">ມື້ກຳນົດການຊຳລະຄ່າງວດ:</td>
-                    <td><div class="flex justify-between" style="padding:0 5px;"><span>ຈ່າຍທຸກວັນທີ</span><span>{{prodPayDay}}</span><span>ຂອງເດືອນ</span></div></td>
+                    <td>
+                        <div class="flex justify-between" style="padding:0 5px;">
+                            <span>ຈ່າຍທຸກວັນທີ</span><span>{{prodPayDay}}</span><span>ຂອງເດືອນ</span></div>
+                    </td>
                 </tr>
                 <tr>
                     <td class="td-label">ຊື່ຮ້ານຄ້າຕົວແທນ:</td>
@@ -323,7 +479,8 @@
             </table>
 
             <div class="section-title flex align-center gap-2">
-                IV. ມູນສ່ວນຕົວ ແລະ ຫ້ອງການ ຂອງ <span class="checkbox">{{hasGuarantor}}</span> ຜູ້ຄຳປະກັນ / <span class="checkbox">{{hasReference}}</span> ຜູ້ອ້າງອີງ (ຖ້າມີ) ເຊິ່ງມີລາຍລະອຽດດັ່ງລຸ່ມນີ້
+                IV. ມູນສ່ວນຕົວ ແລະ ຫ້ອງການ ຂອງ <span class="checkbox">{{hasGuarantor}}</span> ຜູ້ຄຳປະກັນ / <span
+                    class="checkbox">{{hasReference}}</span> ຜູ້ອ້າງອີງ (ຖ້າມີ) ເຊິ່ງມີລາຍລະອຽດດັ່ງລຸ່ມນີ້
             </div>
             <table class="form-grid">
                 <tr>
@@ -367,17 +524,19 @@
 
         <div class="footer-wrapper">
             <div class="page-num">1</div>
-            <div class="footer-note">
+            <!-- <div class="footer-note">
                 ສະຖາບັນການເງິນ ຈຸລະພາກບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ ສຳນັກງານໃຫຍ່ຕັ້ງຢູ່ ຖະໜົນ 23 ສິງຫາ, ບ້ານ ໜອງບອນ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ<br>
                 INSEE Microfinance, 23 Singha Rd, Nongbone Village, Saysatha District, VTE<br>
                 ໂທລະສັບ/Tel 021 417775, 021 417776 (856-20) 5595 7755
-            </div>
+            </div> -->
+            <img src="{{footerImagePath}}" alt="Footer" class="footer-banner" onerror="this.style.display='none'">
+
         </div>
     </div>
 
     <div class="page">
         <div class="content-wrapper">
-            
+
             <table class="form-grid mt-2">
                 <tr>
                     <td style="width: 25%; vertical-align: top; padding: 10px;">
@@ -394,10 +553,11 @@
             </table>
 
             <div class="signature-grid">
-                
+
                 <div class="sig-col">
                     <div class="sig-title">ເຊັນ ແລະ ຊື່ແຈ້ງ ຜູ້ກູ້</div>
-                    <div class="sig-desc">(ຂ້າພະເຈົ້າຂໍຢັ້ງຢືນວ່າ ຂ້າພະເຈົ້າໄດ້ຮັບສິນຄ້າແລ້ວ ແລະ<br>ໄດ້ເຊັນສັນຍາສະບັບນີ້ຢ່າງແທ້ຈິງ)</div>
+                    <div class="sig-desc">(ຂ້າພະເຈົ້າຂໍຢັ້ງຢືນວ່າ ຂ້າພະເຈົ້າໄດ້ຮັບສິນຄ້າແລ້ວ
+                        ແລະ<br>ໄດ້ເຊັນສັນຍາສະບັບນີ້ຢ່າງແທ້ຈິງ)</div>
                     <div class="sig-space"></div>
                     <div class="flex justify-center align-center">
                         <span class="font-bold">ຊື່ແຈ້ງ:</span><span class="line-solid" style="width: 180px;"></span>
@@ -456,23 +616,30 @@
             </div>
 
             <div class="remark-box font-bold">
-                ໝາຍເຫດ: <span style="font-weight: normal;">ໃບສະເຫນີນີ້ເປັນເອກະສານໃຊ້ສະເພາະພາຍໃນຂອງ ສະຖາບັນການເງິນ ເພື່ອຂໍປ່ອຍສິນຄ້າໃຫ້ລູກຄ້າທຸກຄັ້ງ ແລະ ເພື່ອ
-                ຢືນຢັນວ່າສັນຍາກູ້ຢືມໄດ້ຮັບການອະນຸມັດແລ້ວໂດຍຄະນະອໍານວຍການ ແລະ ຫົວຫນ້າພະແນກ. ຫຼັງຈາກການອະນຸມັດ ເອກະສານ
-                ສັນຍາຕົວຈິງຈະຖືກສົ່ງໃຫ້ພະນັກງານຂາຍສິນເຊື່ອ ເພື່ອດໍາເນີນການປ່ອຍສິນຄ້າໃຫ້ລູກຄ້າ. ເມື່ອລູກຄ້າໄດ້ຮັບສິນຄ້າແລ້ວ ລູກຄ້າຈະ
-                ຕ້ອງເຊັນຮັບເຄື່ອງໃນໜ້າສັນຍາຕົວຈິງ ພ້ອມຮູບຖ່າຍຄູ່ສັນຍາ ແລະ ສົ່ງຄືນໃຫ້ພະນັກງານຂາຍເພື່ອສົ່ງຕໍ່ໃຫ້ຄະນະອໍານວຍການເຊັນ
-                ຢືນຢັນໃນສັນຍາສະບັບແທ້ອີກຄັ້ງ ໂດຍຕ້ອງແນບໃບສະເຫນີຂໍອະນຸມັດທຸກຄັ້ງ ແລະ ພ້ອມກັບຊຸດເອກະສານປະກອບສະໝັກ.</span>
+                ໝາຍເຫດ: <span style="font-weight: normal;">ໃບສະເຫນີນີ້ເປັນເອກະສານໃຊ້ສະເພາະພາຍໃນຂອງ ສະຖາບັນການເງິນ
+                    ເພື່ອຂໍປ່ອຍສິນຄ້າໃຫ້ລູກຄ້າທຸກຄັ້ງ ແລະ ເພື່ອ
+                    ຢືນຢັນວ່າສັນຍາກູ້ຢືມໄດ້ຮັບການອະນຸມັດແລ້ວໂດຍຄະນະອໍານວຍການ ແລະ ຫົວຫນ້າພະແນກ. ຫຼັງຈາກການອະນຸມັດ ເອກະສານ
+                    ສັນຍາຕົວຈິງຈະຖືກສົ່ງໃຫ້ພະນັກງານຂາຍສິນເຊື່ອ ເພື່ອດໍາເນີນການປ່ອຍສິນຄ້າໃຫ້ລູກຄ້າ.
+                    ເມື່ອລູກຄ້າໄດ້ຮັບສິນຄ້າແລ້ວ ລູກຄ້າຈະ
+                    ຕ້ອງເຊັນຮັບເຄື່ອງໃນໜ້າສັນຍາຕົວຈິງ ພ້ອມຮູບຖ່າຍຄູ່ສັນຍາ ແລະ
+                    ສົ່ງຄືນໃຫ້ພະນັກງານຂາຍເພື່ອສົ່ງຕໍ່ໃຫ້ຄະນະອໍານວຍການເຊັນ
+                    ຢືນຢັນໃນສັນຍາສະບັບແທ້ອີກຄັ້ງ ໂດຍຕ້ອງແນບໃບສະເຫນີຂໍອະນຸມັດທຸກຄັ້ງ ແລະ
+                    ພ້ອມກັບຊຸດເອກະສານປະກອບສະໝັກ.</span>
             </div>
         </div>
 
         <div class="footer-wrapper">
             <div class="page-num">2</div>
-            <div class="footer-note">
+            <!-- <div class="footer-note">
                 ສະຖາບັນການເງິນ ຈຸລະພາກບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ ສຳນັກງານໃຫຍ່ຕັ້ງຢູ່ ຖະໜົນ 23 ສິງຫາ, ບ້ານ ໜອງບອນ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ<br>
                 INSEE Microfinance, 23 Singha Rd, Nongbone Village, Saysatha District, VTE<br>
                 ໂທລະສັບ/Tel 021 417775, 021 417776 (856-20) 5595 7755
-            </div>
+            </div> -->
+            <img src="{{footerImagePath}}" alt="Footer" class="footer-banner" onerror="this.style.display='none'">
+
         </div>
     </div>
 
 </body>
+
 </html>

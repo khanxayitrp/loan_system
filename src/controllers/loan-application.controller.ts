@@ -537,6 +537,22 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
         if (!scheduleData) throw new BadRequestError('scheduleData is required');
 
         console.log('Creating repayment schedule for application_id:', application_id);
+
+        // =========================================================
+        // 🌟 🟢 ເພີ່ມໃໝ່: WIPE OLD DATA IN MYSQL (ລ້າງຂໍ້ມູນເກົ່າໃນ MySQL)
+        // ເພື່ອປ້ອງກັນຂໍ້ມູນເກົ່າ (schedule_id: 5) ມາປົນກັບຂໍ້ມູນໃໝ່
+        // =========================================================
+        // await db.repayments.destroy({ 
+        //     where: { application_id: application_id }, 
+        //     transaction: transaction 
+        // });
+
+        // // 💡 ໝາຍເຫດ: ຖ້າລະບົບຂອງທ່ານມີຕາຕະລາງຫົວຂໍ້ (repayment_schedules) ກໍໃຫ້ລຶບອອກນຳ
+        // await db.repayment_schedules.destroy({ 
+        //     where: { application_id: application_id }, 
+        //     transaction: transaction 
+        // });
+        // =========================================================
         
         const result = await repaymentRepo.saveRepaymentSchedule(application_id, scheduleData, Number(userId), transaction);
         

@@ -356,10 +356,11 @@ class LoanApplicationRepository {
         // 🟢 2. ດຶງຂໍ້ມູນລາຍລະອຽດ (Pagination)
         const result = await db.loan_applications.findAndCountAll({
             where: whereClause,
-            attributes: ['id', 'loan_id', 'total_amount','loan_period', 'is_confirmed', 'status', 'created_at', 'updated_at'],
+            attributes: ['id', 'loan_id', 'total_amount', 'loan_period', 'is_confirmed', 'status', 'created_at', 'updated_at'],
             include: [
                 { model: db.customers, as: 'customer', attributes: ['id', 'first_name', 'last_name'] },
-                { model: db.products, as: 'product', attributes: ['id', 'product_name', 'image_url'],
+                {
+                    model: db.products, as: 'product', attributes: ['id', 'product_name', 'image_url'],
                     include: [
                         {
                             model: db.partners,
@@ -367,7 +368,7 @@ class LoanApplicationRepository {
                             attributes: ['id', 'shop_name']
                         }
                     ]
-                 }
+                }
             ],
             order: [['created_at', 'DESC']],
             limit: limitNum,
@@ -740,6 +741,83 @@ class LoanApplicationRepository {
                                 { transaction: t } // 👈 ສົ່ງ transaction ເຂົ້າໄປເພື່ອກະທຳພ້ອມກັນ
                             );
                         }
+
+                        //  ປິດໄວ້ກ່ອນຊົ່ວຄາວ ຫລັງຈາກລະບົບແລ້ວ E-commerce ຈືງໃຊ້ ທີ່ຈະຕັດສະຕັອກເທື່ອນີ້ (ແຍກตาม Flow Type)
+                        // ==========================================
+                        // 🌟 🟢 ເພີ່ມໃໝ່: Logic ການຕັດສະຕັອກ (ແຍກຕາມ Flow Type)
+                        // ==========================================
+                        // if (loanApplication.loan_flow_type === 'single_item') {
+                        //     // ------------------------------------------
+                        //     // Flow 1: Single Item (ຕັດສະຕັອກທັນທີ)
+                        //     // ------------------------------------------
+                        //     const productId = loanApplication.product_id;
+                        //     const variantId = loanApplication.variant_id; // ຫຼືດຶງຈາກ contract ກໍໄດ້
+                        //     const qtyToDeduct = 1;
+
+                        //     if (variantId) {
+                        //         const variant = await db.product_variants.findByPk(variantId, { transaction: t, lock: t.LOCK.UPDATE });
+                        //         if (!variant || variant.stock_quantity < qtyToDeduct) { // ສົມມຸດວ່າ column ຊື່ stock
+                        //             throw new BadRequestError('ບໍ່ສາມາດປ່ອຍສິນເຊື່ອໄດ້: ສິນຄ້າໃນສະຕັອກ (ສີ/ຂະໜາດ) ບໍ່ພຽງພໍແລ້ວ!');
+                        //         }
+                        //         await variant.decrement('stock_quantity', { by: qtyToDeduct, transaction: t });
+                        //     } else if (productId) {
+                        //         const product = await db.products.findByPk(productId, { transaction: t, lock: t.LOCK.UPDATE });
+                        //         if (!product || product.stock_quantity < qtyToDeduct) { // ສົມມຸດວ່າ column ຊື່ stock
+                        //             throw new BadRequestError('ບໍ່ສາມາດປ່ອຍສິນເຊື່ອໄດ້: ສິນຄ້າໃນສະຕັອກບໍ່ພຽງພໍແລ້ວ!');
+                        //         }
+                        //         await product.decrement('stock_quantity', { by: qtyToDeduct, transaction: t });
+                        //     }
+
+                        // } else if (loanApplication.loan_flow_type === 'bnpl_cart') {
+                            // ------------------------------------------
+                            // Flow 2: BNPL Cart (ບໍ່ຕັດສະຕັອກ ແຕ່ຕື່ມ Point ແທນ)
+                            // ------------------------------------------
+
+                            /* ໝາຍເຫດ: ຢູ່ຈຸດນີ້ ເຮົາຈະ ບໍ່ຕັດສະຕັອກສິນຄ້າ ໃນ order_items ເດັດຂາດ!
+                               ເພາະມັນເປັນໜ້າທີ່ຂອງລະບົບ E-commerce (Checkout Process) ທີ່ຈະຕັດສະຕັອກ
+                               ຕອນທີ່ລູກຄ້າກົດຢືນຢັນການຊື້ຈິງໆ.
+                               
+                               ສິ່ງທີ່ເຮົາຄວນເຮັດຢູ່ຈຸດນີ້ຄື: "ການເຕີມວົງເງິນ (Points) ໃຫ້ລູກຄ້າ"
+                            */
+
+                            // const approvedAmount = loanApplication.total_amount; // ຫຼືຍອດທີ່ຫັກເງິນດາວແລ້ວ
+
+                            // // ຕົວຢ່າງການເຕີມ Point (ສົມມຸດທ່ານມີຕາຕະລາງ customer_points)
+                            // // 1 Point = 1 ກີບ (ແລ້ວແຕ່ທ່ານອອກແບບ)
+                            // const customerPoint = await db.customer_points.findOne({
+                            //     where: { customer_id: loanApplication.customer_id },
+                            //     transaction: t
+                            // });
+
+                            // if (customerPoint) {
+                            //     // ມີກະເປົາ Point ແລ້ວ, ເຕີມເພີ່ມເຂົ້າໄປ
+                            //     await customerPoint.increment('available_points', { by: approvedAmount, transaction: t });
+                            // } else {
+                            //     // ຍັງບໍ່ມີກະເປົາ Point, ສ້າງໃໝ່ເລີຍ
+                            //     await db.customer_points.create({
+                            //         customer_id: loanApplication.customer_id,
+                            //         available_points: approvedAmount,
+                            //         total_points_earned: approvedAmount,
+                            //         // ... ອື່ນໆ
+                            //     }, { transaction: t });
+                            // }
+
+                            // ບັນທຶກ Point Ledger (ປະຫວັດການເງິນ)
+                            // await db.point_ledgers.create({
+                            //     customer_id: loanApplication.customer_id,
+                            //     transaction_type: 'earned',
+                            //     points: approvedAmount,
+                            //     reference_type: 'loan_approval',
+                            //     reference_id: loanApplication.id,
+                            //     description: `ໄດ້ຮັບວົງເງິນສິນເຊື່ອ BNPL ເລກທີ ${loanApplication.loan_id}`,
+                            // }, { transaction: t });
+
+                            // 💡 ຫຼັງຈາກນີ້, ລູກຄ້າຈະມີ Point ໃນລະບົບ. 
+                            // ຕອນລູກຄ້າໄປໜ້າ Checkout ຂອງ E-commerce, ເຂົາຈະເລືອກຈ່າຍດ້ວຍ Point.
+                            // ໃນ API ຂອງ E-commerce Checkout ຈຶ່ງຄ່ອຍໄປເຮັດການ:
+                            // 1. ຕັດ Point ຂອງລູກຄ້າ
+                            // 2. ຕັດສະຕັອກສິນຄ້າໃນ order_items ຈິງໆ
+                        // }
                     }
                 }
             }
