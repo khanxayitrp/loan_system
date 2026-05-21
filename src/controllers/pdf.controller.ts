@@ -12,224 +12,6 @@ import {
 } from '../utils/formatters';
 import locationsData from '../utils/locations.json';
 
-// export const generateLoanPDF = async (req: Request, res: Response) => {
-//     let browser = null;
-
-//     try {
-//         const { formData, loanId } = req.body;
-//         console.log('✅ formData received for PDF generation:', formData); // ตรวจสอบข้อมูลที่ได้รับก่อนส่งให้ Template
-//         // =========================================================
-//         // 🟢 2. Check Redis Cache ก่อนสร้างใหม่
-//         // =========================================================
-//         if (loanId) {
-//             const cacheKey = `cache:pdf:loan-form:${loanId}`;
-//             const cachedPdfBase64 = await redisService.get(cacheKey);
-
-//             if (cachedPdfBase64) {
-//                 console.log(`[PDF] 🚀 Serving Loan Form PDF from Redis Cache for loan: ${loanId} (0 CPU usage!)`);
-//                 const pdfBuffer = Buffer.from(cachedPdfBase64, 'base64');
-//                 res.setHeader('Content-Type', 'application/pdf');
-//                 res.setHeader('Content-Disposition', `attachment; filename="loan-${loanId}.pdf"`);
-//                 return res.send(pdfBuffer);
-//             }
-//         }
-//         // =========================================================
-
-//         console.log('📄 Generating PDF for loan:', loanId);
-
-//         // ✅ 1. อ่าน HTML Template
-//         const templatePath = path.join(__dirname, '../templates/loan-form-template.html');
-//         const templateSource = fs.readFileSync(templatePath, 'utf-8');
-
-//         // ✅ 2. หา Path ของไฟล์โลโก้
-//         const logoPath = path.resolve(__dirname, '../../public/image/LOGO INSEE.png');
-//         const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath, 'base64') : '';
-//         const logoDataUri = logoBase64 ? `data:image/png;base64,${logoBase64}` : '';
-//         const logoUrl = `file://${logoPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
-
-//         // ✅ 3. หา Path ของไฟล์ฟ้อนต์
-//         // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
-//         // ປ່ຽນເປັນ:
-//         const fontPath = path.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
-//         // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
-//         // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
-//         const fontBase64 = fs.existsSync(fontPath) ? fs.readFileSync(fontPath, 'base64') : '';
-//         // 🟢 ສ້າງ Data URI ສຳລັບ Font
-//         const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
-
-//         if (!fs.existsSync(logoPath)) console.error('❌ Logo file not found at:', logoPath);
-//         if (!fs.existsSync(fontPath)) console.error('❌ Font file not found at:', fontPath);
-
-//         // ✅ 4. แทนที่ Placeholder
-//         let htmlContent = templateSource;
-//         htmlContent = htmlContent.replace('{{logoPath}}', logoDataUri);
-//         htmlContent = htmlContent.replace('{{fontPath}}', fontUrl);
-
-//         // ✅ 5. Compile Template
-//         const templateCompiled = handlebars.compile(htmlContent);
-
-//         const pType = formData.product?.type || ''; // ดึงค่าประเภทสินค้ามาเก็บไว้ก่อน
-
-
-//         // ✅ 6. เตรียม Data
-//         const data = {
-//             onlineChecked: 'checked',
-//             offlineChecked: '',
-//             // 🟢 แก้ไขเงื่อนไข Checkbox ให้เช็คจากคำภาษาลาวที่ส่งมา
-//             goldChecked: pType.includes('ຄຳ') ? 'checked' : '',
-//             generalChecked: pType.includes('ທົ່ວໄປ') ? 'checked' : '',
-//             motorcycleChecked: (pType.includes('ລົດ') || pType.includes('ລົດຈັກ')) ? 'checked' : '',
-
-//             customer: {
-//                 fullname: formData.customer?.fullname || '________________',
-//                 dob: formatDate(formData.customer?.dob),
-//                 age: formData.customer?.age || '___',
-//                 occupation: formData.customer?.occupation || '________________',
-//                 phone: formData.customer?.phone || '________________',
-//                 address: {
-//                     village: formData.customer?.address?.village || '____________',
-//                     district: formData.customer?.address?.district || '____________',
-//                     province: formData.customer?.address?.province || '____________'
-//                 },
-//                 idCard: formData.customer?.idCard || '________________',
-//                 censusNo: formData.customer?.censusBook || '________________', // 🟢 ປ່ຽນຈາກ censusNo ເປັນ censusBook
-//                 unit: formData.customer?.unit || '______',
-//                 issuePlace: formData.customer?.censusAuthorizeBy || formData.customer?.idCardPlace || '________________', // 🟢 ປ່ຽນການດຶງສະຖານທີ່ອອກ
-//                 issueDate: formatDate(formData.customer?.idCardIssueDate) // 🟢 ປ່ຽນຈາກ issueDate ເປັນ idCardIssueDate
-//             },
-
-//             work: {
-//                 companyName: formData.work?.companyName || '________________',
-//                 address: {
-//                     village: formData.work?.address?.village || '____________',
-//                     district: formData.work?.address?.district || '____________',
-//                     province: formData.work?.address?.province || '____________'
-//                 },
-//                 phone: formData.work?.phone || '________________',
-//                 businessType: formData.work?.businessType || '________________',
-//                 businessDetail: formData.work?.businessDetail || '________________',
-//                 durationMonths: formData.work?.workMonths || '___', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງກັບ Frontend
-//                 durationYears: formData.work?.workYears || '___', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງກັບ Frontend
-//                 department: formData.work?.department || '________________',
-//                 position: formData.work?.position || '________________',
-//                 salary: formatCurrency(formData.work?.salary)
-//             },
-
-//             product: {
-//                 type: formData.product?.type || formData.product?.type_name || formData.product?.productType?.type_name || '________________',
-//                 brand: formData.product?.brand || '________________',
-//                 model: formData.product?.model || '________________',
-//                 price: formatCurrency(formData.product?.price),
-//                 downPayment: formatCurrency(formData.product?.downPayment),
-//                 approvedAmount: formatCurrency(formData.product?.approvedAmount),
-//                 loanTerm: formData.product?.loanTerm || '___',
-//                 interestRate: formData.product?.interestRate || '___',
-//                 totalInterest: formatCurrency(formData.product?.totalInterest),
-//                 fee: formatCurrency(formData.product?.fee),
-//                 firstInstallment: formatCurrency(formData.product?.firstInstallment),
-//                 monthlyPayment: formatCurrency(formData.product?.monthlyPayment),
-//                 paymentDay: formData.product?.paymentDay || '___',
-//                 store: formData.shop?.branch || formData.product?.store || '________________________________________________________' // 🟢 ດຶງສາຂາຮ້ານມາໃສ່
-//             },
-
-//             hasGuarantor: formData.hasGuarantor || formData.hasReference,
-//             guarantorChecked: formData.hasGuarantor ? 'checked' : '',
-//             referenceChecked: formData.hasReference ? 'checked' : '',
-
-//             guarantor: {
-//                 name: formData.guarantor?.fullname || '________________', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງ
-//                 dob: formatDate(formData.guarantor?.dob),
-//                 age: formData.guarantor?.age || '___',
-//                 occupation: formData.guarantor?.occupation || '________________',
-//                 phone: formData.guarantor?.phone || '________________',
-//                 address: {
-//                     village: formData.guarantor?.address?.village || '____________',
-//                     district: formData.guarantor?.address?.district || '____________',
-//                     province: formData.guarantor?.address?.province || '____________'
-//                 },
-//                 idCard: formData.guarantor?.idCard || '________________',
-
-//                 parentChecked: formData.guarantor?.relationship === 'ພໍ່' || formData.guarantor?.relationship === 'ແມ່' ? 'checked' : '',
-//                 spouseChecked: formData.guarantor?.relationship === 'ຜົວ' || formData.guarantor?.relationship === 'ເມຍ' ? 'checked' : '',
-//                 otherChecked: (formData.guarantor?.relationship && !['ພໍ່', 'ແມ່', 'ຜົວ', 'ເມຍ'].includes(formData.guarantor?.relationship)) ? 'checked' : '',
-//                 relationshipOther: (!['ພໍ່', 'ແມ່', 'ຜົວ', 'ເມຍ'].includes(formData.guarantor?.relationship)) ? formData.guarantor?.relationship : '',
-
-//                 // 🟢 ແກ້ໄຂການດຶງຂໍ້ມູນວຽກຜູ້ຄ້ຳ ໃຫ້ດຶງຈາກ guarantorWork ໂດຍກົງ!
-//                 work: {
-//                     companyName: formData.guarantorWork?.companyName || '________________',
-//                     address: {
-//                         village: formData.guarantorWork?.address?.village || '____________',
-//                         district: formData.guarantorWork?.address?.district || '____________',
-//                         province: formData.guarantorWork?.address?.province || '____________'
-//                     },
-//                     position: formData.guarantorWork?.position || '________________',
-//                     phone: formData.guarantorWork?.phone || '________________',
-//                     salary: formatCurrency(formData.guarantorWork?.salary)
-//                 }
-//             },
-//             signatures: {
-//                 borrowerDate: formatDate(formData.signatures?.borrowerDate),
-//                 guarantorDate: formatDate(formData.signatures?.guarantorDate),
-//                 staffDate: formatDate(formData.signatures?.staffDate)
-//             }
-//         };
-
-//         const html = templateCompiled(data);
-
-//         // ✅ 7. Launch Puppeteer
-//         browser = await puppeteer.launch({
-//             headless: true,
-//             args: [
-//                 '--no-sandbox',
-//                 '--disable-setuid-sandbox',
-//                 '--disable-dev-shm-usage',
-//                 '--font-render-hinting=none',
-//                 '--disable-web-security',
-//                 '--allow-file-access-from-files',
-//                 '--allow-file-access',
-//                 '--lang=lo-LA,en-US'
-//             ]
-//         });
-
-//         const page = await browser.newPage();
-//         await page.setViewport({ width: 1200, height: 800 });
-//         // await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
-//         await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
-//         await new Promise(resolve => setTimeout(resolve, 1000));
-
-//         // ✅ 8. Generate PDF
-//         const rawPdf = await page.pdf({
-//             format: 'A4',
-//             printBackground: true,
-//             margin: { top: '15mm', bottom: '25mm', left: '15mm', right: '15mm' },
-//             displayHeaderFooter: false,
-//             preferCSSPageSize: true
-//         });
-
-//         const pdfBuffer = Buffer.from(rawPdf);
-
-//         console.log('✅ PDF generated successfully');
-
-//         // =========================================================
-//         // 🟢 9. Save to Redis (ตั้งเวลา 15 นาที หรือ 900 วินาที)
-//         // =========================================================
-//         if (loanId) {
-//             const cacheKey = `cache:pdf:loan-form:${loanId}`;
-//             await redisService.set(cacheKey, pdfBuffer.toString('base64'), 900);
-//         }
-
-//         // ✅ 10. Send PDF
-//         res.setHeader('Content-Type', 'application/pdf');
-//         res.setHeader('Content-Disposition', `attachment; filename="loan-${loanId || 'draft'}.pdf"`);
-//         res.send(pdfBuffer);
-
-//     } catch (error: any) {
-//         console.error('❌ PDF Generation Error:', error);
-//         res.status(500).json({ success: false, message: 'Failed to generate PDF', error: error.message });
-//     } finally {
-//         if (browser) await browser.close();
-//     }
-// };
 export const generateLoanPDF = async (req: Request, res: Response) => {
     let browser = null;
 
@@ -926,42 +708,35 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
     try {
         const { loanData, scheduleRows, totals } = req.body;
         const loanId = loanData?.loan_id;
-        console.log(`[PDF] 📄 Generating Repayment Schedule PDF for loan: `, loanData);
 
-        // =========================================================
+                // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
         // =========================================================
-        // if (loanId) {
-        //     const cacheKey = `cache:pdf:schedule:${loanId}`;
-        //     const cachedPdfBase64 = await redisService.get(cacheKey);
+        if (loanId) {
+            const cacheKey = `cache:pdf:schedule:${loanId}`;
+            const cachedPdfBase64 = await redisService.get(cacheKey);
 
-        //     if (cachedPdfBase64) {
-        //         console.log(`[PDF] 🚀 Serving Schedule PDF from Redis Cache for loan: ${loanId}`);
-        //         const pdfBuffer = Buffer.from(cachedPdfBase64, 'base64');
-        //         res.setHeader('Content-Type', 'application/pdf');
-        //         res.setHeader('Content-Disposition', `attachment; filename="schedule-${loanId}.pdf"`);
-        //         return res.send(pdfBuffer);
-        //     }
-        // }
+            if (cachedPdfBase64) {
+                console.log(`[PDF] 🚀 Serving Schedule PDF from Redis Cache for loan: ${loanId}`);
+                const pdfBuffer = Buffer.from(cachedPdfBase64, 'base64');
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `attachment; filename="schedule-${loanId}.pdf"`);
+                return res.send(pdfBuffer);
+            }
+        }
         // =========================================================
-
-        console.log('📄 Generating Repayment Schedule PDF for loan:', loanId);
+        console.log(`[PDF] 📄 Generating Repayment Schedule PDF for loan: `, loanId);
 
         const templatePath = path.join(__dirname, '../templates/repayment-schedule-template.html');
         if (!fs.existsSync(templatePath)) throw new Error(`Template file not found at: ${templatePath}`);
         const templateSource = fs.readFileSync(templatePath, 'utf-8');
 
-        // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
         const fontPath = path.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
-        // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
-        // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
         const fontBase64 = fs.existsSync(fontPath) ? fs.readFileSync(fontPath, 'base64') : '';
-        // 🟢 ສ້າງ Data URI ສຳລັບ Font
         const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
 
         let htmlContent = templateSource.replace('{{fontPath}}', fontUrl);
 
-        // 🟢 ເພີ່ມໂຄ້ດອ່ານຮູບພາບ Header ແລະ Footer ໃສ່ບ່ອນນີ້:
         const headerPath = path.resolve(__dirname, '../../public/image/latter haed Insee1.png');
         const headerBase64 = fs.existsSync(headerPath) ? fs.readFileSync(headerPath, 'base64') : '';
         const headerDataUri = headerBase64 ? `data:image/png;base64,${headerBase64}` : '';
@@ -970,43 +745,31 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
         const footerBase64 = fs.existsSync(footerPath) ? fs.readFileSync(footerPath, 'base64') : '';
         const footerDataUri = footerBase64 ? `data:image/png;base64,${footerBase64}` : '';
 
-        // =========================================================
-        // 🟢 2. ໂຫຼດຮູບ QR Code ແປງເປັນ Base64
-        // =========================================================
-        // ໝາຍເຫດ: ປັບ path ໃຫ້ກົງກັບທີ່ຢູ່ຈິງຂອງໂຟນເດີ public ຂອງທ່ານ
         const qrPath = path.resolve(__dirname, '../../public/image/qr_code.jpeg');
         let qrCodeBase64 = '';
         if (fs.existsSync(qrPath)) {
             const qrBuffer = fs.readFileSync(qrPath);
             qrCodeBase64 = `data:image/jpeg;base64,${qrBuffer.toString('base64')}`;
-        } else {
-            console.warn(`⚠️ ບໍ່ພົບໄຟລ໌ QR Code ຢູ່ທີ່: ${qrPath}`);
         }
-        // =========================================================
+
         const customAddress = fulladdress(loanData.customer.address, loanData.customer.district_id, loanData.customer.province_id);
         const data = {
-
-            // 🟢 ເພີ່ມສອງຕົວແປນີ້ໃສ່
             headerImagePath: headerDataUri,
             footerImagePath: footerDataUri,
-
             interestTypeName: loanData.interest_type === 'effective_rate' ? 'ຫຼຸດຕົ້ນຫຼຸດດອກ' : 'ສະເໝີຕົວ',
-            contractNumber: loanData.loan_contracts[0].loan_contract_number || loanData.loan_id || '________________',
+            contractNumber: loanData.loan_contracts?.[0]?.loan_contract_number || loanData.loan_id || '________________',
             customerName: `${loanData.customer?.first_name || ''} ${loanData.customer?.last_name || ''}`.trim() || '________________',
             customerAddress: customAddress || loanData.customer?.address || '________________',
             customerPhone: loanData.customer?.phone || '________________',
-
             productPrice: formatCurrency(Number(loanData.total_amount)),
             downPayment: formatCurrency(loanData.down_payment),
             approvedAmount: formatCurrency(Number(loanData.total_amount) - Number(loanData.down_payment || 0)),
             interestRate: loanData.interest_rate_at_apply,
             interestRateType: loanData.interest_rate_type === 'yearly' ? '(ຕໍ່ປີ)' : '(ຕໍ່ເດືອນ)',
-
             startDate: formatDate(scheduleRows.length > 0 ? scheduleRows[0].due_date : null),
             endDate: formatDate(scheduleRows.length > 0 ? scheduleRows[scheduleRows.length - 1].due_date : null),
             paymentDay: loanData.payment_day || '___',
             loanTerm: loanData.loan_period || '___',
-
             schedule: scheduleRows.map((row: any) => ({
                 installment_number: row.installment_number,
                 due_date: formatDate(row.due_date),
@@ -1015,24 +778,27 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
                 total_amount: formatCurrency(row.total_amount),
                 remaining_balance: formatCurrency(row.remaining_balance)
             })),
-
             totalPrincipal: formatCurrency(totals.principal),
             totalInterest: formatCurrency(totals.interest),
             totalAmount: formatCurrency(totals.amount),
-
-            // 🟢 ສົ່ງ Base64 ຂອງ QR Code ໄປໃຫ້ HTML Template ໃຊ້ງານ
             qrCodeBase64: qrCodeBase64
         };
 
         const templateCompiled = handlebars.compile(htmlContent);
         const html = templateCompiled(data);
 
+        // 🌟 1. เพิ่ม Flags สำหรับ Docker ให้ทำงานเบาที่สุด
         browser = await puppeteer.launch({
             headless: true,
             args: [
-                '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
-                '--font-render-hinting=none', '--disable-web-security',
-                '--allow-file-access-from-files', '--allow-file-access',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--no-zygote',              // ลดการใช้ RAM
+                '--single-process',         // ป้องกัน Process ค้างใน Docker
+                '--font-render-hinting=none',
+                '--disable-web-security',
                 '--lang=lo-LA,en-US'
             ]
         });
@@ -1040,34 +806,40 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
 
-        // await page.setContent(html, { waitUntil: 'load', timeout: 60000 });
-        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.evaluateHandle('document.fonts.ready');
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-        // 🟢 เเพີ່ມ headerTemplate & footerTemplate เพือให้ Puppeteer ส้างเลกหน้าและหัวกะดาดให้
-        const headerTemplate = `
-            <div style="width: 100%; text-align: right; font-size: 10px; font-family: sans-serif; padding-right: 15mm; padding-top: 5mm; font-weight: bold;">
-                <span class="pageNumber"></span> / <span class="totalPages"></span>
-            </div>
-        `;
+        // 🌟 2. ป้องกัน Font ค้าง: ใช้ Promise.race เพื่อบังคับข้ามถ้า Font โหลดนานเกิน 2 วินาทีใน Docker
+        try {
+            await Promise.race([
+                page.evaluateHandle('document.fonts.ready'),
+                new Promise(resolve => setTimeout(resolve, 2000)) // ถ้าเกิน 2 วิ ให้ไปต่อเลย
+            ]);
+        } catch (e) {
+            console.warn('⚠️ Font loading timeout, proceeding...');
+        }
 
+        // 🌟 1. สร้าง Footer Template (ใส่รูป Base64 และ span.pageNumber ลงไปตรงนี้)
+        const footerTemplate = `
+    <div style="width: 100%; height: 45mm; margin: 0; padding: 0; position: relative; -webkit-print-color-adjust: exact;">
+        <img src="${footerDataUri}" style="width: 100%; height: 100%; object-fit: contain; position: absolute; bottom: 0; left: 0;">
+        <div style="position: absolute; right: 20mm; bottom: 10mm; font-size: 11px; font-weight: bold; font-family: sans-serif; color: black; z-index: 10;">
+            <span class="pageNumber"></span>
+        </div>
+    </div>
+`;
+
+        // 🌟 2. สั่ง Generate PDF
         const rawPdf = await page.pdf({
             format: 'A4',
             printBackground: true,
-            margin: { top: '15mm', bottom: '0', left: '0', right: '0' }, // 🟢 กลับมาใช้ 0 ทั้งหมด และให้ top มี padding เล็กน้อยเพือให้ Header Template 
-            displayHeaderFooter: true, // 🟢 เปิดการทำงานของ Header/Footer
-            headerTemplate: headerTemplate,
-            footerTemplate: '<div></div>', // ให้เป็นว่างๆ เพระเราใช้ html banner ข้างล่างแล้ว
+            margin: { top: '0', bottom: '0', left: '0', right: '0' }, // 🟢 ต้องเป็น 0 ทั้งหมดเพื่อให้ HTML คุมเต็มพื้นที่
+            displayHeaderFooter: false, // 🟢 ปิดไปเลยครับ
             preferCSSPageSize: true
         });
-        const pdfBuffer = Buffer.from(rawPdf);
 
+        const pdfBuffer = Buffer.from(rawPdf);
         console.log('✅ Schedule PDF generated successfully');
 
-        // =========================================================
-        // 🟢 2. Save to Redis (ตั้งเวลา 15 นาที)
-        // =========================================================
         if (loanId) {
             const cacheKey = `cache:pdf:schedule:${loanId}`;
             await redisService.set(cacheKey, pdfBuffer.toString('base64'), 900);
@@ -1096,18 +868,18 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
         // =========================================================
-        // if (receiptId) {
-        //     const cacheKey = `cache:pdf:receipt:${receiptId}`;
-        //     const cachedPdfBase64 = await redisService.get(cacheKey);
+        if (receiptId) {
+            const cacheKey = `cache:pdf:receipt:${receiptId}`;
+            const cachedPdfBase64 = await redisService.get(cacheKey);
 
-        //     if (cachedPdfBase64) {
-        //         console.log(`[PDF] 🚀 Serving Receipt PDF from Redis Cache for receipt: ${receiptId}`);
-        //         const pdfBuffer = Buffer.from(cachedPdfBase64, 'base64');
-        //         res.setHeader('Content-Type', 'application/pdf');
-        //         res.setHeader('Content-Disposition', `attachment; filename="receipt-${receiptId}.pdf"`);
-        //         return res.send(pdfBuffer);
-        //     }
-        // }
+            if (cachedPdfBase64) {
+                console.log(`[PDF] 🚀 Serving Receipt PDF from Redis Cache for receipt: ${receiptId}`);
+                const pdfBuffer = Buffer.from(cachedPdfBase64, 'base64');
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `attachment; filename="receipt-${receiptId}.pdf"`);
+                return res.send(pdfBuffer);
+            }
+        }
         // =========================================================
 
         console.log('📄 Generating Delivery Receipt PDF for receipt:', receiptId);
