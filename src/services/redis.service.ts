@@ -85,6 +85,30 @@ class RedisService {
     }
   }
 
+  // 🌟 Method สำหรับเพิ่มค่าตัวเลข
+  async incr(key: string): Promise<number> {
+    try {
+      const result = await this.client.incr(key);
+      return Number(result);
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Failed to INCR Redis key:', err.message);
+      throw err;
+    }
+  }
+
+  // 🌟 Method สำหรับลดค่าตัวเลข
+  async decr(key: string): Promise<number> {
+    try {
+      const result = await this.client.decr(key);
+      return Number(result);
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Failed to DECR Redis key:', err.message);
+      throw err;
+    }
+  }
+
   async set(key: string, value: string, ttlSeconds?: number): Promise<string | null> {
     try {
       if (ttlSeconds) {

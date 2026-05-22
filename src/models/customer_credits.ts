@@ -8,12 +8,13 @@ export interface customer_creditsAttributes {
   credit_limit: number;
   available_balance: number;
   status?: 'active' | 'suspended';
+  created_at?: Date;
   updated_at?: Date;
 }
 
 export type customer_creditsPk = "id";
 export type customer_creditsId = customer_credits[customer_creditsPk];
-export type customer_creditsOptionalAttributes = "id" | "credit_limit" | "available_balance" | "status" | "updated_at";
+export type customer_creditsOptionalAttributes = "id" | "credit_limit" | "available_balance" | "status" | "created_at" | "updated_at";
 export type customer_creditsCreationAttributes = Optional<customer_creditsAttributes, customer_creditsOptionalAttributes>;
 
 export class customer_credits extends Model<customer_creditsAttributes, customer_creditsCreationAttributes> implements customer_creditsAttributes {
@@ -22,6 +23,7 @@ export class customer_credits extends Model<customer_creditsAttributes, customer
   credit_limit!: number;
   available_balance!: number;
   status?: 'active' | 'suspended';
+  created_at?: Date;
   updated_at?: Date;
 
   // customer_credits belongsTo customers via customer_id

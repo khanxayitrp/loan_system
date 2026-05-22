@@ -7,7 +7,7 @@ import redisService from "./services/redis.service";
 import { createUploadDirectories } from "./utils/createUploadsDir";
 import DailyTrackingService from './services/DailyTrackingService';
 import ReminderCronService from "./services/ReminderCronService";
-
+import PartitionService from './services/partition.service';
 class ServerApp {
   private httpServer: HttpServer;
   private portService: PortService;
@@ -33,6 +33,8 @@ class ServerApp {
        DailyTrackingService.startCronJob(); 
 
        ReminderCronService.startCronJob();
+
+       PartitionService.startCronJob();
 
       // Start the HTTP server
       this.startServer();

@@ -2,6 +2,7 @@ import * as Sequelize from 'sequelize';
 import { DataTypes, Model, Optional } from 'sequelize';
 import type { orders, ordersId } from './orders';
 import type { partners, partnersId } from './partners';
+import type { product_variants, product_variantsId } from './product_variants';
 import type { products, productsId } from './products';
 
 export interface order_itemsAttributes {
@@ -9,6 +10,7 @@ export interface order_itemsAttributes {
   order_id: number;
   partner_id: number;
   product_id: number;
+  variant_id?: number;
   quantity: number;
   price_per_unit: number;
   sub_total: number;
@@ -21,7 +23,7 @@ export interface order_itemsAttributes {
 
 export type order_itemsPk = "id";
 export type order_itemsId = order_items[order_itemsPk];
-export type order_itemsOptionalAttributes = "id" | "quantity" | "settlement_status" | "shipping_method" | "tracking_number" | "shipping_fee" | "shipping_status";
+export type order_itemsOptionalAttributes = "id" | "variant_id" | "quantity" | "settlement_status" | "shipping_method" | "tracking_number" | "shipping_fee" | "shipping_status";
 export type order_itemsCreationAttributes = Optional<order_itemsAttributes, order_itemsOptionalAttributes>;
 
 export class order_items extends Model<order_itemsAttributes, order_itemsCreationAttributes> implements order_itemsAttributes {
@@ -29,6 +31,7 @@ export class order_items extends Model<order_itemsAttributes, order_itemsCreatio
   order_id!: number;
   partner_id!: number;
   product_id!: number;
+  variant_id?: number;
   quantity!: number;
   price_per_unit!: number;
   sub_total!: number;
@@ -48,6 +51,11 @@ export class order_items extends Model<order_itemsAttributes, order_itemsCreatio
   getPartner!: Sequelize.BelongsToGetAssociationMixin<partners>;
   setPartner!: Sequelize.BelongsToSetAssociationMixin<partners, partnersId>;
   createPartner!: Sequelize.BelongsToCreateAssociationMixin<partners>;
+  // order_items belongsTo product_variants via variant_id
+  variant!: product_variants;
+  getVariant!: Sequelize.BelongsToGetAssociationMixin<product_variants>;
+  setVariant!: Sequelize.BelongsToSetAssociationMixin<product_variants, product_variantsId>;
+  createVariant!: Sequelize.BelongsToCreateAssociationMixin<product_variants>;
   // order_items belongsTo products via product_id
   product!: products;
   getProduct!: Sequelize.BelongsToGetAssociationMixin<products>;
@@ -83,6 +91,14 @@ export class order_items extends Model<order_itemsAttributes, order_itemsCreatio
       allowNull: false,
       references: {
         model: 'products',
+        key: 'id'
+      }
+    },
+    variant_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'product_variants',
         key: 'id'
       }
     },
@@ -154,6 +170,13 @@ export class order_items extends Model<order_itemsAttributes, order_itemsCreatio
         using: "BTREE",
         fields: [
           { name: "product_id" },
+        ]
+      },
+      {
+        name: "order_items_ibfk_variant",
+        using: "BTREE",
+        fields: [
+          { name: "variant_id" },
         ]
       },
     ]

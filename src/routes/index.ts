@@ -21,6 +21,7 @@ import globalCategoriesRouter from './global_categories.routes';
 import repaymentRouter from './repayment.routes';
 import addressRouter from './province_district.routes';
 import loanSuperAppRouter from './loan_superapp.routes';
+import notiRouter from './notification.routes';
 
 const router = express.Router();
 
@@ -68,6 +69,8 @@ router.use('/repayments', repaymentRouter);
 router.use('/address', addressRouter);
  
 router.use('/loan-superapp', loanSuperAppRouter);
+
+router.use('/notifications', notiRouter);
 
 
 export default router;
