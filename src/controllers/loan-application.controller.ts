@@ -555,6 +555,13 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
         // =========================================================
         
         const result = await repaymentRepo.saveRepaymentSchedule(application_id, scheduleData, Number(userId), transaction);
+
+        // 🟢 ดึงข้อมูล Loan Application เพื่อเอาเลข loan_id มาใช้ลบ Cache PDF
+        // (ปรับวิธี query ตามโครงสร้าง ORM ของคุณนะครับ)
+        const application = await db.loan_applications.findOne({ 
+            where: { id: application_id },
+            transaction: transaction
+        });
         
         await transaction.commit();
         
@@ -562,8 +569,14 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
         // 🟢 THE ULTIMATE CACHE INVALIDATION (ລ້າງແຄຊຖິ້ມຫຼັງຈາກສ້າງໃໝ່!)
         // =========================================================
         await redisService.del(`cache:repayment_schedule:${application_id}`);
-        // ລ້າງແຄຊ PDF ຕາຕະລາງຜ່ອນນຳ (ຖ້າມີການ Gen PDF)
-        await redisService.del(`cache:pdf:schedule:${application_id}`);
+        // ลบ Cache PDF โดยใช้ loan_id (หรือ order_id) ให้ตรงกับตอนที่สร้าง PDF
+        if (application && application.loan_id) {
+             const loanId = application.loan_id; // เช่น LN-8-2026-000001
+             
+             // ⚠️ สำคัญ: ลองไปเช็กใน API Generate PDF ว่าตอน set cache ใช้ Key ชื่ออะไรเป๊ะๆ แล้วแก้ตรงนี้ให้ตรงกัน
+             await redisService.del(`cache:pdf:schedule:${loanId}`); 
+             // หรือถ้าชื่อ Key ไม่มี prefix ก็สั่งลบตามนั้น เช่น await redisService.del(loanId);
+        }
         
         return res.status(201).json({ 
             success: true, 

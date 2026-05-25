@@ -5,6 +5,8 @@ import { logger } from '../utils/logger';
 import notificationService from './notification.service';
 import redisService from './redis.service';
 
+import { CreateNotificationInput, ReceipientType, NotificationEventType } from '../types/notification';
+
 class ReminderCronService {
 
     public async processReminders() {
@@ -95,22 +97,57 @@ class ReminderCronService {
                     const strAmount = unpaidAmount.toLocaleString();
 
                     let messageBody = '';
+                    let title = '';
 
                     if (daysRemaining === 0) {
+                        title = '🔴 ເຖິງກຳນົດຊຳລະຄ່າງວດມື້ນີ້';
                         messageBody = `ມື້ນີ້ຮອດກຳນົດຊຳລະ ${strAmount} ₭. ກະລຸນາຊຳລະພາຍໃນມື້ນີ້.`;
                     } else if (daysRemaining === 3) {
+                        title = '🟡 ແຈ້ງເຕືອນກຽມຊຳລະຄ່າງວດ';
                         messageBody = `ກະລຸນາກຽມຊຳລະ ${strAmount} ₭ ພາຍໃນ 3 ມື້ (${shortDate}).`;
                     } else if (daysRemaining === 7) {
+                        title = '🟢 ແຈ້ງເຕືອນລ່ວງໜ້າ 7 ມື້';
                         messageBody = `ຂໍແຈ້ງຍອດຊຳລະ ${strAmount} ₭ ພາຍໃນວັນທີ ${shortDate}. ຂອບໃຈ`;
                     }
 
                     if (messageBody === '') continue;
 
-                    // 🚀 ສັ່ງຍິງ SMS
-                    const isSent = await notificationService.sendSMS(customer.phone, messageBody);
+                    // // 🚀 ສັ່ງຍິງ SMS
+                    // const isSent = await notificationService.sendSMS(customer.phone, messageBody);
 
-                    if (isSent) {
-                        successCount++;
+                    // if (isSent) {
+                    //     successCount++;
+                    // }
+                    
+                    // ==================================================
+                    // 🚀 1. ສັ່ງບັນທຶກແຈ້ງເຕືອນລົງໃນລະບົບ (In-App Notification)
+                    // ==================================================
+                    const notificationPayload: CreateNotificationInput = {
+                        recipient_type: RecipientType.CUSTOMER,
+                        recipient_id: customer.id,
+                        event_type: NotificationEventType.PAYMENT_DUE, // ໃຊ້ Enum ທີ່ສ້າງໄວ້
+                        title: title,
+                        body: messageBody,
+                        reference_type: 'Repayment', 
+                        reference_id: schedule.id,
+                        data: {
+                            unpaid_amount: unpaidAmount,
+                            days_remaining: daysRemaining,
+                            due_date: schedule.due_date
+                        }
+                    };
+
+                    // ບັນທຶກລົງ Database ແລະ ອັບເດດ Redis Unread Count
+                    await notificationService.sendNotification(notificationPayload);
+
+                    // ==================================================
+                    // 🚀 2. ສັ່ງຍິງ SMS ໄປຫາເບີໂທລູກຄ້າ
+                    // ==================================================
+                    if (customer.phone) {
+                        const isSent = await notificationService.sendSMS(customer.phone, messageBody);
+                        if (isSent) {
+                            successCount++;
+                        }
                     }
 
                     // ໜ່ວງເວລາ 1 ວິນາທີ ປ້ອງກັນ API ຂອງ Gateway ບລັອກ

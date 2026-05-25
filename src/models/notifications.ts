@@ -96,6 +96,7 @@ export class notifications extends Model<notificationsAttributes, notificationsC
     sequelize,
     tableName: 'notifications',
     timestamps: true,
+    updatedAt: false,
     indexes: [
       {
         name: "PRIMARY",
