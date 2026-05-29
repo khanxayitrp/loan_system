@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 import notificationService from './notification.service';
 import redisService from './redis.service';
 
-import { CreateNotificationInput, ReceipientType, NotificationEventType } from '../types/notification';
+import { CreateNotificationInput, RecipientType, NotificationEventType } from '../types/notification';
 
 class ReminderCronService {
 
@@ -118,7 +118,7 @@ class ReminderCronService {
                     // if (isSent) {
                     //     successCount++;
                     // }
-                    
+
                     // ==================================================
                     // 🚀 1. ສັ່ງບັນທຶກແຈ້ງເຕືອນລົງໃນລະບົບ (In-App Notification)
                     // ==================================================

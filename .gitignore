@@ -2,8 +2,9 @@
 *.class
 *.exe
 
-# Ignore logs and temp files
+# Ignore logs system_development_document and temp files
 *.log
+*.txt
 tmp/
 
 # Ignore IDE-specific files
