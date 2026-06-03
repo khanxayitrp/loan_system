@@ -127,6 +127,65 @@ class LoanContractController {
         }
     }
 
+    public async updateLoanContract(req: Request, res: Response) {
+        try {
+            const loan_id = parseInt(req.params.loanId, 10);
+            const userId = req.userPayload?.userId;
+            
+            if (!loan_id || isNaN(loan_id)) {   
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'loan_id ບໍ່ຖືກຕ້ອງ' 
+                });
+            }
+
+            const data = req.body;
+            if (!data) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'data is required' 
+                });
+            }
+
+            const loan_applicationsData: any = {
+                ...data,
+                loan_id,
+                performed_by: Number(userId)
+            };
+            
+            console.log('loan_applicationsData all ', loan_applicationsData);
+            // 1. บันทึกข้อมูลลงฐานข้อมูล
+            const result = await loan_contractService.updateLoanContract(loan_applicationsData);
+
+            // =========================================================
+            // 🟢 THE ULTIMATE CACHE INVALIDATION (ล้างแคชทิ้ง!)
+            // =========================================================
+            
+            // ล้างแคชรายละเอียดสัญญาของ ID นี้ (เผื่อเคยมีใครกดดูร่างสัญญาก่อนหน้านี้)
+            await redisService.del(`cache:loan_contract:${loan_id}`);
+
+            // ล้างแคชรายการสัญญาทั้งหมด (เผื่อต้องโชว์ใน Dashboard)
+            await redisService.delByPattern('cache:loan_contracts:list:*');
+
+            // 🔥 สำคัญ: ล้างแคช PDF ทั้งหมดที่เกี่ยวกับสัญญานี้ เพื่อให้ได้ PDF เวอร์ชั่นที่มีข้อมูลใหม่ 🔥
+            await redisService.del(`cache:pdf:loan-form:${loan_id}`);
+            await redisService.del(`cache:pdf:contract:${loan_id}`);
+            await redisService.del(`cache:pdf:schedule:${loan_id}`);
+            // (ถ้าคุณมี ID ซ้อนทับกันระหว่าง contractId และ loanId ในอนาคต ให้ลบเผื่อให้ครบนะครับ)
+
+            res.status(200).json({ 
+                success: true, 
+                message: 'ອັບເດດ Loan Contract ສຳເລັດແລ້ວ',
+                data: result 
+            });
+        } catch (error: any) {
+            console.error('Error updating loan contract:', error);
+            res.status(500).json({ 
+                success: false, 
+                message: error.message || 'Internal Server Error' 
+            });
+        }
+    }
 
     // =======================================================
     // 🟢 ดึงข้อมูลสัญญาเช่าซื้อจากฝั่งลูกค้า (Read)

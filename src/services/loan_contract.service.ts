@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { Transaction } from "sequelize";
 import { logAudit } from '../utils/auditLogger';
 import { generateSignatureSlots } from '../utils/signatureGenerator';
+import { ref } from 'process';
 
 class LoanContractService {
 
@@ -69,7 +70,8 @@ class LoanContractService {
                 cus_phone: data.cusPhone,
                 cus_marital_status: data.cusMaritalStatus,
                 cus_id_pass_number: data.cusIdPassNumber,
-                cus_id_pass_date: data.cusIdPassDate || null,
+                cus_id_pass_date_start: data.cusIdPassDate || null,
+                cus_id_pass_date_expired: data.cusIdPassExpiryDate || null,
                 cus_census_number: data.cusCensusNumber || null,
                 cus_census_created: data.cusCensusCreated || null, 
                 cus_census_authorize_by: data.cusCensusAuthorizeBy,
@@ -122,7 +124,8 @@ class LoanContractService {
                 ref_sex: data.refSex,
                 ref_marital_status: data.refMaritalStatus,
                 ref_id_pass_number: data.refIdPassNumber,
-                ref_id_pass_date: data.refIdPassDate || null,
+                ref_id_pass_date_start: data.refIdPassDate || null,
+                ref_id_pass_date_expired: data.refIdPassExpiryDate || null,
                 ref_census_number: data.refCensusNumber || null,
                 ref_census_created: data.refCensusCreated || null,
                 ref_census_authorize_by: data.refCensusAuthorizeBy,
@@ -247,6 +250,52 @@ class LoanContractService {
             };
         } catch (error: any) {
             logger.error('Get Loan Contract Error:', (error as Error).message);
+            throw error;
+        }
+    }
+    async updateLoanContract(updateData: any) {
+        const t = await db.sequelize.transaction();
+        try {
+            const existingContract = await db.loan_contract.findOne({
+                where: { loan_id: updateData.loan_id },
+                transaction: t,
+                lock: t.LOCK.UPDATE
+            });
+
+            if (!existingContract) {
+                throw new Error('Loan Contract not found for update');
+            }
+
+            const oldContractData = existingContract.toJSON();
+
+            // 🟢 Mapping ຂໍ້ມູນທີ່ຈະອັບເດດ (เฉพาะฟิลด์ที่อนุญาตให้แก้ไข)
+            const allowedFields = ['cusPhone', 'cusAddress', 'cusOccupation', 'payment_day', 'refPhone', 'refAddress', 'refOccupation'];
+            const updatedFields: any = {};
+            allowedFields.forEach(field => {
+                if (updateData[field] !== undefined) {
+                    updatedFields[field] = updateData[field];
+                }
+            });
+
+            if (Object.keys(updatedFields).length === 0) {
+                throw new Error('No valid fields provided for update');
+            }
+
+            await existingContract.update(updatedFields, { transaction: t });
+
+            await logAudit('loan_contract', existingContract.id, 'UPDATE', oldContractData, updatedFields, updateData.performed_by, t);
+
+            await t.commit();
+
+            return {
+                success: true,
+                message: 'Loan Contract updated successfully',
+                data: existingContract
+            };
+
+        } catch (error: any) {
+            await t.rollback();
+            logger.error('Update Loan Contract Error:', (error as Error).message);
             throw error;
         }
     }

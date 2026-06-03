@@ -38,7 +38,7 @@ export type ImageType = 'product' | 'shop_logo' | 'payment_proof' | 'signature';
 export const FILE_UPLOAD_CONFIG = {
   // Document uploads (ID Card, House Registration, etc.)
   DOCUMENTS: {
-    maxFileSize: 5 * 1024 * 1024, // 5MB
+    maxFileSize: 8 * 1024 * 1024, // 8MB
     allowedMimeTypes: [
       'image/jpeg',
       'image/jpg',

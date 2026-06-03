@@ -51,6 +51,8 @@ router.post('/:loanId/created', verifyToken, loan_contractController.createLoanC
  */
 router.get('/:loanId', verifyToken, loan_contractController.getLoanContract);
 
+router.put('/:loanId/updated', verifyToken, loan_contractController.updateLoanContract);
+
 
 
 export default router;

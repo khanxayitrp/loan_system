@@ -46,13 +46,17 @@
             display: block;
             margin-bottom: 5px;
             object-fit: contain; */
-            width: 210mm; /* ความกว้างเต็มของกระดาษ A4 */
-    margin-left: -15mm; /* ชดเชย padding ซ้ายของ body */
-    margin-right: -15mm; /* ชดเชย padding ขวาของ body */
-    margin-top: -12mm; /* ชดเชย padding บนของ body */
-    display: block;
-    margin-bottom: 5px;
-    object-fit: cover;
+            width: 210mm;
+            /* ความกว้างเต็มของกระดาษ A4 */
+            margin-left: -15mm;
+            /* ชดเชย padding ซ้ายของ body */
+            margin-right: -15mm;
+            /* ชดเชย padding ขวาของ body */
+            margin-top: -12mm;
+            /* ชดเชย padding บนของ body */
+            display: block;
+            margin-bottom: 5px;
+            object-fit: cover;
         }
 
         /* ✅ Footer Image Banner (Fixed ໄວ້ລຸ່ມສຸດ) */
@@ -245,6 +249,13 @@
             text-align: center;
             width: 100%;
             margin-top: 20px;
+        }
+
+        /* ເພີ່ມໄລຍະຫ່າງພິເສດສຳລັບລາຍເຊັນທີ່ມີການປະທັບຕາ */
+        .signature-block .stamp-space {
+            margin-top: 45px;
+            /* ເພີ່ມໄລຍະຫ່າງທາງເທິງ ເພື່ອໃຫ້ມີຊ່ອງຫວ່າງປະທັບຕາ */
+            display: block;
         }
 
         .signature-title {
@@ -892,12 +903,22 @@
                 <span class="signature-label">ວັນທີ: <span class="blank-space"
                         style="width: 150px;">{{signatures.borrowerDate}}</span></span>
             </div>
-            <div class="signature-block">
+            <!-- <div class="signature-block">
                 <div class="signature-title">ເຊັນ ຜູ້ໃຫ້ກູ້ (ຜູ້ອະນຸມັດ)</div>
                 <div class="signature-note">( ສກຈບ ອິນຊີ ຈຳກັດ )</div>
                 <span class="signature-label">ລາຍເຊັນ 1: <span class="blank-space" style="width: 150px;"></span></span>
                 <span class="signature-label">ລາຍເຊັນ 2: <span class="blank-space" style="width: 150px;"></span></span>
                 <span class="signature-label">ລາຍເຊັນ 3: <span class="blank-space" style="width: 150px;"></span></span>
+            </div> -->
+            <div class="signature-block">
+                <div class="signature-title">ເຊັນ ຜູ້ໃຫ້ກູ້ (ຜູ້ອະນຸມັດ)</div>
+                <div class="signature-note">( ສກຈບ ອິນຊີ ຈຳກັດ )</div>
+                <span class="signature-label stamp-space">ລາຍເຊັນ 1: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+                <span class="signature-label stamp-space">ລາຍເຊັນ 2: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+                <span class="signature-label stamp-space">ລາຍເຊັນ 3: <span class="blank-space"
+                        style="width: 150px;"></span></span>
             </div>
         </div>
 
