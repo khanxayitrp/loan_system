@@ -554,25 +554,37 @@ class UploadController {
 
   async uploadMultipleDocuments(req: Request, res: Response): Promise<void> {
     try {
+      // หมายเหตุ: เช็คให้ชัวร์ว่า validateRequiredFields ของคุณรองรับการตรวจสอบ req.params ด้วยนะ
       UploadController.validateRequiredFields(req, ['customerId']);
 
       const { customerId } = req.params;
       const files = req.files as Express.Multer.File[];
-      const { doc_types } = req.body;
-
+      
       const userId = req.userPayload?.userId!;
 
       if (!files?.length) throw new ValidationError('No files uploaded');
-      if (!doc_types || !Array.isArray(doc_types) || doc_types.length !== files.length) {
-        throw new ValidationError('doc_types must be an array with the same length as uploaded files');
+
+      // 🟢 1. ดึง doc_types มา แล้วบังคับให้เป็น Array เสมอ
+      let { doc_types } = req.body;
+      let docTypesArray: string[] = [];
+      
+      if (doc_types) {
+        // ถ้าส่งมา 1 ตัวมันจะเป็น String, ถ้าหลายตัวจะเป็น Array
+        docTypesArray = Array.isArray(doc_types) ? doc_types : [doc_types];
       }
 
+      // 🟢 2. เช็คจาก Array ที่เราจัดฟอร์แมตแล้ว
+      if (docTypesArray.length !== files.length) {
+        throw new ValidationError('doc_types must have the same length as uploaded files');
+      }
+
+      // 🟢 3. แมปข้อมูลโดยใช้ docTypesArray
       const documents = files.map((file, index) => ({
         file: file as UploadedFile,
         original_filename: file.originalname,
         file_size: file.size,
         mime_type: file.mimetype,
-        doc_type: doc_types[index] as DocumentType
+        doc_type: docTypesArray[index] as DocumentType
       }));
 
       const results = await documentService.uploadMultipleDocuments(parseInt(customerId), userId, documents);
