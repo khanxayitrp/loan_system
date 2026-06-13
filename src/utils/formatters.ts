@@ -41,6 +41,13 @@ export function formatCurrency(amount: number | null | string | undefined): stri
     return num.toLocaleString('lo-LA') + ' ກີບ';
 }
 
+export function formatCurrencyV2(amount: number | null | string | undefined): string {
+    if (amount === null || amount === undefined || amount === '') return '________________';
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(num)) return '________________';
+    return num.toLocaleString('lo-LA');
+}
+
 export function getProductTypeName(type: string | number | null): string {
     // ปรับให้รองรับกรณี DB เก็บเป็น ID (เช่น 1, 2, 3) หรือเก็บเป็น String
     const typeStr = String(type).toLowerCase();

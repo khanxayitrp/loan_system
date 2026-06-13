@@ -79,7 +79,7 @@ export const generatePdfBufferFromData = async (mappedData: any): Promise<Buffer
         // 🟢 2. ຈັດການຮູບພາບ Header & Footer ເປັນ Base64
         // (⚠️ ກວດສອບ Path ໃຫ້ກົງກັບໂຟນເດີທີ່ທ່ານເກັບຮູບໄວ້ແທ້ໆ)
         // ==========================================
-        const headerPath = path.resolve(__dirname, '../../public/image/latter haed Insee1.png');
+        const headerPath = path.resolve(__dirname, '../../public/image/latter head Insee1.png');
         const headerBase64 = fs.existsSync(headerPath) ? fs.readFileSync(headerPath, 'base64') : '';
         const headerDataUri = headerBase64 ? `data:image/png;base64,${headerBase64}` : '';
 

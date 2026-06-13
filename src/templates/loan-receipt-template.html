@@ -244,11 +244,12 @@
             margin: 12px 0 4px 0;
         }
 
+        /* 🟢 ຈັດການໄລຍະຫ່າງຂອງ Grid ລາຍເຊັນ */
         .signature-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px 40px;
-            margin-top: 20px;
+            gap: 40px 40px; /* 🟢 ເພີ່ມໄລຍະຫ່າງແນວຕັ້ງລະຫວ່າງແຖວເທິງ-ລຸ່ມ ໃຫ້ຫ່າງກັນຫຼາຍຂຶ້ນ */
+            margin-top: 60px; /* 🟢 ຍູ້ກຸ່ມລາຍເຊັນທັງໝົດລົງມາຈາກກ່ອງອະນຸມັດຫຼາຍຂຶ້ນ */
         }
 
         .sig-col {
@@ -269,15 +270,17 @@
             height: 30px;
         }
 
+        /* 🟢 ຂະຫຍາຍຊ່ອງຫວ່າງສຳລັບລາຍເຊັນໃຫ້ກວ້າງຂຶ້ນອີກ */
         .sig-space {
-            height: 60px;
+            height: 90px; /* 🟢 ປັບຈາກ 75px ເປັນ 90px ເພື່ອໃຫ້ລູກຄ້າ ແລະ ພະນັກງານເຊັນໄດ້ກວ້າງຂຶ້ນ */
         }
 
         .remark-box {
             font-size: 12px;
             line-height: 1.5;
             text-align: justify;
-            margin-top: 30px;
+            margin-top: auto; /* 🟢 (ສຳຄັນ) ຕົວນີ້ຈະດັນກ່ອງໝາຍເຫດລົງໄປຕິດດ້ານລຸ່ມສຸດອັດຕະໂນມັດ */
+            margin-bottom: 10px;
         }
 
         .footer-wrapper {
@@ -422,17 +425,17 @@
                 <tr>
                     <td class="td-label">ລາຄາສິນຄ້າທັງໝົດ:</td>
                     <td>
-                        <div class="flex justify-between"><span>{{prodPrice}}</span><span>ກີບ</span></div>
+                        <div class="flex justify-between"><span>{{prodPrice}}</span></div>
                     </td>
                     <td class="td-label">ເງິນວາງດາວ(ຖ້າມີ):</td>
                     <td>
-                        <div class="flex justify-between"><span>{{prodDown}}</span><span>ກີບ</span></div>
+                        <div class="flex justify-between"><span>{{prodDown}}</span></div>
                     </td>
                 </tr>
                 <tr>
                     <td class="td-label">ວົງເງິນອະນຸມັດ:</td>
                     <td>
-                        <div class="flex justify-between"><span>{{prodApprove}}</span><span>ກີບ</span></div>
+                        <div class="flex justify-between"><span>{{prodApprove}}</span></div>
                     </td>
                     <td class="td-label">ອັດຕາດອກເບ້ຍ:</td>
                     <td>
@@ -446,13 +449,13 @@
                     </td>
                     <td class="td-label">ຈຳນວນດອກເບ້ຍທັງໝົດ:</td>
                     <td>
-                        <div class="flex justify-between"><span>{{prodTotalInt}}</span><span>ກີບ</span></div>
+                        <div class="flex justify-between"><span>{{prodTotalInt}}</span></div>
                     </td>
                 </tr>
                 <tr>
                     <td class="td-label">ຄ່າທຳນຽມCIB/ອື່ນໆ(ຖ້າມີ):</td>
                     <td>
-                        <div class="flex justify-between"><span>{{prodFee}}</span><span>ກີບ</span></div>
+                        <div class="flex justify-between"><span>{{prodFee}}</span></div>
                     </td>
                     <td class="td-label">ຄ່າງວດລາຍເດືອນ</td>
                     <td>
@@ -462,7 +465,7 @@
                 <tr>
                     <td class="td-label">ຄ່າງວດເດືອນທຳອິດ:(ບວກຄ່າທຳນຽມ):</td>
                     <td>
-                        <div class="flex justify-between"><span>{{prodFirstInst}}</span><span>ກີບ</span></div>
+                        <div class="flex justify-between"><span>{{prodFirstInst}}</span></div>
                     </td>
                     <td class="td-label">ມື້ກຳນົດການຊຳລະຄ່າງວດ:</td>
                     <td>
@@ -535,7 +538,7 @@
     </div>
 
     <div class="page">
-        <div class="content-wrapper">
+        <div class="content-wrapper" style="display: flex; flex-direction: column;">
 
             <table class="form-grid mt-2">
                 <tr>
@@ -572,7 +575,7 @@
 
                 <div class="sig-col">
                     <div class="sig-title">ເຊັນ ແລະ ຊື່ແຈ້ງ (ຜູ້ໃຫ້ກູ້)</div>
-                    <div class="sig-desc">(ສະຖາບັນການເງິນຈຸລະພາກທີ່ບໍ່ຮັບເງິນຝາກອິນຊີ ຈຳກັດ)</div>
+                    <div class="sig-desc">(ສະຖາບັນການເງິນຈຸລະພາກທີ່ຮັບເງິນຝາກອິນຊີ ຈຳກັດ)</div>
                     <div class="sig-space"></div>
                     <div class="flex justify-center align-center">
                         <span class="font-bold">ຊື່ແຈ້ງ:</span><span class="line-solid" style="width: 180px;"></span>
@@ -585,7 +588,7 @@
                     </div>
                 </div>
 
-                <div class="sig-col mt-4">
+                <div class="sig-col">
                     <div class="sig-title">ເຊັນຫົວຫນ້າພະແນກສິນເຊື່ອ:</div>
                     <div class="sig-space"></div>
                     <div class="flex justify-center align-center">
@@ -599,7 +602,7 @@
                     </div>
                 </div>
 
-                <div class="sig-col mt-4">
+                <div class="sig-col">
                     <div class="sig-title">ເຊັນພະນັກງານເຊວສິນເຊື່ອ:</div>
                     <div class="sig-space"></div>
                     <div class="flex justify-center align-center">
@@ -630,13 +633,7 @@
 
         <div class="footer-wrapper">
             <div class="page-num">2</div>
-            <!-- <div class="footer-note">
-                ສະຖາບັນການເງິນ ຈຸລະພາກບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ ສຳນັກງານໃຫຍ່ຕັ້ງຢູ່ ຖະໜົນ 23 ສິງຫາ, ບ້ານ ໜອງບອນ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ<br>
-                INSEE Microfinance, 23 Singha Rd, Nongbone Village, Saysatha District, VTE<br>
-                ໂທລະສັບ/Tel 021 417775, 021 417776 (856-20) 5595 7755
-            </div> -->
             <img src="{{footerImagePath}}" alt="Footer" class="footer-banner" onerror="this.style.display='none'">
-
         </div>
     </div>
 

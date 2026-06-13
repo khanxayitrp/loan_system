@@ -9,7 +9,7 @@
     <style>
         :root {
             var(--font-main): 'Phetsarath OT', 'Noto Sans Lao', sans-serif;
-            --font-size-base: 10.5pt;
+            --font-size-base: 12pt;
             --border-color: #000;
         }
 
@@ -42,10 +42,6 @@
 
         /* ✅ Header Image Banner */
         .header-banner {
-            /* width: 100%;
-            display: block;
-            margin-bottom: 5px;
-            object-fit: contain; */
             width: 210mm;
             /* ความกว้างเต็มของกระดาษ A4 */
             margin-left: -15mm;
@@ -84,7 +80,6 @@
             content: "ໜ້າ " counter(page-num) " / 8";
         }
 
-        /* 🟢 ຈັດການສ່ວນຂອງ ເລກທີສັນຍາ ໃຫ້ຍ້າຍມາຢູ່ກ້ອງ Header ຝັ່ງຂວາ */
         .contract-info-container {
             display: flex;
             justify-content: flex-end;
@@ -236,7 +231,7 @@
         .signature-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 45px;
+            margin-bottom: 35px; /* 🟢 ຫຼຸດໄລຍະຫ່າງເພື່ອບໍ່ໃຫ້ຕົກໜ້າ */
             page-break-inside: avoid;
         }
 
@@ -248,14 +243,7 @@
         .signature-block.center {
             text-align: center;
             width: 100%;
-            margin-top: 20px;
-        }
-
-        /* ເພີ່ມໄລຍະຫ່າງພິເສດສຳລັບລາຍເຊັນທີ່ມີການປະທັບຕາ */
-        .signature-block .stamp-space {
-            margin-top: 45px;
-            /* ເພີ່ມໄລຍະຫ່າງທາງເທິງ ເພື່ອໃຫ້ມີຊ່ອງຫວ່າງປະທັບຕາ */
-            display: block;
+            margin-top: 10px; /* 🟢 ຫຼຸດຊ່ອງຫວ່າງເທິງກ່ອງນາຍບ້ານລົງ ເພື່ອປະຢັດພື້ນທີ່ */
         }
 
         .signature-title {
@@ -267,30 +255,63 @@
 
         .signature-note {
             font-size: 9pt;
-            margin-bottom: 10px;
+            margin-bottom: 5px; /* 🟢 ຍັບລາຍເຊັນໃຫ້ເຂົ້າໃກ້ຄຳອະທິບາຍ ເພື່ອປະຢັດພື້ນທີ່ */
             min-height: 25px;
         }
 
         .fingerprint-box {
-            width: 60px;
-            height: 70px;
+            width: 55px; 
+            height: 65px;
             border: 1px solid #000;
             float: right;
-            margin-left: 15px;
-            margin-bottom: 10px;
+            margin-left: 10px;
+            margin-bottom: 5px;
         }
 
         .signature-label {
             font-size: 10pt;
-            margin-top: 25px;
+            margin-top: 50px; 
+            display: block;
+        }
+
+        /* 🟢 ຈັດວາງ ລາຍເຊັນ 1 ແລະ ກ່ອງປະທັບຕາ ແບບ Fix */
+        .approval-signature-row {
+            position: relative;
+            margin-top: 50px; 
+            margin-bottom: 50px; 
+            height: 60px; 
+        }
+
+        .approval-signature-row .signature-label {
+            position: absolute;
+            left: 0;
+            bottom: 5px; 
+            margin-top: 0;
+        }
+
+        /* ກ່ອງປະທັບຕາສະເພາະຜູ້ອະນຸມັດ */
+        .manager-stamp-box {
+            position: absolute;
+            left: 190px; 
+            bottom: 0;
+            width: 100px; 
+            height: 60px;
+            border: 1px dotted #000;
+            background-color: transparent;
+        }
+
+        /* ສຳລັບລາຍເຊັນ 2 ຂອງຜູ້ອະນຸມັດ */
+        .approval-signature {
+            margin-top: 50px; 
+            margin-bottom: 0px; 
             display: block;
         }
 
         .village-stamp-box {
-            width: 150px;
-            height: 80px;
+            width: 140px; 
+            height: 70px; 
             border: 1px dotted #000;
-            margin: 10px auto;
+            margin: 5px auto; /* 🟢 ຫຼຸດ margin ເພື່ອດຶງຂໍ້ຄວາມໝາຍເຫດດ້ານລຸ່ມຂຶ້ນມາ */
         }
     </style>
 </head>
@@ -334,7 +355,7 @@
         <div class="section-title">I. ຂໍ້ມູນສ່ວນຕົວລູກຄ້າ:</div>
         <table>
             <tr>
-                <td class="label">ຊື່ ແລະ ນາມສະກຸນ ລູກຄ້າ ທ້າວ/ນາງ:</td>
+                <td class="label">ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ:</td>
                 <td colspan="3"><span class="input-field">{{cusName}}</span></td>
                 <td class="label">ວັນເດືອນປີເກີດ:</td>
                 <td><span class="input-field">{{cusDob}}</span></td>
@@ -348,7 +369,7 @@
                 <td><span class="input-field">{{cusMarital}}</span></td>
             </tr>
             <tr>
-                <td class="label">ບັດປະຈຳຕົວ/ໜັງສືຜ່ານແດນ ເລກທີ:</td>
+                <td class="label">ບັດປະຈຳຕົວ/ໜັງສືຜ່ານແດນ:</td>
                 <td><span class="input-field">{{cusIdCard}}</span></td>
                 <td class="label">ວັນເດືອນປີອອກ:</td>
                 <td colspan="3"><span class="input-field">{{cusIdIssueDate}}</span></td>
@@ -395,9 +416,9 @@
         <table>
             <tr>
                 <td class="label">ຊື່ອົງການ/ບໍລິສັດ:</td>
-                <td><span class="input-field">{{workName}}</span></td>
+                <td colspan="3"><span class="input-field">{{workName}}</span></td>
                 <td class="label">ປະເພດຂອງທຸລະກິດ:</td>
-                <td colspan="3"><span class="input-field">{{workType}}</span></td>
+                <td><span class="input-field">{{workType}}</span></td>
             </tr>
             <tr>
                 <td class="label">ບ້ານ:</td>
@@ -452,12 +473,12 @@
             <tr>
                 <td class="label">ວົງເງິນອະນຸມັດ:</td>
                 <td><span class="input-field">{{prodApprove}}</span></td>
-                <td class="label">ອັດຕາດອກເບ້ຍ:</td>
-                <td><span class="input-field">{{prodInterest}}</span> %</td>
+                <td class="label">ອັດຕາດອກເບ້ຍ%:</td>
+                <td><span class="input-field">{{prodInterest}}</span></td>
             </tr>
             <tr>
-                <td class="label">ຈຳນວນງວດທີ່ກູ້:</td>
-                <td><span class="input-field">{{prodTerm}}</span> ເດືອນ</td>
+                <td class="label">ຈຳນວນງວດທີ່ກູ້ (ເດືອນ):</td>
+                <td><span class="input-field">{{prodTerm}}</span></td>
                 <td class="label">ຈຳນວນດອກເບ້ຍທັງໝົດ:</td>
                 <td><span class="input-field">{{prodTotalInt}}</span></td>
             </tr>
@@ -574,9 +595,9 @@
         <table>
             <tr>
                 <td class="label">ຊື່ອົງການ/ບໍລິສັດ:</td>
-                <td><span class="input-field">{{guaWorkName}}</span></td>
+                <td colspan="3"><span class="input-field">{{guaWorkName}}</span></td>
                 <td class="label">ປະເພດຂອງທຸລະກິດ:</td>
-                <td colspan="3"><span class="input-field">{{guaWorkType}}</span></td>
+                <td><span class="input-field">{{guaWorkType}}</span></td>
             </tr>
             <tr>
                 <td class="label">ບ້ານ:</td>
@@ -645,18 +666,18 @@
             3.1. ຜູ້ກູ້ ເຫັນດີຊຳລະຄ່າງວດຕໍ່ເດືອນ ຕາມເວລາທີ່ ຜູ້ໃຫ້ກູ້ ກຳນົດໄວ້ ໃນທຸກໆເດືອນ
             ລວມທັງອັດຕາດອກເບ້ຍທີ່ກຳນົດໄວ້ໃນ ສັນ ຍາສະບັບນີ້ ພ້ອມທັງຄ່າທຳນຽມ ແລະ ຄ່າປັບໃໝ ຕາມທີ່ກຳນົດໄວ້ໃນ ມາດຕາ 4
             ຂອງສັນຍາສະບັບນີ້.<br>
-            3.2 ຜູ້ກູ້ ສາມາດເລືອກຊ່ອງທາງໃນການຊຳລະຄ່າງວດ ໂດຍຜ່ານຊ່ອງທາງຕ່າງໆດັ່ງຕໍ່ໄປນີ້: ຊຳລະຜ່ານເຄົາເຕີຂອງ ສກຈບ ອິນຊີ
+            3.2 ຜູ້ກູ້ ສາມາດເລືອກຊ່ອງທາງໃນການຊຳລະຄ່າງວດ ໂດຍຜ່ານຊ່ອງທາງຕ່າງໆດັ່ງຕໍ່ໄປນີ້: ຊຳລະຜ່ານເຄົາເຕີຂອງ ສກຈຮ ອິນຊີ
             ຈຳກັດ, ຊຳລະຜ່ານເລກບັນຊີທະນາຄານຂອງສະຖາບັນອິນຊີ ຫຼື ຊຳລະຜ່ານເລກທີ່ສັນຍາຂອງການກູ້ຢືມ ຕາມທີ່ລະບຸໄວ້ໃນໃບຍິນ ຍອມ
             ແລະ/ຫຼື ໃຫ້ພະນັກງານຂອງ ຜູ້ໃຫ້ກູ້ ໄປເກັບເງິນຢູ່ບ່ອນເຮັດວຽກ, ທີ່ຢູ່ອາໄສ ຫຼື ສະຖານທີ່ ທີ່ ຜູ້ກູ້ ນັດໝາຍໄວ້.<br>
             3.3 ການຊຳລະຄ່າງວດກ່ອນສິ້ນສຸດສັນຍາ (ປິດສັນຍາກ່ອນກຳນົດ): ໃນກໍລະນີທີ່ ຜູ້ກູ້ມີຈຸດປະສົງຈະ
             ຊຳລະຄ່າກູ້ຢືມທັງໝົດເທື່ອ ດຽວ ຫຼື ຊື້ຊັບສິນກູ້ກ່ອນຊັບສິນກູ້ກ່ອນສິ້ນສຸດສັນຍາ, ຜູ້ກູ້ ຈະຕ້ອງແຈ້ງ ຜູ້ໃຫ້ກູ້
-            ລ່ວງໜ້າເພື່ອຮັບຊາບ ແລະ ເຫັນດີ ຕໍ່ການສະເ ໜີດັ່ງກ່າວຊຶ່ງ ຜູ້ກູ້ ຈະຕ້ອງປະຕິບັດຕາມເງື່ອນໄຂທີ່ ຜູ້ໃຫ້ກູ້
+            ລ່ວງໜ້າເພື່ອຮັບຊາບ ແລະ ເຫັນດີ ຕໍ່ການສະເໜີດັ່ງກ່າວຊຶ່ງ ຜູ້ກູ້ ຈະຕ້ອງປະຕິບັດຕາມເງື່ອນໄຂທີ່ ຜູ້ໃຫ້ກູ້
             ໄດ້ວາງອອກດັ່ງລຸ່ມນີ້:<br>
             3.3.1 ຜູ້ກູ້ຕ້ອງຊຳລະຕົ້ນທຶນທີ່ຍັງບໍ່ທັນໄດ້ຊຳລະທັງໝົດ ໃຫ້ກັບ ຜູ້ໃຫ້ກູ້ ໃນມື້ທີ່ຂໍປິດສັນຍາ.<br>
             3.3.2 ຜູ້ໃຫ້ກູ້ ຈະເກັບຄ່າບໍລິການໃນການຊຳລະຄ່າງວດກ່ອນສິ້ນສຸດສັນຍາຈາກ ຜູ້ກູ້ໂດຍການຄິດໄລ່ເທົ່າກັບດອກເບ້ຍ ໃນ
             ອະນາຄົດ 5 ເດືອນຖັດ ຈາກເດືອນທີ່ຂໍປິດສັນຍາ.<br>
             3.3.3 ໃນກໍລະນີ ຜູ້ກູ້ ທີ່ມີສະຖານະໜີ້ຄ້າງຊຳລະບໍ່ເກີນສາມ (3) ເດືອນຕິດຕໍ່ກັນ, ຜູ້ກູ້ ຕ້ອງຊຳລະຄ່າງວດທີ່ຄ້າງຈ່າຍ,
-            ຄ່າປັບໃ ໝ, ແລະ ຄ່າທຳນຽມອື່ນໆທີ່ກ່ຽວຂ້ອງທັງໝົດ ຈົນຮອດເດືອນທີ່ຂໍປິດສັນຍາ.
+            ຄ່າປັບໃໝ, ແລະ ຄ່າທຳນຽມອື່ນໆທີ່ກ່ຽວຂ້ອງທັງໝົດ ຈົນຮອດເດືອນທີ່ຂໍປິດສັນຍາ.
         </p>
         <p class="article-content">
             <strong>ຜູ້ຄ້ຳປະກັນ (ຖ້າມີ):</strong> ຜູ້ຄ້ຳປະກັນ ຕົກລົງ, ເຫັນດີຮັບປະກັນໃນການປະຕິບັດສັນຍາ ແລະ
@@ -882,7 +903,7 @@
         <div class="note-box">
             <strong>ໝາຍເຫດ:</strong> ຂ້າພະເຈົ້າ ຜູ້ກູ້ ແລະ/ຫຼື ຂ້າພະເຈົ້າ ຜູ້ຄ້ຳປະກັນ (ຖ້າມີ)
             ຕ້ອງການກູ້ຢືມສິນເຊື່ອຜະລິດຕະພັນທີ່ອະທິບາຍໄວ້ຂ້າງເທິງ
-            ຜ່ານການບໍລິການກູ້ຢືມສິນເຊື່ອຂອງສະຖາບັນການເງິນຈຸລະພາກບໍ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ ເຊິ່ງເປັນ ຜູ້ໃຫ້ກູ້
+            ຜ່ານການບໍລິການກູ້ຢືມສິນເຊື່ອຂອງສະຖາບັນການເງິນຈຸລະພາກທີ່ຮັບເງິນຝາກ ອິນຊີ ຈຳກັດ ເຊິ່ງເປັນ ຜູ້ໃຫ້ກູ້
             ໂດຍຜູ້ກູ້ສິນເຊື່ອ ຕົກລົງປະຕິບັດຕາມຂໍ້ກຳນົດ ແລະ
             ເງື່ອນໄຂທີ່ລະບຸໄວ້ດ້ານຫຼັງຂອງສັນຍາການບໍລິການກູ້ຢືມສິນເຊື່ອນີ້ທຸກປະການ ແລະ ຍິນ ຍອມ ໃຫ້ກວດປະຫວັດໃນບົດລາຍງານ
             CIB ແລະ ເພື່ອເປັນຫຼັກຖານທັງສອງຝ່າຍຈຶ່ງໄດ້ລົງນາມໄວ້ໃນຄັ້ງວັນທີເດືອນປີທີ່ໄດ້ ລະບຸໄວ້ໃນສັນຍານີ້ ແລະ
@@ -898,27 +919,27 @@
                 <div class="signature-note">(ຂ້າພະເຈົ້າຂໍຢັ້ງຢືນວ່າ ຂ້າພະເຈົ້າໄດ້ຮັບສິນຄ້າແລ້ວ ແລະ
                     ໄດ້ເຊັນສັນຍາສະບັບນີ້ຢ່າງແທ້ຈິງ)</div>
                 <div class="fingerprint-box"></div>
-                <span class="signature-label">ຊື່ແຈ້ງ: <span class="blank-space"
-                        style="width: 150px;">{{cusName}}</span></span>
+                <span class="signature-label" style="margin-top: 70px;">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
                 <span class="signature-label">ວັນທີ: <span class="blank-space"
-                        style="width: 150px;">{{signatures.borrowerDate}}</span></span>
+                        style="width: 150px;"></span></span>
             </div>
-            <!-- <div class="signature-block">
-                <div class="signature-title">ເຊັນ ຜູ້ໃຫ້ກູ້ (ຜູ້ອະນຸມັດ)</div>
-                <div class="signature-note">( ສກຈບ ອິນຊີ ຈຳກັດ )</div>
-                <span class="signature-label">ລາຍເຊັນ 1: <span class="blank-space" style="width: 150px;"></span></span>
-                <span class="signature-label">ລາຍເຊັນ 2: <span class="blank-space" style="width: 150px;"></span></span>
-                <span class="signature-label">ລາຍເຊັນ 3: <span class="blank-space" style="width: 150px;"></span></span>
-            </div> -->
+
             <div class="signature-block">
                 <div class="signature-title">ເຊັນ ຜູ້ໃຫ້ກູ້ (ຜູ້ອະນຸມັດ)</div>
-                <div class="signature-note">( ສກຈບ ອິນຊີ ຈຳກັດ )</div>
-                <span class="signature-label stamp-space">ລາຍເຊັນ 1: <span class="blank-space"
-                        style="width: 150px;"></span></span>
-                <span class="signature-label stamp-space">ລາຍເຊັນ 2: <span class="blank-space"
-                        style="width: 150px;"></span></span>
-                <span class="signature-label stamp-space">ລາຍເຊັນ 3: <span class="blank-space"
-                        style="width: 150px;"></span></span>
+                <div class="signature-note">( ສກຈຮ ອິນຊີ ຈຳກັດ )</div>
+                
+                <div class="approval-signature-row">
+                    <span class="signature-label">ລາຍເຊັນ 1: <span class="blank-space"
+                            style="width: 120px; border-bottom: 1px dotted #000;"></span></span>
+                    <div class="manager-stamp-box"></div>
+                </div>
+
+                <span class="signature-label approval-signature">ລາຍເຊັນ 2: <span class="blank-space"
+                        style="width: 150px; border-bottom: 1px dotted #000;"></span></span>
+
+                        <span class="signature-label approval-signature">ລາຍເຊັນ 3: <span class="blank-space"
+                        style="width: 150px; border-bottom: 1px dotted #000;"></span></span>
             </div>
         </div>
 
@@ -926,10 +947,10 @@
             <div class="signature-block">
                 <div class="signature-title">ເຊັນ ຜູ້ຄ້ຳປະກັນ (ຖ້າມີ)</div>
                 <div class="fingerprint-box"></div>
-                <span class="signature-label">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
-                        style="width: 150px;">{{guaName}}</span></span>
+                <span class="signature-label" style="margin-top: 70px;">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
                 <span class="signature-label">ວັນທີ: <span class="blank-space"
-                        style="width: 150px;">{{signatures.guarantorDate}}</span></span>
+                        style="width: 150px;"></span></span>
                 <span class="signature-label">ສາຍພົວພັນ: <span class="blank-space"
                         style="width: 150px;">{{guaRelation}}</span></span>
             </div>
@@ -939,7 +960,7 @@
                 <span class="signature-label">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
                         style="width: 150px;"></span></span>
                 <span class="signature-label">ວັນທີ: <span class="blank-space"
-                        style="width: 150px;">{{signatures.staffDate}}</span></span>
+                        style="width: 150px;"></span></span>
             </div>
         </div>
 
@@ -964,7 +985,7 @@
             <div class="village-stamp-box"></div>
         </div>
 
-        <div class="note-box" style="margin-top: 20px; border: none; background: none; font-size: 9pt;">
+        <div class="note-box" style="margin-top: 10px; border: none; background: none; font-size: 9pt;">
             <strong>ໝາຍເຫດ:</strong> ເຊັນບ້ານກໍລະນີສິນຄ້າລົດຈັກ (ຍົກເວັ້ນລົດຈັກໄຟຟ້າ) ໃນກໍລະນີທີ່ອົງການປົກຄອງບ້ານ
             ເຫັນວ່າ ຜູ້ກູ້ ເປັນບຸກຄົນທີ່ມີໜີ້ສິນລົ້ນພົ້ນ ຫຼື ມີໜີ້ສິນທີ່ຕ້ອງຊຳລະຢູ່ແລ້ວຫຼື ຜູ້ກູ້
             ເປັນຄົນບໍ່ມີຄວາມໜ້າເຊື່ອຖືນັ້ນ, ທາງອົງການປົກຄອງບ້ານ ສາມາດທີ່ຈະບໍ່ລົງລາຍເຊັນ ແລະ ປະທັບຕາໄດ້.

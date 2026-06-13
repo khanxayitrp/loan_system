@@ -438,6 +438,9 @@ class LoanApplicationRepository {
         });
     }
 
+    // =========================================================================
+    // 🌟 ຟັງຊັນສຳລັບອັບເດດຂໍ້ມູນສິນເຊື່ອ (ພ້ອມລະບົບ Guardrail ແລະ Invalidation)
+    // =========================================================================
     async updateDraftLoanApplication(loanApplicationId: number, data: any): Promise<loan_applications | null> {
         const transaction = await db.sequelize.transaction();
         try {
@@ -445,27 +448,108 @@ class LoanApplicationRepository {
             if (!loanApplication) {
                 logger.error(`Loan application with ID: ${loanApplicationId} not found`);
                 await transaction.rollback();
-                return null;
+                throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຂໍສິນເຊື່ອ');
             }
 
             const performedBy = data.user_id || data.performed_by;
             if (!performedBy) {
                 logger.error('User ID is required');
                 await transaction.rollback();
-                return null;
+                throw new BadRequestError('User ID is required');
             }
-            console.log('Data received for updateDraftLoanApplication:', data);
-            console.log('Existing loan application data:', loanApplication.toJSON());
+
+            // 🚫 1. Guardrail: ປ້ອງກັນການແກ້ໄຂຖ້າສິນເຊື່ອສິ້ນສຸດແລ້ວ
+            const finalStatuses = ['disbursed', 'rejected', 'cancelled'];
+            if (finalStatuses.includes(loanApplication.status || '')) {
+                throw new BadRequestError(`ບໍ່ສາມາດແກ້ໄຂຄຳຂໍສິນເຊື່ອທີ່ມີສະຖານະ ${loanApplication.status} ໄດ້ແລ້ວ`);
+            }
+
+            // ==========================================
+            // 🌟 2. ກວດສອບວ່າມີການປ່ຽນແປງຂໍ້ມູນສຳຄັນ ຫຼື ບໍ່?
+            // ==========================================
+            const criticalFields = ['product_id', 'variant_id', 'total_amount', 'loan_period', 'interest_rate_at_apply', 'down_payment'];
+            let requiresReapproval = false;
+            
+            let first_installment_amount = data?.monthly_pay ? (data.monthly_pay + (data.fee || 0)) : loanApplication.first_installment_amount;
+
+            const mapData: any = {
+                product_id: data.product_id !== undefined ? data.product_id : loanApplication.product_id,
+                variant_id: data.variant_id !== undefined ? data.variant_id : loanApplication.variant_id,
+                total_amount: data.total_amount !== undefined ? data.total_amount : loanApplication.total_amount,
+                interest_rate_at_apply: data.interest_rate_at_apply !== undefined ? data.interest_rate_at_apply : loanApplication.interest_rate_at_apply,
+                monthly_pay: data.monthly_pay !== undefined ? data.monthly_pay : loanApplication.monthly_pay,
+                loan_period: data.loan_period !== undefined ? data.loan_period : loanApplication.loan_period,
+                down_payment: data.down_payment !== undefined ? data.down_payment : loanApplication.down_payment,
+                fee: data.fee !== undefined ? data.fee : loanApplication.fee,
+                first_installment_amount: first_installment_amount,
+                payment_day: data.payment_day !== undefined ? data.payment_day : loanApplication.payment_day,
+                borrower_signature_date: data.borrower_signature_date !== undefined ? data.borrower_signature_date : loanApplication.borrower_signature_date,
+                guarantor_signature_date: data.guarantor_signature_date !== undefined ? data.guarantor_signature_date : loanApplication.guarantor_signature_date,
+                staff_signature_date: data.staff_signature_date !== undefined ? data.staff_signature_date : loanApplication.staff_signature_date,
+                interest_type: data.interest_type !== undefined ? data.interest_type : loanApplication.interest_type,
+                interest_rate_type: data.interest_rate_type !== undefined ? data.interest_rate_type : loanApplication.interest_rate_type,
+                updated_at: new Date()
+            };
+
+            for (const field of criticalFields) {
+                const oldValue = String(loanApplication[field as keyof typeof loanApplication] || '');
+                const newValue = String(mapData[field] || '');
+                
+                if (oldValue !== newValue) {
+                    requiresReapproval = true;
+                    logger.info(`Critical field changed: ${field} (Old: ${oldValue}, New: ${newValue})`);
+                    break;
+                }
+            }
+
+            // ==========================================
+            // 🌟 3. Invalidation (Clear ເອກະສານເກົ່າຖ້າມີການປ່ຽນແປງ)
+            // ==========================================
+            const requiresReviewStatuses = ['verifying', 'verified', 'approved'];
+            
+            if (requiresReapproval && requiresReviewStatuses.includes(loanApplication.status || '')) {
+                // 3.1 ຕີກັບສະຖານະໃຫ້ພະນັກງານປະເມີນໃໝ່
+                mapData.status = 'pending';
+                mapData.is_confirmed = 0; 
+                mapData.approver_id = null; 
+                mapData.approved_at = null;
+                mapData.credit_score = null; 
+                
+                // 🟢 3.2 ລຶບລາຍເຊັນທັງໝົດທີ່ກ່ຽວຂ້ອງ ເພື່ອໃຫ້ສາມາດເຊັນໃໝ່ໄດ້
+                await db.document_signatures.destroy({ 
+                    where: { 
+                        application_id: loanApplicationId, 
+                        document_type: { [Op.in]: ['approval_summary', 'contract', 'delivery_note'] } 
+                    }, 
+                    transaction 
+                });
+
+                // // 🟢 3.3 ລຶບຮ່າງສັນຍາເກົ່າ (ຖ້າມີ) ເພື່ອບັງຄັບໃຫ້ສ້າງໃໝ່ຕາມຍອດເງິນໃໝ່
+                // await db.loan_contract.destroy({ 
+                //     where: { loan_id: loanApplicationId }, 
+                //     transaction 
+                // });
+                
+                // // 🟢 3.4 ລຶບຕາຕະລາງຜ່ອນຊຳລະເດີມອອກ
+                // await db.repayments.destroy({ 
+                //     where: { application_id: loanApplicationId }, 
+                //     transaction 
+                // });
+
+                logger.info(`Application ${loanApplicationId} reverted to pending due to critical changes. Signatures, contracts, and schedules cleared.`);
+            }
+
+            // ==========================================
+            // 4. ອັບເດດຂໍ້ມູນລູກຄ້າ
+            // ==========================================
             let customerId = data.customer_id || loanApplication.customer_id;
             if (customerId && typeof customerId === 'object') {
                 customerId = customerId.id || customerId.customer_id;
             }
 
-            // 🟢 1. ย้ายการดึงข้อมูล Customer ขึ้นมาก่อน เพื่อให้มีข้อมูลเก่าไว้เทียบ
             const customer = await db.customers.findByPk(customerId, { transaction, lock: transaction.LOCK.UPDATE });
             if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
 
-            // 🟢 2. ใช้สูตร !== undefined ถังค่าไม่ได้ส่งมา ให้ดึงของเก่าจาก DB มาใส่กลับคืน
             const custData = {
                 identity_number: data.identity_number !== undefined ? data.identity_number : customer.identity_number,
                 census_number: data.census_number !== undefined ? data.census_number : customer.census_number,
@@ -480,7 +564,6 @@ class LoanApplicationRepository {
                 occupation: data.occupation !== undefined ? data.occupation : customer.occupation,
                 income_per_month: data.income_per_month !== undefined ? data.income_per_month : customer.income_per_month,
                 other_debt: data.other_debt !== undefined ? data.other_debt : customer.other_debt,
-                // 🔥 ป้องกันฟิลด์สำคัญเหล่านี้หายเมื่อไม่ได้ส่งมา
                 unit: data.unit !== undefined ? data.unit : customer.unit,
                 issue_place: data.issue_place !== undefined ? data.issue_place : customer.issue_place,
                 issue_date: data.issue_date !== undefined ? data.issue_date : customer.issue_date,
@@ -490,29 +573,25 @@ class LoanApplicationRepository {
             await customer.update(custData, { transaction });
             await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, custData, performedBy, transaction);
 
-            // 🟢 3. ทำแบบเดียวกันกับ Loan Application เพื่อความปลอดภัยสูงสุด
-            const mapData: any = {
-                product_id: data.product_id !== undefined ? data.product_id : loanApplication.product_id,
-                variant_id: data.variant_id !== undefined ? data.variant_id : loanApplication.variant_id,
-                total_amount: data.total_amount !== undefined ? data.total_amount : loanApplication.total_amount,
-                interest_rate_at_apply: data.interest_rate_at_apply !== undefined ? data.interest_rate_at_apply : loanApplication.interest_rate_at_apply,
-                monthly_pay: data.monthly_pay !== undefined ? data.monthly_pay : loanApplication.monthly_pay,
-                loan_period: data.loan_period !== undefined ? data.loan_period : loanApplication.loan_period,
-                down_payment: data.down_payment !== undefined ? data.down_payment : loanApplication.down_payment,
-                fee: data.fee !== undefined ? data.fee : loanApplication.fee,
-                first_installment_amount: data.first_installment_amount !== undefined ? data.first_installment_amount : loanApplication.first_installment_amount,
-                payment_day: data.payment_day !== undefined ? data.payment_day : loanApplication.payment_day,
-                borrower_signature_date: data.borrower_signature_date !== undefined ? data.borrower_signature_date : loanApplication.borrower_signature_date,
-                guarantor_signature_date: data.guarantor_signature_date !== undefined ? data.guarantor_signature_date : loanApplication.guarantor_signature_date,
-                staff_signature_date: data.staff_signature_date !== undefined ? data.staff_signature_date : loanApplication.staff_signature_date,
-                interest_type: data.interest_type !== undefined ? data.interest_type : loanApplication.interest_type,
-                interest_rate_type: data.interest_rate_type !== undefined ? data.interest_rate_type : loanApplication.interest_rate_type,
-                updated_at: new Date()
-            };
-
+            // ==========================================
+            // 5. ອັບເດດຂໍ້ມູນສິນເຊື່ອ
+            // ==========================================
             const oldLoanData = loanApplication.toJSON();
             const updatedLoan = await loanApplication.update(mapData, { transaction });
             await logAudit('loan_applications', loanApplication.id, 'UPDATE', oldLoanData, mapData, performedBy, transaction);
+            
+            // ບັນທຶກ Log ຖ້າມີການຕີກັບສະຖານະ (Timeline Log)
+            if (requiresReapproval && requiresReviewStatuses.includes(oldLoanData.status || '')) {
+                await this.logApprovalAction(
+                    loanApplicationId,
+                    'returned_for_edit', 
+                    oldLoanData.status,
+                    'pending',
+                    'ລະບົບຕີກັບສະຖານະ ເນື່ອງຈາກມີການປ່ຽນແປງຂໍ້ມູນສິນຄ້າ/ລາຄາ/ໄລຍະເວລາ ທີ່ຕ້ອງໄດ້ຮັບການອະນຸມັດໃໝ່',
+                    performedBy,
+                    transaction
+                );
+            }
 
             await transaction.commit();
             logger.info(`Draft Loan application updated with ID: ${loanApplicationId}`);
