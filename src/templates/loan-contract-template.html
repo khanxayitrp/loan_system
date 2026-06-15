@@ -164,19 +164,17 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
             font-size: 8.5pt;
+            table-layout: auto; /* 🟢 ໃຫ້ Browser ແບ່ງພື້ນທີ່ແຕ່ລະຫ້ອງອັດຕະໂນມັດ ຕາມຄວາມຍາວຂອງຂໍ້ມູນ */
         }
 
-        table,
-        th,
-        td {
+        table, th, td {
             border: 1px solid var(--border-color);
         }
 
-        th,
-        td {
-            padding: 2px 3px;
+        th, td {
+            padding: 2px 4px; /* 🟢 ປັບ Padding ໃຫ້ກະຊັບ ແຕ່ຍັງອ່ານງ່າຍ */
             vertical-align: middle;
         }
 
@@ -192,23 +190,26 @@
 
         .data-page th,
         .data-page td {
-            padding: 3px 5px;
+            padding: 2px 4px;
         }
 
         .label {
             font-weight: bold;
-            width: 20%;
             background-color: #f0f0f0;
+            /* 🔴 ເອົາ width: 20% ອອກ ເພື່ອບໍ່ໃຫ້ຫົວຂໍ້ກິນພື້ນທີ່ຫຼາຍເກີນໄປ */
+            width: 1%; /* 🟢 ບັງຄັບໃຫ້ຫ້ອງຫົວຂໍ້ຫຍໍ້ເຂົ້າໃຫ້ນ້ອຍທີ່ສຸດ ເທົ່າທີ່ຕົວໜັງສືຈະຢູ່ໄດ້ */
+            white-space: nowrap; /* 🟢 ປ້ອງກັນບໍ່ໃຫ້ຫົວຂໍ້ຕົກແຖວຖ້າບໍ່ຈຳເປັນ (ຈະເຮັດໃຫ້ເບິ່ງງາມເປັນລະບຽບ) */
         }
 
         .input-field {
             border: none;
-            border-bottom: none;
-            width: 100%;
-            display: inline-block;
+            background: transparent;
+            display: block; /* 🟢 ປ່ຽນຈາກ inline-block ເປັນ block ເພື່ອໃຫ້ຍືດເຕັມຫ້ອງ td ແບບພໍດີ */
+            width: auto; /* 🟢 ບໍ່ບັງຄັບ 100% ເພື່ອປ້ອງກັນການລົ້ນຂອບ */
             min-height: 1.2em;
             text-align: center;
             color: #1a56db;
+            word-break: break-word; /* 🟢 ຖ້າຂໍ້ມູນລູກຄ້າຍາວຕິດກັນ ໃຫ້ມັນຕັດລົງແຖວອັດຕະໂນມັດໃນຫ້ອງຂອງມັນ */
         }
 
         .article-content {
@@ -228,10 +229,11 @@
         }
 
         /* --- Signature Page Specifics --- */
+       /* --- Signature Page Specifics --- */
         .signature-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 35px; /* 🟢 ຫຼຸດໄລຍະຫ່າງເພື່ອບໍ່ໃຫ້ຕົກໜ້າ */
+            margin-bottom: 25px; /* 🟢 ຫຼຸດໄລຍະຫ່າງເພື່ອຮັບປະກັນບໍ່ໃຫ້ຕົກໜ້າໃໝ່ */
             page-break-inside: avoid;
         }
 
@@ -243,7 +245,7 @@
         .signature-block.center {
             text-align: center;
             width: 100%;
-            margin-top: 10px; /* 🟢 ຫຼຸດຊ່ອງຫວ່າງເທິງກ່ອງນາຍບ້ານລົງ ເພື່ອປະຢັດພື້ນທີ່ */
+            margin-top: 10px; 
         }
 
         .signature-title {
@@ -255,7 +257,7 @@
 
         .signature-note {
             font-size: 9pt;
-            margin-bottom: 5px; /* 🟢 ຍັບລາຍເຊັນໃຫ້ເຂົ້າໃກ້ຄຳອະທິບາຍ ເພື່ອປະຢັດພື້ນທີ່ */
+            margin-bottom: 5px; 
             min-height: 25px;
         }
 
@@ -270,48 +272,22 @@
 
         .signature-label {
             font-size: 10pt;
-            margin-top: 50px; 
+            margin-top: 20px; 
             display: block;
         }
 
-        /* 🟢 ຈັດວາງ ລາຍເຊັນ 1 ແລະ ກ່ອງປະທັບຕາ ແບບ Fix */
-        .approval-signature-row {
-            position: relative;
-            margin-top: 50px; 
-            margin-bottom: 50px; 
-            height: 60px; 
-        }
-
-        .approval-signature-row .signature-label {
-            position: absolute;
-            left: 0;
-            bottom: 5px; 
-            margin-top: 0;
-        }
-
-        /* ກ່ອງປະທັບຕາສະເພາະຜູ້ອະນຸມັດ */
-        .manager-stamp-box {
-            position: absolute;
-            left: 190px; 
-            bottom: 0;
-            width: 100px; 
-            height: 60px;
-            border: 1px dotted #000;
-            background-color: transparent;
-        }
-
-        /* ສຳລັບລາຍເຊັນ 2 ຂອງຜູ້ອະນຸມັດ */
+        /* ສຳລັບລາຍເຊັນ 2 ແລະ 3 ຂອງຜູ້ອະນຸມັດ */
         .approval-signature {
-            margin-top: 50px; 
+            margin-top: 50px; /* 🟢 ເພີ່ມຕົວເລກນີ້ຂຶ້ນ (ເຊັ່ນ 70px ຫຼື 80px) ເພື່ອຍູ້ໃຫ້ແຕ່ລະລາຍເຊັນຫ່າງກັນຫຼາຍຂຶ້ນ */
             margin-bottom: 0px; 
             display: block;
         }
 
         .village-stamp-box {
             width: 140px; 
-            height: 70px; 
+            height: 65px; 
             border: 1px dotted #000;
-            margin: 5px auto; /* 🟢 ຫຼຸດ margin ເພື່ອດຶງຂໍ້ຄວາມໝາຍເຫດດ້ານລຸ່ມຂຶ້ນມາ */
+            margin: 5px auto; 
         }
     </style>
 </head>
@@ -919,6 +895,91 @@
                 <div class="signature-note">(ຂ້າພະເຈົ້າຂໍຢັ້ງຢືນວ່າ ຂ້າພະເຈົ້າໄດ້ຮັບສິນຄ້າແລ້ວ ແລະ
                     ໄດ້ເຊັນສັນຍາສະບັບນີ້ຢ່າງແທ້ຈິງ)</div>
                 <div class="fingerprint-box"></div>
+                <span class="signature-label" style="margin-top: 100px;">ຊື່ແຈ້ງ: <span class="blank-space"
+                        style="width: 200px;"></span></span>
+                <span class="signature-label">ວັນທີ: <span class="blank-space"
+                        style="width: 200px;"></span></span>
+            </div>
+
+            <div class="signature-block">
+                <div class="signature-title">ເຊັນ ຜູ້ໃຫ້ກູ້ (ຜູ້ອະນຸມັດ)</div>
+                <div class="signature-note">( ສກຈຮ ອິນຊີ ຈຳກັດ )</div>
+                
+                <div class="approval-signature-row" style="margin-top: 110px;">
+                    <span class="signature-label">ລາຍເຊັນ 1: <span class="blank-space"
+                            style="width: 120px; border-bottom: 1px dotted #000;"></span></span>
+                    <div class="manager-stamp-box"></div>
+                </div>
+
+                <span class="signature-label approval-signature">ລາຍເຊັນ 2: <span class="blank-space"
+                        style="width: 150px; border-bottom: 1px dotted #000;"></span></span>
+
+                <span class="signature-label approval-signature">ລາຍເຊັນ 3: <span class="blank-space"
+                        style="width: 150px; border-bottom: 1px dotted #000;"></span></span>
+            </div>
+        </div>
+
+        <div class="signature-row">
+            <div class="signature-block">
+                <div class="signature-title">ເຊັນ ຜູ້ຄ້ຳປະກັນ/ຜູ້ອ້າງອີງ (ຖ້າມີ)</div>
+                <div class="fingerprint-box"></div>
+                <span class="signature-label" style="margin-top: 80px;">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+                <span class="signature-label">ວັນທີ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+                <span class="signature-label">ສາຍພົວພັນ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+            </div>
+            <div class="signature-block">
+                <div class="signature-title">ພະນັກງານ (ສິນເຊື່ອ)</div>
+                <div class="signature-note">(ຂ້າພະເຈົ້າຂໍຢັ້ງຢືນວ່າຂ້າພະເຈົ້າໄດ້ດຳເນີນການຊອກຮູ້ລູກຄ້າແລ້ວ)</div>
+                <span class="signature-label" style="margin-top: 70px;">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+                <span class="signature-label">ວັນທີ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+            </div>
+        </div>
+
+        <div class="signature-row">
+            <div class="signature-block">
+                <div class="signature-title">ພະນັກງານຂາຍສິນເຊື່ອ</div>
+                <span class="signature-label" style="margin-top: 70px;">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+                <span class="signature-label">ວັນທີ: <span class="blank-space" style="width: 150px;"></span></span>
+            </div>
+            <div class="signature-block">
+                <div class="signature-title">ພະນັກງານຮ້ານຄ້າຕົວແທນ</div>
+                <span class="signature-label" style="margin-top: 70px;">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
+                        style="width: 150px;"></span></span>
+                <span class="signature-label">ວັນທີ: <span class="blank-space" style="width: 150px;"></span></span>
+            </div>
+        </div>
+
+        <div class="signature-block center" style="margin-top: 0;">
+            <div class="signature-title" style="display: inline-block;">ເຊັນ ແລະ ປະທັບຕານາຍບ້ານ ບ້ານ:</div>
+            <!-- <span class="blank-space" style="width: 200px; border-bottom: 1px solid #000; font-weight: bold;">{{cusVillage}}</span> -->
+            <!-- <div class="village-stamp-box" style="margin-top: 10px;"></div> -->
+        </div>
+
+        <div class="note-box" style="margin-top: 120px; border: none; background: none; font-size: 9pt;">
+            <strong>ໝາຍເຫດ:</strong> ເຊັນບ້ານກໍລະນີສິນຄ້າລົດຈັກ (ຍົກເວັ້ນລົດຈັກໄຟຟ້າ) ໃນກໍລະນີທີ່ອົງການປົກຄອງບ້ານ
+            ເຫັນວ່າ ຜູ້ກູ້ ເປັນບຸກຄົນທີ່ມີໜີ້ສິນລົ້ນພົ້ນ ຫຼື ມີໜີ້ສິນທີ່ຕ້ອງຊຳລະຢູ່ແລ້ວຫຼື ຜູ້ກູ້
+            ເປັນຄົນບໍ່ມີຄວາມໜ້າເຊື່ອຖືນັ້ນ, ທາງອົງການປົກຄອງບ້ານ ສາມາດທີ່ຈະບໍ່ລົງລາຍເຊັນ ແລະ ປະທັບຕາໄດ້.
+        </div>
+    </div>
+
+</body>
+
+</html>
+
+    <!-- <div class="page">
+        <div class="page-number"></div>
+        <div class="signature-row">
+            <div class="signature-block">
+                <div class="signature-title">ເຊັນ ແລະ ປ້ຳໂປ້ ຜູ້ກູ້</div>
+                <div class="signature-note">(ຂ້າພະເຈົ້າຂໍຢັ້ງຢືນວ່າ ຂ້າພະເຈົ້າໄດ້ຮັບສິນຄ້າແລ້ວ ແລະ
+                    ໄດ້ເຊັນສັນຍາສະບັບນີ້ຢ່າງແທ້ຈິງ)</div>
+                <div class="fingerprint-box"></div>
                 <span class="signature-label" style="margin-top: 70px;">ເຊັນ ແລະ ຊື່ແຈ້ງ: <span class="blank-space"
                         style="width: 150px;"></span></span>
                 <span class="signature-label">ວັນທີ: <span class="blank-space"
@@ -994,4 +1055,4 @@
 
 </body>
 
-</html>
+</html> -->

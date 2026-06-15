@@ -2,7 +2,6 @@ import { db } from '../models/init-models';
 import { BadRequestError, NotFoundError } from '../utils/errors';
 import { logAudit } from '../utils/auditLogger';
 import { generateSignatureSlots } from '../utils/signatureGenerator';
-import { Op } from 'sequelize';
 import { logger } from '../utils/logger';
 
 class LoanRestructureService {
@@ -40,7 +39,7 @@ class LoanRestructureService {
                 throw new BadRequestError('ບໍ່ພົບຕາຕະລາງຜ່ອນຊຳລະທີ່ກຳລັງໃຊ້ງານຢູ່ (Active Schedule)');
             }
 
-            // 3. 🚫 ກວດສອບ Guardrail: ຖ້າມີຕາຕະລາງທີ່ເປັນ 'draft' ຢູ່ແລ້ວ (ກຳລັງປັບໂຄງສ້າງແຕ່ຍັງບໍ່ສຳເລັດ) ໃຫ້ Error
+            // 3. 🚫 ກວດສອບ Guardrail: ຖ້າມີຕາຕະລາງທີ່ເປັນ 'draft' ຢູ່ແລ້ວ ໃຫ້ Error
             const existingDraft = await db.repayment_schedules.findOne({
                 where: { application_id: applicationId, status: 'draft' },
                 transaction
@@ -55,20 +54,9 @@ class LoanRestructureService {
             // ==========================================
             const oldScheduleData = activeSchedule.toJSON();
             
-            // 4.1 ປ່ຽນສະຖານະຕາຕະລາງ Header ເປັນ 'restructured'
+            // 🟢 ອັບເດດສະເພາະຕາຕະລາງຫຼັກ (Header) ໃຫ້ເປັນ 'restructured' 
+            // ໂດຍບໍ່ຕ້ອງໄປກວນຕາຕະລາງຍ່ອຍ (repayments) ເພື່ອຮັກສາປະຫວັດເດີມໄວ້
             await activeSchedule.update({ status: 'restructured' }, { transaction });
-
-            // 4.2 ຍົກເລີກງວດທີ່ຍັງບໍ່ທັນຈ່າຍໃນຕາຕະລາງຍ່ອຍ (Repayments) ໃຫ້ກາຍເປັນ 'restructured'
-            await db.repayments.update(
-                { payment_status: 'restructured' },
-                { 
-                    where: { 
-                        schedule_id: activeSchedule.id, 
-                        payment_status: { [Op.in]: ['unpaid', 'overdue'] } 
-                    }, 
-                    transaction 
-                }
-            );
 
             // ==========================================
             // ✨ 5. ສ້າງຕາຕະລາງໃໝ່ (Create New Data)
@@ -83,7 +71,7 @@ class LoanRestructureService {
                 version: nextVersion,
                 total_principal: totalPrincipal,
                 total_interest: totalInterest,
-                status: 'draft', // ເລີ່ມຕົ້ນເປັນ Draft ຈົນກວ່າຜູ້ບໍລິຫານຈະອະນຸມັດ
+                status: 'draft', 
                 created_by: performedBy
             }, { transaction });
 
@@ -97,7 +85,7 @@ class LoanRestructureService {
                 interest_amount: Number(row.interest),
                 total_due: Number(row.total_amount),
                 remaining_principal: Number(row.remaining_balance),
-                payment_status: 'unpaid',
+                payment_status: 'unpaid' as const, // 🟢 ແກ້ Error TS2345: ບອກ TypeScript ວ່າເປັນຄ່າ Enum ແນ່ນອນ
                 paid_principal: 0,
                 paid_interest: 0
             }));
@@ -119,7 +107,7 @@ class LoanRestructureService {
             await logAudit(
                 'repayment_schedules', 
                 applicationId, 
-                'RESTRUCTURE', 
+                'CREATE', // 🟢 ແກ້ Error TS2345: ປ່ຽນຈາກ 'RESTRUCTURE' ເປັນ 'CREATE'
                 oldScheduleData, 
                 newSchedule.toJSON(), 
                 performedBy, 

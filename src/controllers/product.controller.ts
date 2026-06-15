@@ -170,74 +170,195 @@ class ProductController {
 
             let importedCount = 0;
 
+            // for (const [groupKey, rows] of groupedProducts.entries()) {
+            //     const mainRow = rows.find(r => r['Product_Name'] || r['ຊື່ສິນຄ້າ']) || rows[0];
+
+            //     const productName = String(mainRow['Product_Name'] || mainRow['ຊື່ສິນຄ້າ'] || '');
+            //     if (!productName) continue;
+
+            //     // ⚡ ดึง Category ID จาก Memory ได้เลย (เร็วกว่า 100 เท่า)
+            //     const prefixCode = mainRow['Global_Cat_Prefix'] || mainRow['ຕົວຫຍໍ້ໝວດໝູ່ຫຼັກ'];
+            //     const globalCategoryId = prefixCode ? (categoryMap.get(prefixCode) || null) : null;
+
+            //     const model = String(mainRow['Model'] || mainRow['ລຸ້ນ'] || '');
+            //     const basePrice = Number(mainRow['Price'] || mainRow['ລາຄາ'] || 0);
+
+            //     const totalStock = rows.reduce((sum, r) => sum + Number(r['Stock'] || r['ສະຕັອກ'] || 0), 0);
+            //     const baseSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model);
+
+            //     // บันทึกสินค้าหลัก
+            //     const newProduct = await db.products.create({
+            //         partner_id: partner.id,
+            //         productType_id: Number(mainRow['Local_Cat_ID'] || mainRow['ລະຫັດປະເພດສິນຄ້າ'] || 1),
+            //         global_category_id: globalCategoryId || undefined,
+            //         system_sku: baseSystemSku,
+            //         merchant_sku: mainRow['Parent_Merchant_SKU'] || mainRow['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || null,
+            //         product_name: productName,
+            //         brand: String(mainRow['Brand'] || mainRow['ຍີ່ຫໍ້'] || ''),
+            //         model: model,
+            //         price: basePrice,
+            //         stock_quantity: totalStock,
+            //         allowed_loan_type: mainRow['Allowed_Loan_Type'] || mainRow['ປະເພດການຜ່ອນ'] || 'both',
+            //         description: String(mainRow['ລາຍລະອຽດ'] || ''),
+            //         is_active: 1
+            //     }, { transaction: t });
+
+            //     await logAudit('products', newProduct.id, 'CREATE', null, newProduct.toJSON(), userId, t);
+
+            //     const variants = [];
+            //     for (const row of rows) {
+            //         const variantSku = row['Variant_Merchant_SKU'] || row['ລະຫັດສິນຄ້າຮ້ານ (ຍ່ອຍ)'];
+            //         const color = row['Color'] || row['ສີ'];
+            //         const size = row['Size_Capacity'] || row['ຂະໜາດ/ຄວາມຈຸ'];
+
+            //         if (color || size || variantSku || rows.length === 1) {
+            //             const vCode = `${color || ''}${size || ''}`;
+            //             const vSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model, vCode);
+
+            //             variants.push({
+            //                 product_id: newProduct.id,
+            //                 system_sku: vSystemSku,
+            //                 merchant_sku: variantSku || null,
+            //                 color: color || null,
+            //                 size_or_capacity: size || null,
+            //                 price: Number(row['Price'] || row['ລາຄາ'] || basePrice),
+            //                 stock_quantity: Number(row['Stock'] || row['ສະຕັອກ'] || 0),
+            //                 weight_gram: Number(row['Weight_Gram'] || row['ນ້ຳໜັກ(ກຣາມ)'] || 0),
+            //                 image_url: row['Image_URL'] || row['ລິ້ງຮູບພາບ'] || null
+            //             });
+            //         }
+            //     }
+
+            //     if (variants.length > 0) {
+            //         const createdVariants = await db.product_variants.bulkCreate(variants, { transaction: t });
+
+            //         // ⚡ ใช้ Promise.all เพื่อบันทึก Audit แบบขนาน (เร็วกว่า for...of ปกติ)
+            //         const auditPromises = createdVariants.map((variant: any) =>
+            //             logAudit('product_variants', variant.id || 0, 'CREATE', null, variant.toJSON(), userId, t)
+            //         );
+            //         await Promise.all(auditPromises);
+            //     }
+            //     importedCount++;
+            // }
             for (const [groupKey, rows] of groupedProducts.entries()) {
                 const mainRow = rows.find(r => r['Product_Name'] || r['ຊື່ສິນຄ້າ']) || rows[0];
 
                 const productName = String(mainRow['Product_Name'] || mainRow['ຊື່ສິນຄ້າ'] || '');
                 if (!productName) continue;
 
-                // ⚡ ดึง Category ID จาก Memory ได้เลย (เร็วกว่า 100 เท่า)
                 const prefixCode = mainRow['Global_Cat_Prefix'] || mainRow['ຕົວຫຍໍ້ໝວດໝູ່ຫຼັກ'];
                 const globalCategoryId = prefixCode ? (categoryMap.get(prefixCode) || null) : null;
 
                 const model = String(mainRow['Model'] || mainRow['ລຸ້ນ'] || '');
                 const basePrice = Number(mainRow['Price'] || mainRow['ລາຄາ'] || 0);
-
                 const totalStock = rows.reduce((sum, r) => sum + Number(r['Stock'] || r['ສະຕັອກ'] || 0), 0);
-                const baseSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model);
+                const merchantSku = mainRow['Parent_Merchant_SKU'] || mainRow['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || null;
 
-                // บันทึกสินค้าหลัก
-                const newProduct = await db.products.create({
-                    partner_id: partner.id,
-                    productType_id: Number(mainRow['Local_Cat_ID'] || mainRow['ລະຫັດປະເພດສິນຄ້າ'] || 1),
-                    global_category_id: globalCategoryId || undefined,
-                    system_sku: baseSystemSku,
-                    merchant_sku: mainRow['Parent_Merchant_SKU'] || mainRow['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || null,
-                    product_name: productName,
-                    brand: String(mainRow['Brand'] || mainRow['ຍີ່ຫໍ້'] || ''),
-                    model: model,
-                    price: basePrice,
-                    stock_quantity: totalStock,
-                    allowed_loan_type: mainRow['Allowed_Loan_Type'] || mainRow['ປະເພດການຜ່ອນ'] || 'both',
-                    description: String(mainRow['ລາຍລະອຽດ'] || ''),
-                    is_active: 1
-                }, { transaction: t });
+                // ==========================================
+                // 🌟 1. ຈັດການສິນຄ້າຫຼັກ (Parent Product)
+                // ==========================================
+                let product: any = null;
 
-                await logAudit('products', newProduct.id, 'CREATE', null, newProduct.toJSON(), userId, t);
+                // ຊອກຫາສິນຄ້າເກົ່າຈາກ Merchant SKU ຫຼື ຊື່ສິນຄ້າ
+                if (merchantSku) {
+                    product = await db.products.findOne({ where: { partner_id: partner.id, merchant_sku: merchantSku }, transaction: t });
+                } else {
+                    product = await db.products.findOne({ where: { partner_id: partner.id, product_name: productName }, transaction: t });
+                }
 
-                const variants = [];
+                if (product) {
+                    // 🟢 CASE A: ມີສິນຄ້າເກົ່າແລ້ວ -> ອັບເດດສະຕັອກ ແລະ ລາຄາ (ບໍ່ປ່ຽນ system_sku ຂອງເກົ່າ)
+                    await product.update({
+                        stock_quantity: product.stock_quantity + totalStock, // ບວກສະຕັອກເພີ່ມ
+                        price: basePrice, // ອັບເດດລາຄາໃໝ່ (ຖ້າມີ)
+                        is_active: 1
+                    }, { transaction: t });
+                    
+                    await logAudit('products', product.id, 'UPDATE', null, product.toJSON(), userId, t);
+                } else {
+                    // 🟢 CASE B: ເປັນສິນຄ້າໃໝ່ແທ້ໆ -> ສ້າງໃໝ່ (Create)
+                    const baseSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model);
+                    
+                    product = await db.products.create({
+                        partner_id: partner.id,
+                        productType_id: Number(mainRow['Local_Cat_ID'] || mainRow['ລະຫັດປະເພດສິນຄ້າ'] || 1),
+                        global_category_id: globalCategoryId || undefined,
+                        system_sku: baseSystemSku, // ໃຊ້ System SKU ໃໝ່
+                        merchant_sku: merchantSku,
+                        product_name: productName,
+                        brand: String(mainRow['Brand'] || mainRow['ຍີ່ຫໍ້'] || ''),
+                        model: model,
+                        price: basePrice,
+                        stock_quantity: totalStock,
+                        allowed_loan_type: mainRow['Allowed_Loan_Type'] || mainRow['ປະເພດການຜ່ອນ'] || 'both',
+                        description: String(mainRow['ລາຍລະອຽດ'] || ''),
+                        is_active: 1
+                    }, { transaction: t });
+
+                    await logAudit('products', product.id, 'CREATE', null, product.toJSON(), userId, t);
+                }
+
+                // ==========================================
+                // 🌟 2. ຈັດການຕົວເລືອກຍ່ອຍ (Variants - ສີ/ຂະໜາດ)
+                // ==========================================
                 for (const row of rows) {
                     const variantSku = row['Variant_Merchant_SKU'] || row['ລະຫັດສິນຄ້າຮ້ານ (ຍ່ອຍ)'];
                     const color = row['Color'] || row['ສີ'];
                     const size = row['Size_Capacity'] || row['ຂະໜາດ/ຄວາມຈຸ'];
 
                     if (color || size || variantSku || rows.length === 1) {
-                        const vCode = `${color || ''}${size || ''}`;
-                        const vSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model, vCode);
+                        
+                        let variant: any = null;
 
-                        variants.push({
-                            product_id: newProduct.id,
-                            system_sku: vSystemSku,
-                            merchant_sku: variantSku || null,
-                            color: color || null,
-                            size_or_capacity: size || null,
-                            price: Number(row['Price'] || row['ລາຄາ'] || basePrice),
-                            stock_quantity: Number(row['Stock'] || row['ສະຕັອກ'] || 0),
-                            weight_gram: Number(row['Weight_Gram'] || row['ນ້ຳໜັກ(ກຣາມ)'] || 0),
-                            image_url: row['Image_URL'] || row['ລິ້ງຮູບພາບ'] || null
-                        });
+                        // ຊອກຫາ Variant ເກົ່າ
+                        if (variantSku) {
+                            variant = await db.product_variants.findOne({ where: { product_id: product.id, merchant_sku: variantSku }, transaction: t });
+                        } else {
+                            // ຖ້າບໍ່ມີ Variant SKU ໃຫ້ຄົ້ນຫາຈາກ ສີ ແລະ ຂະໜາດ
+                            variant = await db.product_variants.findOne({ 
+                                where: { 
+                                    product_id: product.id, 
+                                    color: color || null, 
+                                    size_or_capacity: size || null 
+                                }, 
+                                transaction: t 
+                            });
+                        }
+
+                        const vStock = Number(row['Stock'] || row['ສະຕັອກ'] || 0);
+                        const vPrice = Number(row['Price'] || row['ລາຄາ'] || basePrice);
+
+                        if (variant) {
+                            // 🟢 ມີ Variant ເກົ່າແລ້ວ (ເຊັ່ນ ສີດຳ ໄຊສ໌ M ຕົວເກົ່າ) -> ອັບເດດສະຕັອກ
+                            await variant.update({
+                                stock_quantity: variant.stock_quantity + vStock,
+                                price: vPrice
+                            }, { transaction: t });
+                            
+                            await logAudit('product_variants', variant.id, 'UPDATE', null, variant.toJSON(), userId, t);
+                        } else {
+                            // 🟢 ເປັນ Variant ໃໝ່ (ເຊັ່ນ ພາຍໃຕ້ສິນຄ້າເກົ່າ ແຕ່ເພີ່ມ ສີແດງ ເຂົ້າມາ) -> ສ້າງໃໝ່
+                            const vCode = `${color || ''}${size || ''}`;
+                            // ສ້າງ System SKU ສະເພາະ Variant ໃໝ່ນີ້ ໂດຍອ້າງອີງສິນຄ້າຫຼັກ
+                            const vSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model, vCode);
+
+                            const newVariant = await db.product_variants.create({
+                                product_id: product.id, // ຜູກກັບ Product ເກົ່າ ຫຼື ໃໝ່ ທີ່ຢູ່ດ້ານເທິງ
+                                system_sku: vSystemSku,
+                                merchant_sku: variantSku || null,
+                                color: color || null,
+                                size_or_capacity: size || null,
+                                price: vPrice,
+                                stock_quantity: vStock,
+                                weight_gram: Number(row['Weight_Gram'] || row['ນ້ຳໜັກ(ກຣາມ)'] || 0),
+                                image_url: row['Image_URL'] || row['ລິ້ງຮູບພາບ'] || null
+                            }, { transaction: t });
+
+                            await logAudit('product_variants', newVariant.id, 'CREATE', null, newVariant.toJSON(), userId, t);
+                        }
                     }
                 }
-
-                if (variants.length > 0) {
-                    const createdVariants = await db.product_variants.bulkCreate(variants, { transaction: t });
-
-                    // ⚡ ใช้ Promise.all เพื่อบันทึก Audit แบบขนาน (เร็วกว่า for...of ปกติ)
-                    const auditPromises = createdVariants.map((variant: any) =>
-                        logAudit('product_variants', variant.id || 0, 'CREATE', null, variant.toJSON(), userId, t)
-                    );
-                    await Promise.all(auditPromises);
-                }
+                
                 importedCount++;
             }
 
@@ -269,154 +390,6 @@ class ProductController {
             next(error);
         }
     }
-
-
-    // public async importProductsFromExcel(req: Request, res: Response, next: NextFunction) {
-    //     const t = await db.sequelize.transaction();
-    //     try {
-    //         const userId = req.userPayload?.userId;
-    //         if (!userId) throw new UnauthorizedError('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນດຳເນີນການຕໍ່');
-    //         if (!req.file) throw new ValidationError('ກະລຸນາອັບໂຫຼດໄຟລ໌ Excel');
-
-    //         const partner = await db.partners.findOne({ where: { user_id: userId }, attributes: ['id'] });
-    //         if (!partner) throw new UnauthorizedError('ຜູ້ໃຊ້ນີ້ບໍ່ມີສິດເປັນພານເນີ');
-
-    //         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    //         const rawData = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
-
-    //         if (!rawData?.length) throw new ValidationError('ບໍ່ພົບຂໍ້ມູນໃນໄຟລ໌ Excel');
-
-    //         // 🌟 1. จัดกลุ่มอัจฉริยะ: ใช้ Parent SKU ก่อน ถ้าไม่มีให้ใช้ "ชื่อสินค้า" เป็นตัวจัดกลุ่มแทน
-    //         const groupedProducts = new Map<string, any[]>();
-    //         rawData.forEach((row: any) => {
-    //             // ดึงค่า SKU หรือ ชื่อสินค้า มาเป็น Key ในการจัดกลุ่ม
-    //             const groupKey = row['Parent_Merchant_SKU'] || row['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || row['Product_Name'] || row['ຊື່ສິນຄ້າ'];
-
-    //             if (groupKey && String(groupKey).trim() !== '') {
-    //                 const keyString = String(groupKey).trim();
-    //                 if (!groupedProducts.has(keyString)) groupedProducts.set(keyString, []);
-    //                 groupedProducts.get(keyString)!.push(row);
-    //             }
-    //         });
-
-    //         let importedCount = 0;
-
-    //         for (const [groupKey, rows] of groupedProducts.entries()) {
-    //             // หาแถวแรกสุดที่มีชื่อสินค้า (บางทีแถวแรกร้านค้าอาจจะเว้นชื่อสินค้าไว้ แต่ใส่ในแถวที่ 2)
-    //             const mainRow = rows.find(r => r['Product_Name'] || r['ຊື່ສິນຄ້າ']) || rows[0];
-
-    //             const productName = String(mainRow['Product_Name'] || mainRow['ຊື່ສິນຄ້າ'] || '');
-    //             if (!productName) continue; // ถ้าหาชื่อสินค้าไม่เจอเลย ให้ข้ามกลุ่มนี้ไป
-
-    //             let globalCategoryId = null;
-    //             const prefixCode = mainRow['Global_Cat_Prefix'] || mainRow['ຕົວຫຍໍ້ໝວດໝູ່ຫຼັກ'];
-    //             if (prefixCode) {
-    //                 const category: any = await db.global_categories.findOne({
-    //                     where: { prefix_code: prefixCode },
-    //                     attributes: ['id']
-    //                 });
-    //                 if (category) globalCategoryId = category.id;
-    //             }
-
-    //             const model = String(mainRow['Model'] || mainRow['ລຸ້ນ'] || '');
-    //             const basePrice = Number(mainRow['Price'] || mainRow['ລາຄາ'] || 0);
-
-    //             // คำนวณสต๊อกรวมจากทุกแถวในกลุ่ม
-    //             const totalStock = rows.reduce((sum, r) => sum + Number(r['Stock'] || r['ສະຕັອກ'] || 0), 0);
-
-    //             const baseSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model);
-
-    //             // บันทึกสินค้าหลัก
-    //             const newProduct = await db.products.create({
-    //                 partner_id: partner.id,
-    //                 productType_id: Number(mainRow['Local_Cat_ID'] || mainRow['ລະຫັດປະເພດສິນຄ້າ'] || 1),
-    //                 global_category_id: globalCategoryId || undefined,
-    //                 system_sku: baseSystemSku,
-    //                 merchant_sku: mainRow['Parent_Merchant_SKU'] || mainRow['ລະຫັດສິນຄ້າຮ້ານ (ຫຼັກ)'] || null, // ใช้ SKU ถ้ามี
-    //                 product_name: productName,
-    //                 brand: String(mainRow['Brand'] || mainRow['ຍີ່ຫໍ້'] || ''),
-    //                 model: model,
-    //                 price: basePrice,
-    //                 stock_quantity: totalStock,
-    //                 allowed_loan_type: mainRow['Allowed_Loan_Type'] || mainRow['ປະເພດການຜ່ອນ'] || 'both',
-    //                 description: String(mainRow['ລາຍລະອຽດ'] || ''),
-    //                 is_active: 1
-    //             }, { transaction: t });
-
-    //             // 🟢 บันทึก Audit Log สำหรับสินค้าที่ Import (CREATE)
-    //             await logAudit('products', newProduct.id, 'CREATE', null, newProduct.toJSON(), userId, t);
-
-    //             const variants = [];
-    //             for (const row of rows) {
-    //                 const variantSku = row['Variant_Merchant_SKU'] || row['ລະຫັດສິນຄ້າຮ້ານ (ຍ່ອຍ)'];
-    //                 const color = row['Color'] || row['ສີ'];
-    //                 const size = row['Size_Capacity'] || row['ຂະໜາດ/ຄວາມຈຸ'];
-
-    //                 // 🌟 สร้าง Variant เมื่อมีข้อมูลระบุความต่าง หรือเป็นสินค้าชิ้นเดียวที่บังคับสร้าง Variant
-    //                 if (color || size || variantSku || rows.length === 1) {
-    //                     const vCode = `${color || ''}${size || ''}`;
-    //                     const vSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model, vCode);
-
-    //                     variants.push({
-    //                         product_id: newProduct.id,
-    //                         system_sku: vSystemSku,
-    //                         merchant_sku: variantSku || null,
-    //                         color: color || null,
-    //                         size_or_capacity: size || null,
-    //                         price: Number(row['Price'] || row['ລາຄາ'] || basePrice),
-    //                         stock_quantity: Number(row['Stock'] || row['ສະຕັອກ'] || 0),
-    //                         weight_gram: Number(row['Weight_Gram'] || row['ນ້ຳໜັກ(ກຣາມ)'] || 0),
-    //                         image_url: row['Image_URL'] || row['ລິ້ງຮູບພາບ'] || null
-    //                     });
-    //                 }
-    //             }
-
-    //             if (variants.length > 0) {
-    //                 const createdVariants = await db.product_variants.bulkCreate(variants, { transaction: t });
-
-    //                 // 🟢 บันทึก Audit Log สำหรับ Variants ที่ Import
-    //                 for (const variant of createdVariants) {
-    //                     await logAudit('product_variants', variant.id || 0, 'CREATE', null, variant.toJSON(), userId, t);
-    //                 }
-    //             }
-    //             importedCount++;
-    //         }
-
-    //         await t.commit();
-    //         await redisService.delByPattern('cache:products:*');
-    //         return res.status(201).json({ success: true, message: 'ນຳເຂົ້າສິນຄ້າສຳເລັດ', importedCount });
-    //     } catch (error: any) {
-    //         await t.rollback();
-    //         logger.error('Import Product Error:', error);
-
-    //         // ====================================================================
-    //         // 🌟 ดักจับ Error รหัส SKU ซ้ำกัน (ครอบคลุมทั้งตารางหลัก และ ตารางย่อย)
-    //         // ====================================================================
-    //         if (error.name === 'SequelizeUniqueConstraintError') {
-    //             const duplicateError = error.errors?.find((e: any) => 
-    //                 e.path === 'unique_merchant_sku' || // ของตาราง variants
-    //                 e.path === 'product_variants.unique_merchant_sku' || // ของตาราง variants (บางเวอร์ชัน)
-    //                 e.path === 'unique_product_merchant_sku' || // 🟢 เพิ่มของตาราง products
-    //                 e.path === 'products.unique_product_merchant_sku' // 🟢 เพิ่มของตาราง products (บางเวอร์ชัน)
-    //             );
-
-    //             if (duplicateError) {
-    //                 // ตัดเอาเฉพาะรหัส SKU มาแสดง (เอาตัวเลข ID ด้านหน้าออก)
-    //                 const rawValue = duplicateError.value || '';
-    //                 const skuOnly = rawValue.includes('-') ? rawValue.split('-').slice(1).join('-') : rawValue;
-
-    //                 // ส่ง Status 400 พร้อมข้อความแจ้งเตือนภาษาลาว
-    //                 return res.status(400).json({
-    //                     success: false,
-    //                     message: `ພົບລະຫັດສິນຄ້າຊ້ຳກັນ: '${skuOnly}' ໃນຖານຂໍ້ມູນ ຫຼື ໄຟລ໌ Excel. ກະລຸນາກວດສອບ ແລະ ແກ້ໄຂລະຫັດ Merchant SKU ບໍ່ໃຫ້ຊ້ຳກັນ.`
-    //                 });
-    //             }
-    //         }
-
-    //         // ถ้าเป็น Error อื่นๆ ให้โยนไปหา Error Handler หลัก
-    //         next(error);
-    //     }
-    // }
 
 
     // =======================================================
