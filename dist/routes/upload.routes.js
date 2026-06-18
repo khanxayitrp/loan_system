@@ -171,6 +171,28 @@ router.put('/document/:document_id', upload_middleware_1.uploadDocument.single('
  *         description: Image uploaded
  */
 router.post('/product/:product_id/image', upload_middleware_1.uploadProductImage.single('file'), upload_controller_1.default.uploadProductImage);
+/**
+ * @swagger
+ * /upload/variant-image:
+ *   post:
+ *     summary: Upload variant image
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Variant image uploaded
+ */
 router.post('/variant-image', upload_middleware_1.uploadVariantImage.single('file'), upload_controller_1.default.uploadVariantImage);
 /**
  * @swagger
@@ -205,7 +227,7 @@ router.post('/variant-image', upload_middleware_1.uploadVariantImage.single('fil
 router.post('/product/:product_id/gallery', upload_middleware_1.uploadProductImage.array('files', 5), upload_controller_1.default.uploadProductGallery);
 /**
  * @swagger
- * /upload/location/{customer_id}/image:
+ * /upload/location/{customer_id}/image/{application_id}:
  *   post:
  *     summary: Upload customer location image
  *     tags: [Upload]
@@ -214,6 +236,11 @@ router.post('/product/:product_id/gallery', upload_middleware_1.uploadProductIma
  *     parameters:
  *       - in: path
  *         name: customer_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: application_id
  *         required: true
  *         schema:
  *           type: integer
@@ -292,5 +319,33 @@ router.post('/shop/:partner_id/logo', upload_middleware_1.uploadShopLogo.single(
  *         description: Proof uploaded
  */
 router.post('/payment/:transaction_id/proof', upload_middleware_1.uploadPaymentProof.single('file'), upload_controller_1.default.uploadPaymentProof);
+/**
+ * @swagger
+ * /upload/signature/{application_id}:
+ *   post:
+ *     summary: Upload signature image
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Signature uploaded
+ */
 router.post('/signature/:application_id', upload_middleware_1.uploadSignature.single('file'), upload_controller_1.default.uploadSignature);
 exports.default = router;

@@ -26,7 +26,7 @@ const getRedisStore = (prefixName) => {
 exports.globalLimiter = (0, express_rate_limit_1.default)({
     store: getRedisStore('rate-limit:global:'), // 👈 ใส่ Prefix สำหรับ Global
     windowMs: 15 * 60 * 1000, // 15 ນາທີ
-    max: 150, // ອະນຸຍາດ 150 Request ຕໍ່ 1 IP
+    max: 200, // ອະນຸຍາດ 200 Request ຕໍ່ 1 IP
     message: {
         success: false,
         message: "ມີການຮ້ອງຂໍຫຼາຍເກີນໄປ, ກະລຸນາລອງໃໝ່ຫຼັງຈາກ 15 ນາທີ"
@@ -40,7 +40,7 @@ exports.globalLimiter = (0, express_rate_limit_1.default)({
 exports.heavyTaskLimiter = (0, express_rate_limit_1.default)({
     store: getRedisStore('rate-limit:heavy:'), // 👈 ใส่ Prefix สำหรับ Heavy Task
     windowMs: 5 * 60 * 1000, // 5 ນາທີ
-    max: 25, // ອະນຸຍາດແຄ່ 25 Request ຕໍ່ 1 IP (ປ້ອງກັນ Server ຄ້າງ)
+    max: 60, // ອະນຸຍາດແຄ່ 60 Request ຕໍ່ 1 IP (ປ້ອງກັນ Server ຄ້າງ)
     message: {
         success: false,
         message: "ສ້າງເອກະສານຫຼາຍເກີນໄປ ເພື່ອປ້ອງກັນເຊີບເວີເຮັດວຽກໜັກ, ກະລຸນາລອງໃໝ່ໃນອີກ 5 ນາທີ"

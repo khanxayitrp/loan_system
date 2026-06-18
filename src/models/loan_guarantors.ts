@@ -5,6 +5,7 @@ import type { loan_applications, loan_applicationsId } from './loan_applications
 export interface loan_guarantorsAttributes {
   id: number;
   application_id: number;
+  ref_Type?: string; // 🟢 ເພີ່ມໃໝ່
   name: string;
   identity_number?: string;
   date_of_birth?: string;
@@ -26,12 +27,14 @@ export interface loan_guarantorsAttributes {
 
 export type loan_guarantorsPk = "id";
 export type loan_guarantorsId = loan_guarantors[loan_guarantorsPk];
-export type loan_guarantorsOptionalAttributes = "id" | "identity_number" | "date_of_birth" | "age" | "phone" | "address" | "province_id" | "district_id" | "occupation" | "relationship" | "work_company_name" | "work_phone" | "work_location" | "work_province_id" | "work_district_id" | "work_position" | "work_salary";
+// 🟢 ເພີ່ມ "ref_Type" ເຂົ້າໃນ OptionalAttributes
+export type loan_guarantorsOptionalAttributes = "id" | "ref_Type" | "identity_number" | "date_of_birth" | "age" | "phone" | "address" | "province_id" | "district_id" | "occupation" | "relationship" | "work_company_name" | "work_phone" | "work_location" | "work_province_id" | "work_district_id" | "work_position" | "work_salary";
 export type loan_guarantorsCreationAttributes = Optional<loan_guarantorsAttributes, loan_guarantorsOptionalAttributes>;
 
 export class loan_guarantors extends Model<loan_guarantorsAttributes, loan_guarantorsCreationAttributes> implements loan_guarantorsAttributes {
   id!: number;
   application_id!: number;
+  ref_Type?: string; // 🟢 ເພີ່ມໃໝ່
   name!: string;
   identity_number?: string;
   date_of_birth?: string;
@@ -71,6 +74,12 @@ export class loan_guarantors extends Model<loan_guarantorsAttributes, loan_guara
         model: 'loan_applications',
         key: 'id'
       }
+    },
+    ref_Type: { // 🟢 ເພີ່ມໃໝ່
+      type: DataTypes.ENUM('guarantor', 'reference'),
+      field: 'ref_Type',
+      allowNull: true,
+      defaultValue: null
     },
     name: {
       type: DataTypes.STRING(255),

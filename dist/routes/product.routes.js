@@ -95,6 +95,7 @@ router.post('/import', auth_middleware_1.verifyToken, upload.single('file'), pro
  *         description: Product data
  */
 router.get('/:id', product_controller_1.default.getProductById);
+router.get('/:productId/variants', auth_middleware_1.verifyToken, product_controller_1.default.getVariantsByProductId);
 /**
  * @swagger
  * /products/{id}:

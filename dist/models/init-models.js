@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.db = exports.wishlists = exports.vouchers = exports.users = exports.user_refresh_tokens = exports.user_permissions = exports.repayments = exports.repayment_schedules = exports.provinces = exports.promotions = exports.products = exports.product_variants = exports.product_types = exports.product_reviews = exports.product_gallery = exports.point_ledgers = exports.payment_transactions = exports.partners = exports.orders = exports.order_items = exports.loan_payments = exports.loan_income_assessments = exports.loan_guarantors = exports.loan_field_visits = exports.loan_contract = exports.loan_cib_history_details = exports.loan_cib_checks = exports.loan_call_verifications = exports.loan_basic_verifications = exports.loan_approval_logs = exports.loan_applications = exports.global_categories = exports.features = exports.document_signatures = exports.districts = exports.delivery_receipts = exports.customers = exports.customer_work_info = exports.customer_vouchers = exports.customer_points = exports.customer_locations = exports.customer_documents = exports.customer_credits = exports.cus_requestform = exports.credit_ledgers = exports.carts = exports.cart_items = exports.audit_logs = exports.application_documents = void 0;
+exports.wishlists = exports.vouchers = exports.users = exports.user_refresh_tokens = exports.user_permissions = exports.user_devices = exports.repayments = exports.repayment_schedules = exports.provinces = exports.promotions = exports.products = exports.product_variants = exports.product_types = exports.product_reviews = exports.product_gallery = exports.point_ledgers = exports.payment_transactions = exports.partners = exports.orders = exports.order_items = exports.notifications = exports.loan_payments = exports.loan_income_assessments = exports.loan_guarantors = exports.loan_field_visits = exports.loan_contract = exports.loan_cib_history_details = exports.loan_cib_checks = exports.loan_call_verifications = exports.loan_basic_verifications = exports.loan_approval_logs = exports.loan_applications = exports.global_categories = exports.features = exports.document_signatures = exports.districts = exports.delivery_receipts = exports.customers = exports.customer_work_info = exports.customer_vouchers = exports.customer_points = exports.customer_locations = exports.customer_documents = exports.customer_credits = exports.cus_requestform = exports.credit_ledgers = exports.carts = exports.cart_items = exports.audit_logs = exports.application_documents = void 0;
+exports.db = void 0;
 exports.initModels = initModels;
 const application_documents_1 = require("./application_documents");
 Object.defineProperty(exports, "application_documents", { enumerable: true, get: function () { return application_documents_1.application_documents; } });
@@ -63,6 +64,8 @@ const loan_income_assessments_1 = require("./loan_income_assessments");
 Object.defineProperty(exports, "loan_income_assessments", { enumerable: true, get: function () { return loan_income_assessments_1.loan_income_assessments; } });
 const loan_payments_1 = require("./loan_payments");
 Object.defineProperty(exports, "loan_payments", { enumerable: true, get: function () { return loan_payments_1.loan_payments; } });
+const notifications_1 = require("./notifications");
+Object.defineProperty(exports, "notifications", { enumerable: true, get: function () { return notifications_1.notifications; } });
 const order_items_1 = require("./order_items");
 Object.defineProperty(exports, "order_items", { enumerable: true, get: function () { return order_items_1.order_items; } });
 const orders_1 = require("./orders");
@@ -91,6 +94,8 @@ const repayment_schedules_1 = require("./repayment_schedules");
 Object.defineProperty(exports, "repayment_schedules", { enumerable: true, get: function () { return repayment_schedules_1.repayment_schedules; } });
 const repayments_1 = require("./repayments");
 Object.defineProperty(exports, "repayments", { enumerable: true, get: function () { return repayments_1.repayments; } });
+const user_devices_1 = require("./user_devices");
+Object.defineProperty(exports, "user_devices", { enumerable: true, get: function () { return user_devices_1.user_devices; } });
 const user_permissions_1 = require("./user_permissions");
 Object.defineProperty(exports, "user_permissions", { enumerable: true, get: function () { return user_permissions_1.user_permissions; } });
 const user_refresh_tokens_1 = require("./user_refresh_tokens");
@@ -132,6 +137,7 @@ function initModels(sequelize) {
     const loan_guarantors = loan_guarantors_1.loan_guarantors.initModel(sequelize);
     const loan_income_assessments = loan_income_assessments_1.loan_income_assessments.initModel(sequelize);
     const loan_payments = loan_payments_1.loan_payments.initModel(sequelize);
+    const notifications = notifications_1.notifications.initModel(sequelize);
     const order_items = order_items_1.order_items.initModel(sequelize);
     const orders = orders_1.orders.initModel(sequelize);
     const partners = partners_1.partners.initModel(sequelize);
@@ -146,6 +152,7 @@ function initModels(sequelize) {
     const provinces = provinces_1.provinces.initModel(sequelize);
     const repayment_schedules = repayment_schedules_1.repayment_schedules.initModel(sequelize);
     const repayments = repayments_1.repayments.initModel(sequelize);
+    const user_devices = user_devices_1.user_devices.initModel(sequelize);
     const user_permissions = user_permissions_1.user_permissions.initModel(sequelize);
     const user_refresh_tokens = user_refresh_tokens_1.user_refresh_tokens.initModel(sequelize);
     const users = users_1.users.initModel(sequelize);
@@ -239,6 +246,12 @@ function initModels(sequelize) {
     product_types.hasMany(loan_contract, { as: "loan_contracts", foreignKey: "producttype_id" });
     products.belongsTo(product_types, { as: "productType", foreignKey: "productType_id" });
     product_types.hasMany(products, { as: "products", foreignKey: "productType_id" });
+    loan_applications.belongsTo(product_variants, { as: "variant", foreignKey: "variant_id" });
+    product_variants.hasMany(loan_applications, { as: "loan_applications", foreignKey: "variant_id" });
+    loan_contract.belongsTo(product_variants, { as: "variant", foreignKey: "variant_id" });
+    product_variants.hasMany(loan_contract, { as: "loan_contracts", foreignKey: "variant_id" });
+    order_items.belongsTo(product_variants, { as: "variant", foreignKey: "variant_id" });
+    product_variants.hasMany(order_items, { as: "order_items", foreignKey: "variant_id" });
     cart_items.belongsTo(products, { as: "product", foreignKey: "product_id" });
     products.hasMany(cart_items, { as: "cart_items", foreignKey: "product_id" });
     loan_applications.belongsTo(products, { as: "product", foreignKey: "product_id" });
@@ -267,6 +280,8 @@ function initModels(sequelize) {
     users.hasMany(cus_requestform, { as: "cus_requestforms", foreignKey: "created_by" });
     cus_requestform.belongsTo(users, { as: "updated_by_user", foreignKey: "updated_by" });
     users.hasMany(cus_requestform, { as: "updated_by_cus_requestforms", foreignKey: "updated_by" });
+    customer_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by" });
+    users.hasMany(customer_documents, { as: "customer_documents", foreignKey: "uploaded_by" });
     customers.belongsTo(users, { as: "user", foreignKey: "user_id" });
     users.hasMany(customers, { as: "customers", foreignKey: "user_id" });
     delivery_receipts.belongsTo(users, { as: "approver", foreignKey: "approver_id" });
@@ -309,8 +324,6 @@ function initModels(sequelize) {
     users.hasMany(user_refresh_tokens, { as: "user_refresh_tokens", foreignKey: "user_id" });
     customer_vouchers.belongsTo(vouchers, { as: "voucher", foreignKey: "voucher_id" });
     vouchers.hasMany(customer_vouchers, { as: "customer_vouchers", foreignKey: "voucher_id" });
-    customer_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by" });
-    users.hasMany(customer_documents, { as: "uploaded_customer_documents", foreignKey: "uploaded_by" });
     return {
         sequelize: sequelize,
         application_documents: application_documents,
@@ -342,6 +355,7 @@ function initModels(sequelize) {
         loan_guarantors: loan_guarantors,
         loan_income_assessments: loan_income_assessments,
         loan_payments: loan_payments,
+        notifications: notifications,
         order_items: order_items,
         orders: orders,
         partners: partners,
@@ -356,6 +370,7 @@ function initModels(sequelize) {
         provinces: provinces,
         repayment_schedules: repayment_schedules,
         repayments: repayments,
+        user_devices: user_devices,
         user_permissions: user_permissions,
         user_refresh_tokens: user_refresh_tokens,
         users: users,

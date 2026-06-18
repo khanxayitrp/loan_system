@@ -52,4 +52,5 @@ router.post('/:loanId/created', auth_middleware_1.verifyToken, loan_contract_con
  *         description: Loan contract details
  */
 router.get('/:loanId', auth_middleware_1.verifyToken, loan_contract_controller_1.default.getLoanContract);
+router.put('/:loanId/updated', auth_middleware_1.verifyToken, loan_contract_controller_1.default.updateLoanContract);
 exports.default = router;

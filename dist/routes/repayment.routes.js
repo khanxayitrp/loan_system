@@ -75,6 +75,42 @@ const router = (0, express_1.Router)();
  *         description: Loan application not found or already closed
  */
 router.get('/early-payoff/:application_id', auth_middleware_1.verifyToken, repaymentController.getEarlyPayoffSummary);
+/**
+ * @swagger
+ * /repayment/schedule/{application_id}:
+ *   get:
+ *     summary: Get repayment schedule for a loan application
+ *     tags: [Repayment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the loan application
+ *     responses:
+ *       200:
+ *         description: Repayment schedule retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: Invalid application_id format
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Loan application not found
+ */
 router.get('/schedule/:application_id', auth_middleware_1.verifyToken, repaymentController.getRepaymentSchedule);
 /**
  * @swagger

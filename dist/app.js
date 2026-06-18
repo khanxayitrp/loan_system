@@ -32,10 +32,11 @@ const authenticateJWT = (req, res, next) => {
 class App {
     constructor() {
         this.corsOptions = {
-            origin: ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.118:5173'], // Replace with your allowed origins
-            methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-            allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
+            origin: ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.118:5173'], // Replace with your allowed origins
+            methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+            allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token", "Accept", "Origin", "X-Requested-With"],
             credentials: true,
+            optionsSuccessStatus: 204
         };
         this.swaggerOptions = {
             definition: {
@@ -64,13 +65,17 @@ class App {
                     },
                 },
             },
-            apis: ['./src/routes/*.ts'], // paths to files with annotations
+            apis: [
+                path_1.default.join(__dirname, './routes/*.ts'), // สำหรับตอนรันบน Mac (dev)
+                path_1.default.join(__dirname, './routes/*.js') // สำหรับตอนรันบน Server (production)
+            ],
         };
         this.app = (0, express_1.default)();
         this.middleware();
         this.routes();
     }
     middleware() {
+        this.app.use((0, cors_1.default)(this.corsOptions));
         this.app.set('trust proxy', 1); // ✅ Fix express-rate-limit warning
         // ✅ ເພີ່ມ timeout middleware ກ່ອນ routes
         this.app.use((req, res, next) => {
@@ -86,7 +91,6 @@ class App {
         // ✅ Serve uploaded files publicly (e.g., /uploads/documents/xyz.pdf)
         this.app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
         this.app.use(this.requestLogger);
-        this.app.use((0, cors_1.default)(this.corsOptions));
         this.app.use(express_1.default.json({ limit: "50mb" }));
         this.app.use(express_1.default.urlencoded({ extended: true }));
         this.app.use((0, cookie_parser_1.default)());

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.markApprovalSummaryPrinted = exports.getRepaymentSchedule = exports.createRepaymentSchedule = exports.createWithCustomer = exports.sentApplyDraft = exports.getAllLoan = exports.getAllLoanByCustomerId = exports.getLoanbyCusIDandLoanID = exports.getLoanById = exports.getLoanByLoanID = exports.changeStatus = exports.updateDraftLoanApplication = exports.updateLoanApplication = exports.cancelLoanApplicationbyCustomer = exports.createLoanApplication = void 0;
+exports.createFromSuperAppWebview = exports.markApprovalSummaryPrinted = exports.getRepaymentSchedule = exports.createRepaymentSchedule = exports.createWithCustomer = exports.sentApplyDraft = exports.getAllLoan = exports.getAllLoanByCustomerId = exports.getLoanbyCusIDandLoanID = exports.getLoanById = exports.getLoanByLoanID = exports.changeStatus = exports.updateDraftLoanApplication = exports.updateLoanApplication = exports.cancelLoanApplicationbyCustomer = exports.createLoanApplication = void 0;
 const loan_application_repo_1 = __importDefault(require("../repositories/loan_application.repo"));
 const repayment_repo_1 = __importDefault(require("../repositories/repayment.repo"));
 // import delivery_receiptRepo from '../repositories/delivery_receipt.repo'; // ไม่เห็นได้ใช้ในไฟล์นี้ แนะนำให้เอาออกถ้าไม่ได้ใช้
@@ -299,7 +299,7 @@ exports.sentApplyDraft = sentApplyDraft;
 const createWithCustomer = async (req, res, next) => {
     const transaction = await init_models_1.db.sequelize.transaction();
     try {
-        const { phone, otp, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt, product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment, interest_type, interest_rate_type, existing_customer_id } = req.body;
+        const { phone, otp, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt, product_id, variant_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment, interest_type, interest_rate_type, existing_customer_id } = req.body;
         // 🔍 ກວດສອບກ່ອນວ່າມັກຈາກພະນັກງານ (Staff ຫຼື Admin) ຫຼື ບໍ່
         const isEmployeeRequest = !!req.userPayload && (req.userPayload.role === 'staff' || req.userPayload.role === 'admin');
         const staffId = req.userPayload?.userId || null;
@@ -362,13 +362,27 @@ const createWithCustomer = async (req, res, next) => {
         const product = await init_models_1.db.products.findByPk(product_id, { transaction, lock: transaction.LOCK.UPDATE });
         if (!product)
             throw new errors_1.NotFoundError('ບໍ່ພົບສິນຄ້າ');
-        const final_total = total_amount || (product.price * quantity);
+        let variant = null;
+        let basePriceToUse = product.price; // ຕັ້ງຕົ້ນດ້ວຍລາຄາສິນຄ້າຫຼັກ
+        // ຖ້າມີການສົ່ງ variant_id ມາ ໃຫ້ກວດສອບກ່ອນ
+        if (variant_id) {
+            variant = await init_models_1.db.product_variants.findByPk(variant_id, { transaction });
+            if (!variant)
+                throw new errors_1.NotFoundError('ບໍ່ພົບຕົວເລືອກຍ່ອຍ (Variant) ທີ່ເລືອກ');
+            // ກວດສອບຄວາມປອດໄພ: Variant ຕ້ອງຂຶ້ນກັບ Product ໂຕນີ້ແທ້
+            if (Number(variant.product_id) !== Number(product.id)) {
+                throw new errors_1.BadRequestError('ຕົວເລືອກຍ່ອຍນີ້ ບໍ່ໄດ້ຂຶ້ນກັບສິນຄ້າທີ່ເລືອກ');
+            }
+            basePriceToUse = variant.price; // ປ່ຽນໄປໃຊ້ລາຄາຂອງ Variant ແທນ
+        }
+        const final_total = total_amount || (basePriceToUse * quantity);
         // =======================================================
         // 4. Create Loan Application
         // =======================================================
         const loanPayload = {
             customer_id: customer.id,
             product_id,
+            variant_id: variant_id || null,
             total_amount: final_total,
             loan_period: loan_period || 0,
             interest_rate_at_apply: interest_rate_at_apply || 0,
@@ -401,6 +415,7 @@ const createWithCustomer = async (req, res, next) => {
                 application_id: application.id,
                 customer_id: customer.id,
                 product_id,
+                variant_id: application.variant_id || null,
                 loan_id: application.loan_id,
                 total_amount: final_total,
                 loan_period: loan_period,
@@ -438,7 +453,14 @@ const createWithCustomer = async (req, res, next) => {
                     productType_id: product.productType_id,
                     product_name: product.product_name,
                     price: product.price,
-                    interest_rate: interest_rate_at_apply
+                    interest_rate: interest_rate_at_apply,
+                    // 🟢 4. ແນບຂໍ້ມູນ Variant ກັບຄືນໄປພ້ອມ
+                    variant: variant ? {
+                        id: variant.id,
+                        color: variant.color,
+                        size: variant.size_or_capacity,
+                        merchant_sku: variant.merchant_sku
+                    } : null
                 },
                 requester: requesterData,
                 approver: null,
@@ -463,14 +485,39 @@ const createRepaymentSchedule = async (req, res, next) => {
         if (!scheduleData)
             throw new errors_1.BadRequestError('scheduleData is required');
         console.log('Creating repayment schedule for application_id:', application_id);
+        // =========================================================
+        // 🌟 🟢 ເພີ່ມໃໝ່: WIPE OLD DATA IN MYSQL (ລ້າງຂໍ້ມູນເກົ່າໃນ MySQL)
+        // ເພື່ອປ້ອງກັນຂໍ້ມູນເກົ່າ (schedule_id: 5) ມາປົນກັບຂໍ້ມູນໃໝ່
+        // =========================================================
+        // await db.repayments.destroy({ 
+        //     where: { application_id: application_id }, 
+        //     transaction: transaction 
+        // });
+        // // 💡 ໝາຍເຫດ: ຖ້າລະບົບຂອງທ່ານມີຕາຕະລາງຫົວຂໍ້ (repayment_schedules) ກໍໃຫ້ລຶບອອກນຳ
+        // await db.repayment_schedules.destroy({ 
+        //     where: { application_id: application_id }, 
+        //     transaction: transaction 
+        // });
+        // =========================================================
         const result = await repayment_repo_1.default.saveRepaymentSchedule(application_id, scheduleData, Number(userId), transaction);
+        // 🟢 ดึงข้อมูล Loan Application เพื่อเอาเลข loan_id มาใช้ลบ Cache PDF
+        // (ปรับวิธี query ตามโครงสร้าง ORM ของคุณนะครับ)
+        const application = await init_models_1.db.loan_applications.findOne({
+            where: { id: application_id },
+            transaction: transaction
+        });
         await transaction.commit();
         // =========================================================
         // 🟢 THE ULTIMATE CACHE INVALIDATION (ລ້າງແຄຊຖິ້ມຫຼັງຈາກສ້າງໃໝ່!)
         // =========================================================
         await redis_service_1.default.del(`cache:repayment_schedule:${application_id}`);
-        // ລ້າງແຄຊ PDF ຕາຕະລາງຜ່ອນນຳ (ຖ້າມີການ Gen PDF)
-        await redis_service_1.default.del(`cache:pdf:schedule:${application_id}`);
+        // ลบ Cache PDF โดยใช้ loan_id (หรือ order_id) ให้ตรงกับตอนที่สร้าง PDF
+        if (application && application.loan_id) {
+            const loanId = application.loan_id; // เช่น LN-8-2026-000001
+            // ⚠️ สำคัญ: ลองไปเช็กใน API Generate PDF ว่าตอน set cache ใช้ Key ชื่ออะไรเป๊ะๆ แล้วแก้ตรงนี้ให้ตรงกัน
+            await redis_service_1.default.del(`cache:pdf:schedule:${loanId}`);
+            // หรือถ้าชื่อ Key ไม่มี prefix ก็สั่งลบตามนั้น เช่น await redisService.del(loanId);
+        }
         return res.status(201).json({
             success: true,
             message: 'Repayment schedule created',
@@ -554,3 +601,91 @@ const markApprovalSummaryPrinted = async (req, res, next) => {
     }
 };
 exports.markApprovalSummaryPrinted = markApprovalSummaryPrinted;
+const createFromSuperAppWebview = async (req, res, next) => {
+    const transaction = await init_models_1.db.sequelize.transaction();
+    try {
+        // 1. ດຶງຂໍ້ມູນລູກຄ້າອອກມາຈາກ Token 
+        const customerId = req.customerPayload.userId;
+        const phone = req.customerPayload.phone;
+        const { otp, // 👈 ຮັບຄ່າ OTP ຈາກໜ້າບ້ານ
+        first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt, product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment, interest_type, interest_rate_type } = req.body;
+        // =======================================================
+        // 2. ກວດສອບ OTP ໂດຍໃຊ້ເບີໂທຈາກ Token ເພື່ອຄວາມປອດໄພ
+        // =======================================================
+        if (!phone || !otp) {
+            throw new errors_1.ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
+        }
+        const verificationResult = await otp_service_1.otpService.verifyOTP({
+            phoneNumber: phone,
+            otp
+        });
+        if (!verificationResult.success) {
+            throw new errors_1.BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
+        }
+        // =======================================================
+        // 3. ກວດສອບ ແລະ ອັບເດດຂໍ້ມູນລູກຄ້າ (Customer)
+        // =======================================================
+        const customer = await init_models_1.db.customers.findByPk(customerId, {
+            transaction,
+            lock: transaction.LOCK.UPDATE
+        });
+        if (!customer) {
+            throw new errors_1.NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້າໃນລະບົບ ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່');
+        }
+        const customerUpdatePayload = {
+            first_name: first_name || customer.first_name,
+            last_name: last_name || customer.last_name,
+            province_id, district_id, address, age, occupation, income_per_month, other_debt
+        };
+        const oldCustomerData = customer.toJSON();
+        await customer.update(customerUpdatePayload, { transaction });
+        await (0, auditLogger_1.logAudit)('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, customer.id, transaction);
+        // =======================================================
+        // 4. ກວດສອບສິນຄ້າ (Validate Product)
+        // =======================================================
+        const product = await init_models_1.db.products.findByPk(product_id, { transaction });
+        if (!product)
+            throw new errors_1.NotFoundError('ບໍ່ພົບສິນຄ້າ');
+        const final_total = total_amount || (product.price * quantity);
+        // =======================================================
+        // 5. ສ້າງຄຳຂໍສິນເຊື່ອ (Create Loan Application)
+        // =======================================================
+        const loanPayload = {
+            customer_id: customer.id,
+            product_id,
+            total_amount: final_total,
+            loan_period: loan_period || 0,
+            interest_rate_at_apply: interest_rate_at_apply || 0,
+            interest_type: interest_type || 'flat_rate',
+            interest_rate_type: interest_rate_type || 'monthly',
+            down_payment: down_payment || 0,
+            monthly_pay: monthly_pay,
+            is_confirmed: 0,
+            status: 'pending',
+            requester_id: null
+        };
+        const application = await loan_application_repo_1.default.createLoanApplication(loanPayload, { transaction });
+        await (0, auditLogger_1.logAudit)('loan_applications', application.id, 'CREATE', null, application.toJSON(), customer.id, transaction);
+        await transaction.commit();
+        return res.status(201).json({
+            success: true,
+            message: 'ຍື່ນຄຳຂໍສິນເຊື່ອຜ່ານ Super App ສຳເລັດແລ້ວ',
+            data: {
+                application_id: application.id,
+                loan_id: application.loan_id,
+                status: application.status,
+                customer_id: customer.id,
+                total_amount: application.total_amount,
+                product: {
+                    product_id: product.id,
+                    product_name: product.product_name
+                }
+            }
+        });
+    }
+    catch (error) {
+        await transaction.rollback();
+        next(error);
+    }
+};
+exports.createFromSuperAppWebview = createFromSuperAppWebview;

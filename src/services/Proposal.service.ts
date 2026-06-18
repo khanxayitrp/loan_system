@@ -118,6 +118,10 @@ class ProposalService {
             if (data.name || data.identity_number || data.Guarantorphone) {
                 const mapGuarantorData = {
                     application_id: data.loan_id,
+
+                    // 🟢 ເພີ່ມແຖວນີ້ເພື່ອຮັບຄ່າປະເພດ (Guarantor ຫຼື Reference) ຈາກໜ້າບ້ານ
+                    ref_Type: data.ref_type || null,
+
                     name: data.name || null,
                     identity_number: data.identity_number || null,
                     date_of_birth: data.GuarantorDOB || null,

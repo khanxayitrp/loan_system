@@ -35,6 +35,14 @@ class order_items extends sequelize_1.Model {
                     key: 'id'
                 }
             },
+            variant_id: {
+                type: sequelize_1.DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'product_variants',
+                    key: 'id'
+                }
+            },
             quantity: {
                 type: sequelize_1.DataTypes.INTEGER,
                 allowNull: false,
@@ -103,6 +111,13 @@ class order_items extends sequelize_1.Model {
                     using: "BTREE",
                     fields: [
                         { name: "product_id" },
+                    ]
+                },
+                {
+                    name: "order_items_ibfk_variant",
+                    using: "BTREE",
+                    fields: [
+                        { name: "variant_id" },
                     ]
                 },
             ]

@@ -16,9 +16,9 @@ const generateLoanPDF = async (req, res) => {
     let browser = null;
     try {
         const { formData, loanId } = req.body;
-        console.log('✅ formData received for PDF generation:', formData); // ตรวจสอบข้อมูลที่ได้รับก่อนส่งให้ Template
+        console.log('✅ formData received for PDF generation:', formData);
         // =========================================================
-        // 🟢 2. Check Redis Cache ก่อนสร้างใหม่
+        // 🟢 1. Check Redis Cache ກ່ອນສ້າງໃໝ່
         // =========================================================
         if (loanId) {
             const cacheKey = `cache:pdf:loan-form:${loanId}`;
@@ -33,228 +33,189 @@ const generateLoanPDF = async (req, res) => {
         }
         // =========================================================
         console.log('📄 Generating PDF for loan:', loanId);
-        // ✅ 1. อ่าน HTML Template
+        // ✅ 2. ອ່ານ HTML Template
         const templatePath = path_1.default.join(__dirname, '../templates/loan-form-template.html');
         const templateSource = fs_1.default.readFileSync(templatePath, 'utf-8');
-        // ✅ 2. หา Path ของไฟล์โลโก้
-        const logoPath = path_1.default.resolve(__dirname, '../../public/image/LOGO INSEE.png');
-        const logoBase64 = fs_1.default.existsSync(logoPath) ? fs_1.default.readFileSync(logoPath, 'base64') : '';
-        const logoDataUri = logoBase64 ? `data:image/png;base64,${logoBase64}` : '';
-        const logoUrl = `file://${logoPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
-        // ✅ 3. หา Path ของไฟล์ฟ้อนต์
-        // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
-        // ປ່ຽນເປັນ:
+        // =========================================================
+        // 🟢 3. ອ່ານຮູບພາບ Header ແລະ Footer ເປັນ Base64
+        // =========================================================
+        const headerPath = path_1.default.resolve(__dirname, '../../public/image/latter head Insee1.png');
+        const headerBase64 = fs_1.default.existsSync(headerPath) ? fs_1.default.readFileSync(headerPath, 'base64') : '';
+        const headerDataUri = headerBase64 ? `data:image/png;base64,${headerBase64}` : '';
+        if (!fs_1.default.existsSync(headerPath))
+            console.error('❌ Header image not found at:', headerPath);
+        const footerPath = path_1.default.resolve(__dirname, '../../public/image/footer.png');
+        const footerBase64 = fs_1.default.existsSync(footerPath) ? fs_1.default.readFileSync(footerPath, 'base64') : '';
+        const footerDataUri = footerBase64 ? `data:image/png;base64,${footerBase64}` : '';
+        if (!fs_1.default.existsSync(footerPath))
+            console.error('❌ Footer image not found at:', footerPath);
+        // ✅ 4. ຈັດການ Path ຂອງ Font
         const fontPath = path_1.default.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
-        // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
-        // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
         const fontBase64 = fs_1.default.existsSync(fontPath) ? fs_1.default.readFileSync(fontPath, 'base64') : '';
-        // 🟢 ສ້າງ Data URI ສຳລັບ Font
         const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
-        if (!fs_1.default.existsSync(logoPath))
-            console.error('❌ Logo file not found at:', logoPath);
         if (!fs_1.default.existsSync(fontPath))
             console.error('❌ Font file not found at:', fontPath);
-        // ✅ 4. แทนที่ Placeholder
+        // ✅ 5. ແທນທີ່ Placeholder ຂອງ Font
         let htmlContent = templateSource;
-        htmlContent = htmlContent.replace('{{logoPath}}', logoDataUri);
         htmlContent = htmlContent.replace('{{fontPath}}', fontUrl);
-        // ✅ 5. Compile Template
+        // ✅ 6. Compile Template
         const templateCompiled = handlebars_1.default.compile(htmlContent);
-        const pType = formData.product?.type || ''; // ดึงค่าประเภทสินค้ามาเก็บไว้ก่อน
-        // ✅ 6. เตรียม Data
-        // const data = {
-        //     onlineChecked: 'checked',
-        //     offlineChecked: '',
-        //     // goldChecked: formData.product.type === 'gold' ? 'checked' : '',
-        //     // generalChecked: formData.product.type === 'general' ? 'checked' : '',
-        //     // motorcycleChecked: formData.product.type === 'motorcycle' ? 'checked' : '',
-        //     // 🟢 แก้ไขเงื่อนไข Checkbox ให้เช็คจากคำภาษาลาวที่ส่งมา
-        //     goldChecked: pType.includes('ຄຳ') ? 'checked' : '',
-        //     generalChecked: pType.includes('ທົ່ວໄປ') ? 'checked' : '',
-        //     motorcycleChecked: (pType.includes('ລົດ') || pType.includes('ລົດຈັກ')) ? 'checked' : '',
-        //     customer: {
-        //         fullname: formData.customer.fullname || '________________',
-        //         dob: formatDate(formData.customer.dob),
-        //         age: formData.customer.age || '___',
-        //         occupation: formData.customer.occupation || '________________',
-        //         phone: formData.customer.phone || '________________',
-        //         address: {
-        //             village: formData.customer.address.village || '____________',
-        //             district: formData.customer.address.district || '____________',
-        //             province: formData.customer.address.province || '____________'
-        //         },
-        //         idCard: formData.customer.idCard || '________________',
-        //         censusNo: formData.customer.censusNo || '________________',
-        //         unit: formData.customer.unit || '______',
-        //         issuePlace: formData.customer.issuePlace || '________________',
-        //         issueDate: formatDate(formData.customer.issueDate)
-        //     },
-        //     work: {
-        //         companyName: formData.work.companyName || '________________',
-        //         address: {
-        //             village: formData.work.address.village || '____________',
-        //             district: formData.work.address.district || '____________',
-        //             province: formData.work.address.province || '____________'
-        //         },
-        //         phone: formData.work.phone || '________________',
-        //         businessType: formData.work.businessType || '________________',
-        //         businessDetail: formData.work.businessDetail || '________________',
-        //         durationMonths: formData.work.durationMonths || '___',
-        //         durationYears: formData.work.durationYears || '___',
-        //         department: formData.work.department || '________________',
-        //         position: formData.work.position || '________________',
-        //         salary: formatCurrency(formData.work.salary)
-        //     },
-        //     product: {
-        //         type: formData.product?.type || formData.product?.type_name || formData.product?.productType?.type_name || '________________',
-        //         brand: formData.product.brand || '________________',
-        //         model: formData.product.model || '________________',
-        //         price: formatCurrency(formData.product.price),
-        //         downPayment: formatCurrency(formData.product.downPayment),
-        //         approvedAmount: formatCurrency(formData.product.approvedAmount),
-        //         loanTerm: formData.product.loanTerm || '___',
-        //         interestRate: formData.product.interestRate || '___',
-        //         totalInterest: formatCurrency(formData.product.totalInterest),
-        //         fee: formatCurrency(formData.product.fee),
-        //         firstInstallment: formatCurrency(formData.product.firstInstallment),
-        //         monthlyPayment: formatCurrency(formData.product.monthlyPayment),
-        //         paymentDay: formData.product.paymentDay || '___',
-        //         store: formData.product.store || '________________________________________________________'
-        //     },
-        //     hasGuarantor: formData.hasGuarantor || formData.hasReference,
-        //     guarantorChecked: formData.hasGuarantor ? 'checked' : '',
-        //     referenceChecked: formData.hasReference ? 'checked' : '',
-        //     guarantor: {
-        //         name: formData.guarantor?.name || '________________',
-        //         dob: formatDate(formData.guarantor?.dob),
-        //         age: formData.guarantor?.age || '___',
-        //         occupation: formData.guarantor?.occupation || '________________',
-        //         phone: formData.guarantor?.phone || '________________',
-        //         address: {
-        //             village: formData.guarantor?.address?.village || '____________',
-        //             district: formData.guarantor?.address?.district || '____________',
-        //             province: formData.guarantor?.address?.province || '____________'
-        //         },
-        //         idCard: formData.guarantor?.idCard || '________________',
-        //         parentChecked: formData.guarantor?.relationship === 'parent' ? 'checked' : '',
-        //         spouseChecked: formData.guarantor?.relationship === 'spouse' ? 'checked' : '',
-        //         otherChecked: formData.guarantor?.relationship === 'other' ? 'checked' : '',
-        //         relationshipOther: formData.guarantor?.relationshipOther || '',
-        //         work: {
-        //             companyName: formData.guarantor?.work?.companyName || '________________',
-        //             address: {
-        //                 village: formData.guarantor?.work?.address?.village || '____________',
-        //                 district: formData.guarantor?.work?.address?.district || '____________',
-        //                 province: formData.guarantor?.work?.address?.province || '____________'
-        //             },
-        //             position: formData.guarantor?.work?.position || '________________',
-        //             phone: formData.guarantor?.work?.phone || '________________',
-        //             salary: formatCurrency(formData.guarantor?.work?.salary)
-        //         }
-        //     },
-        //     signatures: {
-        //         borrowerDate: formatDate(formData.signatures?.borrowerDate),
-        //         guarantorDate: formatDate(formData.signatures?.guarantorDate),
-        //         staffDate: formatDate(formData.signatures?.staffDate)
-        //     }
-        // };
-        // ✅ 6. เตรียม Data
+        const pType = formData.product?.type || '';
+        // =========================================================
+        // 🟢 HELPER: ປ້ອງກັນຄ່າ undefined ຫຼື null
+        // =========================================================
+        const getVal = (val, defaultStr = '________________') => {
+            if (val === null || val === undefined || val === '' || String(val).trim().toLowerCase() === 'undefined') {
+                return defaultStr;
+            }
+            return val;
+        };
+        // =========================================================
+        // 🟢 HELPER: ແຍກທີ່ຢູ່ຈາກ String
+        // =========================================================
+        const parseAddress = (addressStr) => {
+            const defAddr = { village: '', district: '', province: '' };
+            if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined')
+                return defAddr;
+            const clean = (p) => {
+                if (!p)
+                    return '';
+                const trimmed = p.trim();
+                return trimmed.toLowerCase() === 'undefined' ? '' : trimmed;
+            };
+            if (addressStr.includes(',')) {
+                const parts = addressStr.split(',').map(clean);
+                return { village: parts[0] || '', district: parts[1] || '', province: parts[2] || '' };
+            }
+            else {
+                const parts = addressStr.split(' ').map(clean).filter(Boolean);
+                if (parts.length >= 3) {
+                    return { province: parts.pop() || '', district: parts.pop() || '', village: parts.join(' ') };
+                }
+                return { village: clean(addressStr), district: '', province: '' };
+            }
+        };
+        // =========================================================
+        // 🟢 HELPER: ແກ້ໄຂແລ້ວ: ດຶງບ້ານກົງໆ ແລະ ແປງເມືອງ/ແຂວງຈາກ ID
+        // =========================================================
+        const resolveAddress = (addressField, districtId, provinceId) => {
+            // 1. ບ້ານ: ດຶງຈາກ village ກົງໆເລີຍ ປ້ອງກັນ [object Object]
+            const exactVillage = typeof addressField === 'string' ? addressField : (addressField?.village || '');
+            // 2. ເມືອງ/ແຂວງ: ໃຊ້ fulladdress ແປງຈາກ ID
+            let fullStr = '';
+            if (typeof formatters_1.fulladdress === 'function') {
+                // ສົ່ງ exactVillage ທີ່ເປັນ String ແນ່ນອນເຂົ້າໄປ
+                fullStr = (0, formatters_1.fulladdress)(exactVillage, districtId, provinceId);
+            }
+            const parsed = parseAddress(fullStr);
+            return {
+                village: exactVillage, // 👈 ເອົາບ້ານຕາມ village ໂດຍຕົງ
+                district: parsed.district || addressField?.district || addressField?.district_name || '',
+                province: parsed.province || addressField?.province || addressField?.province_name || ''
+            };
+        };
+        // 🟢 ສະກັດທີ່ຢູ່ຂອງແຕ່ລະພາກສ່ວນ
+        const cusAddr = resolveAddress(formData.customer?.address, formData.customer?.address?.district_id || formData.customer?.district_id, formData.customer?.address?.province_id || formData.customer?.province_id);
+        const workAddr = resolveAddress(formData.work?.address, formData.work?.address?.district_id || formData.work?.district_id, formData.work?.address?.province_id || formData.work?.province_id);
+        const guaAddr = resolveAddress(formData.guarantor?.address, formData.guarantor?.address?.district_id || formData.guarantor?.district_id, formData.guarantor?.address?.province_id || formData.guarantor?.province_id);
+        const guaWorkAddr = resolveAddress(formData.guarantorWork?.address, formData.guarantorWork?.address?.district_id || formData.guarantorWork?.district_id, formData.guarantorWork?.address?.province_id || formData.guarantorWork?.province_id);
+        // ✅ 7. ກຽມ Data ເຂົ້າ Template
         const data = {
+            headerImagePath: headerDataUri,
+            footerImagePath: footerDataUri,
             onlineChecked: 'checked',
             offlineChecked: '',
-            // 🟢 แก้ไขเงื่อนไข Checkbox ให้เช็คจากคำภาษาลาวที่ส่งมา
             goldChecked: pType.includes('ຄຳ') ? 'checked' : '',
             generalChecked: pType.includes('ທົ່ວໄປ') ? 'checked' : '',
             motorcycleChecked: (pType.includes('ລົດ') || pType.includes('ລົດຈັກ')) ? 'checked' : '',
             customer: {
-                fullname: formData.customer?.fullname || '________________',
-                dob: (0, formatters_1.formatDate)(formData.customer?.dob),
-                age: formData.customer?.age || '___',
-                occupation: formData.customer?.occupation || '________________',
-                phone: formData.customer?.phone || '________________',
+                fullname: getVal(formData.customer?.fullname),
+                dob: getVal((0, formatters_1.formatDate)(formData.customer?.dob)),
+                age: getVal(formData.customer?.age, '___'),
+                occupation: getVal(formData.customer?.occupation),
+                phone: getVal(formData.customer?.phone),
                 address: {
-                    village: formData.customer?.address?.village || '____________',
-                    district: formData.customer?.address?.district || '____________',
-                    province: formData.customer?.address?.province || '____________'
+                    village: getVal(cusAddr.village, '____________'),
+                    district: getVal(cusAddr.district, '____________'),
+                    province: getVal(cusAddr.province, '____________')
                 },
-                idCard: formData.customer?.idCard || '________________',
-                censusNo: formData.customer?.censusBook || '________________', // 🟢 ປ່ຽນຈາກ censusNo ເປັນ censusBook
-                unit: formData.customer?.unit || '______',
-                issuePlace: formData.customer?.censusAuthorizeBy || formData.customer?.idCardPlace || '________________', // 🟢 ປ່ຽນການດຶງສະຖານທີ່ອອກ
-                issueDate: (0, formatters_1.formatDate)(formData.customer?.idCardIssueDate) // 🟢 ປ່ຽນຈາກ issueDate ເປັນ idCardIssueDate
+                idCard: getVal(formData.customer?.idCard),
+                censusNo: getVal(formData.customer?.censusBook),
+                unit: getVal(formData.customer?.unit, '______'),
+                issuePlace: getVal(formData.customer?.censusAuthorizeBy || formData.customer?.idCardPlace),
+                issueDate: getVal((0, formatters_1.formatDate)(formData.customer?.idCardIssueDate))
             },
             work: {
-                companyName: formData.work?.companyName || '________________',
+                companyName: getVal(formData.work?.companyName),
                 address: {
-                    village: formData.work?.address?.village || '____________',
-                    district: formData.work?.address?.district || '____________',
-                    province: formData.work?.address?.province || '____________'
+                    village: getVal(workAddr.village, '____________'),
+                    district: getVal(workAddr.district, '____________'),
+                    province: getVal(workAddr.province, '____________')
                 },
-                phone: formData.work?.phone || '________________',
-                businessType: formData.work?.businessType || '________________',
-                businessDetail: formData.work?.businessDetail || '________________',
-                durationMonths: formData.work?.workMonths || '___', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງກັບ Frontend
-                durationYears: formData.work?.workYears || '___', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງກັບ Frontend
-                department: formData.work?.department || '________________',
-                position: formData.work?.position || '________________',
-                salary: (0, formatters_1.formatCurrency)(formData.work?.salary)
+                phone: getVal(formData.work?.phone),
+                businessType: getVal(formData.work?.businessType),
+                businessDetail: getVal(formData.work?.businessDetail),
+                durationMonths: getVal(formData.work?.workMonths, '___'),
+                durationYears: getVal(formData.work?.workYears, '___'),
+                department: getVal(formData.work?.department),
+                position: getVal(formData.work?.position),
+                salary: getVal((0, formatters_1.formatCurrency)(formData.work?.salary))
             },
             product: {
-                type: formData.product?.type || formData.product?.type_name || formData.product?.productType?.type_name || '________________',
-                brand: formData.product?.brand || '________________',
-                model: formData.product?.model || '________________',
-                price: (0, formatters_1.formatCurrency)(formData.product?.price),
-                downPayment: (0, formatters_1.formatCurrency)(formData.product?.downPayment),
-                approvedAmount: (0, formatters_1.formatCurrency)(formData.product?.approvedAmount),
-                loanTerm: formData.product?.loanTerm || '___',
-                interestRate: formData.product?.interestRate || '___',
-                totalInterest: (0, formatters_1.formatCurrency)(formData.product?.totalInterest),
-                fee: (0, formatters_1.formatCurrency)(formData.product?.fee),
-                firstInstallment: (0, formatters_1.formatCurrency)(formData.product?.firstInstallment),
-                monthlyPayment: (0, formatters_1.formatCurrency)(formData.product?.monthlyPayment),
-                paymentDay: formData.product?.paymentDay || '___',
-                store: formData.shop?.branch || formData.product?.store || '________________________________________________________' // 🟢 ດຶງສາຂາຮ້ານມາໃສ່
+                type: getVal(formData.product?.type || formData.product?.type_name || formData.product?.productType?.type_name),
+                brand: getVal(formData.product?.brand),
+                model: getVal(formData.product?.model),
+                price: getVal((0, formatters_1.formatCurrency)(formData.product?.price)),
+                downPayment: getVal((0, formatters_1.formatCurrency)(formData.product?.downPayment)),
+                approvedAmount: getVal((0, formatters_1.formatCurrency)(formData.product?.approvedAmount)),
+                loanTerm: getVal(formData.product?.loanTerm, '___'),
+                interestRate: getVal(formData.product?.interestRate, '___'),
+                totalInterest: getVal((0, formatters_1.formatCurrency)(formData.product?.totalInterest)),
+                fee: getVal((0, formatters_1.formatCurrency)(formData.product?.fee)),
+                firstInstallment: getVal((0, formatters_1.formatCurrency)(formData.product?.firstInstallment)),
+                monthlyPayment: getVal((0, formatters_1.formatCurrency)(formData.product?.monthlyPayment)),
+                paymentDay: getVal(formData.product?.paymentDay, '___'),
+                store: getVal(formData.shop?.name || formData.product?.store, '________________________________________________________')
             },
             hasGuarantor: formData.hasGuarantor || formData.hasReference,
             guarantorChecked: formData.hasGuarantor ? 'checked' : '',
             referenceChecked: formData.hasReference ? 'checked' : '',
             guarantor: {
-                name: formData.guarantor?.fullname || '________________', // 🟢 ປ່ຽນຊື່ໃຫ້ກົງ
-                dob: (0, formatters_1.formatDate)(formData.guarantor?.dob),
-                age: formData.guarantor?.age || '___',
-                occupation: formData.guarantor?.occupation || '________________',
-                phone: formData.guarantor?.phone || '________________',
+                name: getVal(formData.guarantor?.fullname),
+                dob: getVal((0, formatters_1.formatDate)(formData.guarantor?.dob)),
+                age: getVal(formData.guarantor?.age, '___'),
+                occupation: getVal(formData.guarantor?.occupation),
+                phone: getVal(formData.guarantor?.phone),
                 address: {
-                    village: formData.guarantor?.address?.village || '____________',
-                    district: formData.guarantor?.address?.district || '____________',
-                    province: formData.guarantor?.address?.province || '____________'
+                    village: getVal(guaAddr.village, '____________'),
+                    district: getVal(guaAddr.district, '____________'),
+                    province: getVal(guaAddr.province, '____________')
                 },
-                idCard: formData.guarantor?.idCard || '________________',
+                idCard: getVal(formData.guarantor?.idCard),
                 parentChecked: formData.guarantor?.relationship === 'ພໍ່' || formData.guarantor?.relationship === 'ແມ່' ? 'checked' : '',
                 spouseChecked: formData.guarantor?.relationship === 'ຜົວ' || formData.guarantor?.relationship === 'ເມຍ' ? 'checked' : '',
                 otherChecked: (formData.guarantor?.relationship && !['ພໍ່', 'ແມ່', 'ຜົວ', 'ເມຍ'].includes(formData.guarantor?.relationship)) ? 'checked' : '',
                 relationshipOther: (!['ພໍ່', 'ແມ່', 'ຜົວ', 'ເມຍ'].includes(formData.guarantor?.relationship)) ? formData.guarantor?.relationship : '',
-                // 🟢 ແກ້ໄຂການດຶງຂໍ້ມູນວຽກຜູ້ຄ້ຳ ໃຫ້ດຶງຈາກ guarantorWork ໂດຍກົງ!
                 work: {
-                    companyName: formData.guarantorWork?.companyName || '________________',
+                    companyName: getVal(formData.guarantorWork?.companyName),
                     address: {
-                        village: formData.guarantorWork?.address?.village || '____________',
-                        district: formData.guarantorWork?.address?.district || '____________',
-                        province: formData.guarantorWork?.address?.province || '____________'
+                        village: getVal(guaWorkAddr.village, '____________'),
+                        district: getVal(guaWorkAddr.district, '____________'),
+                        province: getVal(guaWorkAddr.province, '____________')
                     },
-                    position: formData.guarantorWork?.position || '________________',
-                    phone: formData.guarantorWork?.phone || '________________',
-                    salary: (0, formatters_1.formatCurrency)(formData.guarantorWork?.salary)
+                    position: getVal(formData.guarantorWork?.position),
+                    phone: getVal(formData.guarantorWork?.phone),
+                    salary: getVal((0, formatters_1.formatCurrency)(formData.guarantorWork?.salary))
                 }
             },
             signatures: {
-                borrowerDate: (0, formatters_1.formatDate)(formData.signatures?.borrowerDate),
-                guarantorDate: (0, formatters_1.formatDate)(formData.signatures?.guarantorDate),
-                staffDate: (0, formatters_1.formatDate)(formData.signatures?.staffDate)
+                borrowerDate: getVal((0, formatters_1.formatDate)(formData.signatures?.borrowerDate)),
+                guarantorDate: getVal((0, formatters_1.formatDate)(formData.signatures?.guarantorDate)),
+                staffDate: getVal((0, formatters_1.formatDate)(formData.signatures?.staffDate))
             }
         };
         const html = templateCompiled(data);
-        // ✅ 7. Launch Puppeteer
+        // ✅ 8. Launch Puppeteer
         browser = await puppeteer_1.default.launch({
             headless: true,
             args: [
@@ -270,26 +231,28 @@ const generateLoanPDF = async (req, res) => {
         });
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        // 🟢 ບັງຄັບລໍຖ້າ Font ແລະ ຮູບພາບ
+        await page.evaluateHandle('document.fonts.ready');
         await new Promise(resolve => setTimeout(resolve, 1000));
-        // ✅ 8. Generate PDF
+        // ✅ 9. Generate PDF
         const rawPdf = await page.pdf({
             format: 'A4',
             printBackground: true,
-            margin: { top: '15mm', bottom: '25mm', left: '15mm', right: '15mm' },
+            margin: { top: '0', bottom: '0', left: '0', right: '0' },
             displayHeaderFooter: false,
             preferCSSPageSize: true
         });
         const pdfBuffer = Buffer.from(rawPdf);
         console.log('✅ PDF generated successfully');
         // =========================================================
-        // 🟢 9. Save to Redis (ตั้งเวลา 15 นาที หรือ 900 วินาที)
+        // 🟢 10. Save to Redis
         // =========================================================
         if (loanId) {
             const cacheKey = `cache:pdf:loan-form:${loanId}`;
             await redis_service_1.default.set(cacheKey, pdfBuffer.toString('base64'), 900);
         }
-        // ✅ 10. Send PDF
+        // ✅ 11. Send PDF
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="loan-${loanId || 'draft'}.pdf"`);
         res.send(pdfBuffer);
@@ -354,7 +317,8 @@ const getCustomerLoanContractPDF = async (req, res) => {
             cusMarital: (0, formatters_1.mapMaritalStatus)(dbData.cus_marital_status),
             cusOccupation: dbData.cus_occupation || '________________',
             cusIdCard: dbData.cus_id_pass_number || '________________',
-            cusIdIssueDate: (0, formatters_1.formatDate)(dbData.cus_id_pass_date),
+            cusIdIssueDate: (0, formatters_1.formatDate)(dbData.cus_id_pass_date_start),
+            cusIdExpiredDate: (0, formatters_1.formatDate)(dbData.cus_id_pass_date_expired),
             cusCensus: dbData.cus_census_number || '________________',
             cusIssuePlace: dbData.cus_census_authorize_by || '________________',
             cusHouseNo: dbData.cus_house_number || '_____',
@@ -409,7 +373,8 @@ const getCustomerLoanContractPDF = async (req, res) => {
             guaOccupation: dbData.ref_occupation || '________________',
             guaRelation: dbData.ref_relationship || '________________',
             guaIdCard: dbData.ref_id_pass_number || '________________',
-            guaIdIssueDate: (0, formatters_1.formatDate)(dbData.ref_id_pass_date),
+            guaIdIssueDate: (0, formatters_1.formatDate)(dbData.ref_id_pass_date_start),
+            guaIdExpiredDate: (0, formatters_1.formatDate)(dbData.ref_id_pass_date_expired),
             guaCensus: dbData.ref_census_number || '________________',
             guaCensusIssue: (0, formatters_1.formatDate)(dbData.ref_census_created),
             guaIssuePlace: dbData.ref_census_authorize_by || '________________',
@@ -449,6 +414,8 @@ const generateLoanContractPDF = async (req, res) => {
     let browser = null;
     try {
         const { formData, contractId } = req.body;
+        // console.log('✅ formData received for Contract PDF generation:', formData);
+        // console.log('✅ contractId:', contractId);
         // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
         // =========================================================
@@ -469,9 +436,16 @@ const generateLoanContractPDF = async (req, res) => {
         if (!fs_1.default.existsSync(templatePath))
             throw new Error(`Template file not found at: ${templatePath}`);
         const templateSource = fs_1.default.readFileSync(templatePath, 'utf-8');
-        const logoPath = path_1.default.resolve(__dirname, '../../public/image/LOGO INSEE.png');
-        const logoBase64 = fs_1.default.existsSync(logoPath) ? fs_1.default.readFileSync(logoPath, 'base64') : '';
-        const logoDataUri = logoBase64 ? `data:image/png;base64,${logoBase64}` : '';
+        // const logoPath = path.resolve(__dirname, '../../public/image/LOGO INSEE.png');
+        // const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath, 'base64') : '';
+        // const logoDataUri = logoBase64 ? `data:image/png;base64,${logoBase64}` : '';
+        // 🟢 1. ອ່ານຮູບພາບ Header ແລະ Footer ເປັນ Base64
+        const headerPath = path_1.default.resolve(__dirname, '../../public/image/latter head Insee1.png');
+        const headerBase64 = fs_1.default.existsSync(headerPath) ? fs_1.default.readFileSync(headerPath, 'base64') : '';
+        const headerDataUri = headerBase64 ? `data:image/png;base64,${headerBase64}` : '';
+        const footerPath = path_1.default.resolve(__dirname, '../../public/image/footer.png');
+        const footerBase64 = fs_1.default.existsSync(footerPath) ? fs_1.default.readFileSync(footerPath, 'base64') : '';
+        const footerDataUri = footerBase64 ? `data:image/png;base64,${footerBase64}` : '';
         // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
         const fontPath = path_1.default.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
         // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
@@ -480,10 +454,73 @@ const generateLoanContractPDF = async (req, res) => {
         // 🟢 ສ້າງ Data URI ສຳລັບ Font
         const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
         let htmlContent = templateSource;
-        htmlContent = htmlContent.replace('{{logoPath}}', logoDataUri);
+        // htmlContent = htmlContent.replace('{{logoPath}}', logoDataUri);
         htmlContent = htmlContent.replace('{{fontPath}}', fontUrl);
         const templateCompiled = handlebars_1.default.compile(htmlContent);
+        const customer = formData?.customer || {};
+        // const product = formData?.product || {};
+        // const partner = product?.partner || {};
+        const workInfo = formData?.work || customer?.work?.[0] || {};
+        const guarantor = formData?.guarantor || null;
+        const guarantorWork = formData?.guarantorWork || guarantor?.work || {};
+        const today = new Date();
+        // =========================================================
+        // 🟢 1. ปรับ getVal ให้กำจัดข้อความว่า 'undefined'
+        // =========================================================
+        const getVal = (val, defaultStr = '________________') => {
+            // เช็คทั้งค่าว่าง null และ String คำว่า 'undefined'
+            if (val === null ||
+                val === undefined ||
+                val === '' ||
+                String(val).trim().toLowerCase() === 'undefined') {
+                return defaultStr;
+            }
+            return val;
+        };
+        // =========================================================
+        // 🟢 2. ปรับ parseAddress ให้ล้างคำว่า 'undefined' ออกจากข้อมูล
+        // =========================================================
+        const parseAddress = (addressStr) => {
+            const defAddr = { village: '', district: '', province: '' };
+            if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined') {
+                return defAddr;
+            }
+            // ฟังก์ชันช่วยทำความสะอาด ลบคำว่า 'undefined' ออกจากชิ้นส่วนที่โดนหั่น
+            const clean = (p) => {
+                if (!p)
+                    return '';
+                const trimmed = p.trim();
+                return trimmed.toLowerCase() === 'undefined' ? '' : trimmed;
+            };
+            if (addressStr.includes(',')) {
+                const parts = addressStr.split(',').map(clean);
+                return { village: parts[0] || '', district: parts[1] || '', province: parts[2] || '' };
+            }
+            else {
+                const parts = addressStr.split(' ').map(clean).filter(Boolean);
+                if (parts.length >= 3) {
+                    return { province: parts.pop() || '', district: parts.pop() || '', village: parts.join(' ') };
+                }
+                return { village: clean(addressStr), district: '', province: '' };
+            }
+        };
+        // =========================================================
+        // 🟢 ແກ້ໄຂໃໝ່: ໃຊ້ fulladdress() ເພື່ອດຶງຂໍ້ມູນເປັນຊຸດດຽວກ່ອນ
+        // =========================================================
+        const fullCusAddressStr = (0, formatters_1.fulladdress)(customer?.address?.village, customer?.address?.district_id, customer?.address?.province_id) || customer?.address;
+        const fullWorkAddressStr = (0, formatters_1.fulladdress)(workInfo?.address?.village, workInfo?.address?.district_id, workInfo?.address?.province_id) || (workInfo?.address || workInfo?.location);
+        const fullGuaAddressStr = (0, formatters_1.fulladdress)(guarantor?.address?.village, guarantor?.address?.district_id, guarantor?.address?.province_id) || guarantor?.address;
+        const fullGuaWorkAddressStr = (0, formatters_1.fulladdress)(guarantorWork?.address?.village, guarantorWork?.address?.district_id, guarantorWork?.address?.province_id) || (guarantorWork?.address || guarantorWork?.location);
+        // =========================================================
+        // 🟢 ຈາກນັ້ນນຳມາແຍກ ບ້ານ, ເມືອງ, ແຂວງ ດ້ວຍ parseAddress ອີກຄັ້ງ
+        // =========================================================
+        const cusAddr = parseAddress(fullCusAddressStr);
+        const workAddr = parseAddress(fullWorkAddressStr);
+        const guaAddr = parseAddress(fullGuaAddressStr);
+        const guaWorkAddr = parseAddress(fullGuaWorkAddressStr);
         const data = {
+            headerImagePath: headerDataUri,
+            footerImagePath: footerDataUri,
             contractNumber: formData.contractNumber || '________________',
             contractDay: formData.contractDate?.day || '___',
             contractMonth: formData.contractDate?.month || '___',
@@ -504,17 +541,23 @@ const generateLoanContractPDF = async (req, res) => {
             cusIssuePlace: formData.customer?.censusAuthorizeBy || '________________',
             cusHouseNo: formData.customer?.houseNumber || '_____',
             cusUnit: formData.customer?.unit || '_____',
-            cusVillage: formData.customer?.address?.village || '________________',
-            cusDistrict: formData.customer?.address?.district || '________________',
-            cusProvince: formData.customer?.address?.province || '________________',
+            cusVillage: getVal(cusAddr.village, '____________'),
+            cusDistrict: getVal(cusAddr.district, '____________'),
+            cusProvince: getVal(cusAddr.province, '____________'),
+            // cusVillage: formData.customer?.address?.village || '________________',
+            // cusDistrict: formData.customer?.address?.district || '________________',
+            // cusProvince: formData.customer?.address?.province || '________________',
             cusLivedYears: formData.customer?.residenceYears || '___',
             cusLiveWith: formData.customer?.liveWith || '________________',
             cusResStatus: (0, formatters_1.mapResidenceStatus)(formData.customer?.residenceStatus),
             workName: formData.work?.companyName || '________________',
             workType: formData.work?.businessType || '________________',
-            workVillage: formData.work?.address?.village || '________________',
-            workDistrict: formData.work?.address?.district || '________________',
-            workProvince: formData.work?.address?.province || '________________',
+            workVillage: getVal(workAddr.village, '____________'),
+            workDistrict: getVal(workAddr.district, '____________'),
+            workProvince: getVal(workAddr.province, '____________'),
+            // workVillage: formData.work?.address?.village || '________________',
+            // workDistrict: formData.work?.address?.district || '________________',
+            // workProvince: formData.work?.address?.province || '________________',
             workYears: formData.work?.workYears || '___',
             workPosition: formData.work?.position || '________________',
             workSalary: (0, formatters_1.formatCurrency)(formData.work?.salary),
@@ -562,17 +605,23 @@ const generateLoanContractPDF = async (req, res) => {
             guaIssuePlace: formData.guarantor?.censusAuthorizeBy || '________________',
             guaHouseNo: formData.guarantor?.houseNumber || '_____',
             guaUnit: formData.guarantor?.unit || '_____',
-            guaVillage: formData.guarantor?.address?.village || '________________',
-            guaDistrict: formData.guarantor?.address?.district || '________________',
-            guaProvince: formData.guarantor?.address?.province || '________________',
+            guaVillage: getVal(guaAddr.village, '____________'),
+            guaDistrict: getVal(guaAddr.district, '____________'),
+            guaProvince: getVal(guaAddr.province, '____________'),
+            // guaVillage: formData.guarantor?.address?.village || '________________',
+            // guaDistrict: formData.guarantor?.address?.district || '________________',
+            // guaProvince: formData.guarantor?.address?.province || '________________',
             guaLivedYears: formData.guarantor?.residenceYears || '___',
             guaLiveWith: formData.guarantor?.liveWith || '________________',
             guaResStatus: (0, formatters_1.mapResidenceStatus)(formData.guarantor?.residenceStatus),
             guaWorkName: formData.guarantorWork?.companyName || '________________',
             guaWorkType: formData.guarantorWork?.businessType || '________________',
-            guaWorkVillage: formData.guarantorWork?.address?.village || '________________',
-            guaWorkDistrict: formData.guarantorWork?.address?.district || '________________',
-            guaWorkProvince: formData.guarantorWork?.address?.province || '________________',
+            guaWorkVillage: getVal(guaWorkAddr.village, '____________'),
+            guaWorkDistrict: getVal(guaWorkAddr.district, '____________'),
+            guaWorkProvince: getVal(guaWorkAddr.province, '____________'),
+            // guaWorkVillage: formData.guarantorWork?.address?.village || '________________',
+            // guaWorkDistrict: formData.guarantorWork?.address?.district || '________________',
+            // guaWorkProvince: formData.guarantorWork?.address?.province || '________________',
             guaWorkYears: formData.guarantorWork?.workYears || '___',
             guaWorkPos: formData.guarantorWork?.position || '________________',
             guaWorkSalary: (0, formatters_1.formatCurrency)(formData.guarantorWork?.salary),
@@ -593,7 +642,10 @@ const generateLoanContractPDF = async (req, res) => {
         });
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
-        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        // await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        // 🟢 เพิ่มบรรทัดนี้เข้าไป เพื่อบังคับให้รอ Base64 Font โหลดเข้าหน้าเว็บเสร็จ 100%
+        await page.evaluateHandle('document.fonts.ready');
         await new Promise(resolve => setTimeout(resolve, 1000));
         const rawPdf = await page.pdf({
             format: 'A4',
@@ -630,7 +682,6 @@ const generateRepaymentSchedulePDF = async (req, res) => {
     try {
         const { loanData, scheduleRows, totals } = req.body;
         const loanId = loanData?.loan_id;
-        console.log(`[PDF] 📄 Generating Repayment Schedule PDF for loan: `, loanData);
         // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
         // =========================================================
@@ -646,37 +697,33 @@ const generateRepaymentSchedulePDF = async (req, res) => {
             }
         }
         // =========================================================
-        console.log('📄 Generating Repayment Schedule PDF for loan:', loanId);
+        console.log(`[PDF] 📄 Generating Repayment Schedule PDF for loan: `, loanId);
         const templatePath = path_1.default.join(__dirname, '../templates/repayment-schedule-template.html');
         if (!fs_1.default.existsSync(templatePath))
             throw new Error(`Template file not found at: ${templatePath}`);
         const templateSource = fs_1.default.readFileSync(templatePath, 'utf-8');
-        // const fontPath = path.resolve(__dirname, '../assets/fonts/Phetsarath_OT.ttf');
         const fontPath = path_1.default.resolve(__dirname, '../assets/fonts/phetsarath_ot.ttf');
-        // const fontUrl = `file://${fontPath.replace(/\\/g, '/').replace(/ /g, '%20')}`;
-        // 🟢 ອ່ານໄຟລ໌ Font ເປັນ Base64 ຖ້າໄຟລ໌ມີຢູ່ຈິງ
         const fontBase64 = fs_1.default.existsSync(fontPath) ? fs_1.default.readFileSync(fontPath, 'base64') : '';
-        // 🟢 ສ້າງ Data URI ສຳລັບ Font
         const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
         let htmlContent = templateSource.replace('{{fontPath}}', fontUrl);
-        // =========================================================
-        // 🟢 2. ໂຫຼດຮູບ QR Code ແປງເປັນ Base64
-        // =========================================================
-        // ໝາຍເຫດ: ປັບ path ໃຫ້ກົງກັບທີ່ຢູ່ຈິງຂອງໂຟນເດີ public ຂອງທ່ານ
+        const headerPath = path_1.default.resolve(__dirname, '../../public/image/latter head Insee1.png');
+        const headerBase64 = fs_1.default.existsSync(headerPath) ? fs_1.default.readFileSync(headerPath, 'base64') : '';
+        const headerDataUri = headerBase64 ? `data:image/png;base64,${headerBase64}` : '';
+        const footerPath = path_1.default.resolve(__dirname, '../../public/image/footer.png');
+        const footerBase64 = fs_1.default.existsSync(footerPath) ? fs_1.default.readFileSync(footerPath, 'base64') : '';
+        const footerDataUri = footerBase64 ? `data:image/png;base64,${footerBase64}` : '';
         const qrPath = path_1.default.resolve(__dirname, '../../public/image/qr_code.jpeg');
         let qrCodeBase64 = '';
         if (fs_1.default.existsSync(qrPath)) {
             const qrBuffer = fs_1.default.readFileSync(qrPath);
             qrCodeBase64 = `data:image/jpeg;base64,${qrBuffer.toString('base64')}`;
         }
-        else {
-            console.warn(`⚠️ ບໍ່ພົບໄຟລ໌ QR Code ຢູ່ທີ່: ${qrPath}`);
-        }
-        // =========================================================
         const customAddress = (0, formatters_1.fulladdress)(loanData.customer.address, loanData.customer.district_id, loanData.customer.province_id);
         const data = {
+            headerImagePath: headerDataUri,
+            footerImagePath: footerDataUri,
             interestTypeName: loanData.interest_type === 'effective_rate' ? 'ຫຼຸດຕົ້ນຫຼຸດດອກ' : 'ສະເໝີຕົວ',
-            contractNumber: loanData.loan_contracts[0].loan_contract_number || loanData.loan_id || '________________',
+            contractNumber: loanData.loan_contracts?.[0]?.loan_contract_number || loanData.loan_id || '________________',
             customerName: `${loanData.customer?.first_name || ''} ${loanData.customer?.last_name || ''}`.trim() || '________________',
             customerAddress: customAddress || loanData.customer?.address || '________________',
             customerPhone: loanData.customer?.phone || '________________',
@@ -700,37 +747,57 @@ const generateRepaymentSchedulePDF = async (req, res) => {
             totalPrincipal: (0, formatters_1.formatCurrency)(totals.principal),
             totalInterest: (0, formatters_1.formatCurrency)(totals.interest),
             totalAmount: (0, formatters_1.formatCurrency)(totals.amount),
-            // 🟢 ສົ່ງ Base64 ຂອງ QR Code ໄປໃຫ້ HTML Template ໃຊ້ງານ
             qrCodeBase64: qrCodeBase64
         };
         const templateCompiled = handlebars_1.default.compile(htmlContent);
         const html = templateCompiled(data);
+        // 🌟 1. เพิ่ม Flags สำหรับ Docker ให้ทำงานเบาที่สุด
         browser = await puppeteer_1.default.launch({
             headless: true,
             args: [
-                '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
-                '--font-render-hinting=none', '--disable-web-security',
-                '--allow-file-access-from-files', '--allow-file-access',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--no-zygote', // ลดการใช้ RAM
+                '--single-process', // ป้องกัน Process ค้างใน Docker
+                '--font-render-hinting=none',
+                '--disable-web-security',
                 '--lang=lo-LA,en-US'
             ]
         });
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
-        await page.setContent(html, { waitUntil: 'load', timeout: 60000 });
-        await page.evaluateHandle('document.fonts.ready');
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        // 🌟 2. ป้องกัน Font ค้าง: ใช้ Promise.race เพื่อบังคับข้ามถ้า Font โหลดนานเกิน 2 วินาทีใน Docker
+        try {
+            await Promise.race([
+                page.evaluateHandle('document.fonts.ready'),
+                new Promise(resolve => setTimeout(resolve, 2000)) // ถ้าเกิน 2 วิ ให้ไปต่อเลย
+            ]);
+        }
+        catch (e) {
+            console.warn('⚠️ Font loading timeout, proceeding...');
+        }
+        // 🌟 1. สร้าง Footer Template (ใส่รูป Base64 และ span.pageNumber ลงไปตรงนี้)
+        const footerTemplate = `
+    <div style="width: 100%; height: 45mm; margin: 0; padding: 0; position: relative; -webkit-print-color-adjust: exact;">
+        <img src="${footerDataUri}" style="width: 100%; height: 100%; object-fit: contain; position: absolute; bottom: 0; left: 0;">
+        <div style="position: absolute; right: 20mm; bottom: 10mm; font-size: 11px; font-weight: bold; font-family: sans-serif; color: black; z-index: 10;">
+            <span class="pageNumber"></span>
+        </div>
+    </div>
+`;
+        // 🌟 2. สั่ง Generate PDF
         const rawPdf = await page.pdf({
             format: 'A4',
             printBackground: true,
-            margin: { top: '12mm', bottom: '15mm', left: '15mm', right: '15mm' },
-            displayHeaderFooter: false,
+            margin: { top: '0', bottom: '0', left: '0', right: '0' }, // 🟢 ต้องเป็น 0 ทั้งหมดเพื่อให้ HTML คุมเต็มพื้นที่
+            displayHeaderFooter: false, // 🟢 ปิดไปเลยครับ
             preferCSSPageSize: true
         });
         const pdfBuffer = Buffer.from(rawPdf);
         console.log('✅ Schedule PDF generated successfully');
-        // =========================================================
-        // 🟢 2. Save to Redis (ตั้งเวลา 15 นาที)
-        // =========================================================
         if (loanId) {
             const cacheKey = `cache:pdf:schedule:${loanId}`;
             await redis_service_1.default.set(cacheKey, pdfBuffer.toString('base64'), 900);
@@ -754,6 +821,7 @@ const generateDeliveryReceiptPDF = async (req, res) => {
     try {
         const { loanData, receiptData, receiverPhone, deliveryAddress } = req.body;
         const receiptId = receiptData?.receipts_id || loanData?.delivery_receipts?.[0]?.receipts_id;
+        console.log('check data', loanData);
         // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
         // =========================================================
@@ -784,8 +852,15 @@ const generateDeliveryReceiptPDF = async (req, res) => {
         const fontBase64 = fs_1.default.existsSync(fontPath) ? fs_1.default.readFileSync(fontPath, 'base64') : '';
         // 🟢 ສ້າງ Data URI ສຳລັບ Font
         const fontUrl = fontBase64 ? `data:font/ttf;charset=utf-8;base64,${fontBase64}` : '';
+        // 🟢 ເພີ່ມໂຄ້ດອ່ານຮູບພາບ Header ແລະ Footer ໃສ່ບ່ອນນີ້:
+        const headerPath = path_1.default.resolve(__dirname, '../../public/image/latter head Insee1.png');
+        const headerBase64 = fs_1.default.existsSync(headerPath) ? fs_1.default.readFileSync(headerPath, 'base64') : '';
+        const headerDataUri = headerBase64 ? `data:image/png;base64,${headerBase64}` : '';
+        const footerPath = path_1.default.resolve(__dirname, '../../public/image/footer.png');
+        const footerBase64 = fs_1.default.existsSync(footerPath) ? fs_1.default.readFileSync(footerPath, 'base64') : '';
+        const footerDataUri = footerBase64 ? `data:image/png;base64,${footerBase64}` : '';
         let htmlContent = templateSource;
-        htmlContent = htmlContent.replace(/{{logoPath}}/g, logoDataUri);
+        // htmlContent = htmlContent.replace(/{{logoPath}}/g, logoDataUri);
         htmlContent = htmlContent.replace(/{{fontPath}}/g, fontUrl);
         const customer = loanData?.customer || {};
         const product = loanData?.product || {};
@@ -794,32 +869,66 @@ const generateDeliveryReceiptPDF = async (req, res) => {
         const guarantor = loanData?.loan_guarantors?.[0] || null;
         const guarantorWork = guarantor?.work_info?.[0] || guarantor?.work || {};
         const receipt = receiptData || loanData?.delivery_receipts?.[0] || {};
+        const contract = loanData?.loan_contracts?.[0] || {};
         const today = new Date();
+        // =========================================================
+        // 🟢 1. ปรับ getVal ให้กำจัดข้อความว่า 'undefined'
+        // =========================================================
         const getVal = (val, defaultStr = '________________') => {
-            if (val === null || val === undefined || val === '')
+            // เช็คทั้งค่าว่าง null และ String คำว่า 'undefined'
+            if (val === null ||
+                val === undefined ||
+                val === '' ||
+                String(val).trim().toLowerCase() === 'undefined') {
                 return defaultStr;
+            }
             return val;
         };
+        // =========================================================
+        // 🟢 2. ปรับ parseAddress ให้ล้างคำว่า 'undefined' ออกจากข้อมูล
+        // =========================================================
         const parseAddress = (addressStr) => {
             const defAddr = { village: '', district: '', province: '' };
-            if (!addressStr)
+            if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined') {
                 return defAddr;
+            }
+            // ฟังก์ชันช่วยทำความสะอาด ลบคำว่า 'undefined' ออกจากชิ้นส่วนที่โดนหั่น
+            const clean = (p) => {
+                if (!p)
+                    return '';
+                const trimmed = p.trim();
+                return trimmed.toLowerCase() === 'undefined' ? '' : trimmed;
+            };
             if (addressStr.includes(',')) {
-                const parts = addressStr.split(',').map(p => p.trim());
+                const parts = addressStr.split(',').map(clean);
                 return { village: parts[0] || '', district: parts[1] || '', province: parts[2] || '' };
             }
             else {
-                const parts = addressStr.split(' ').map(p => p.trim()).filter(Boolean);
+                const parts = addressStr.split(' ').map(clean).filter(Boolean);
                 if (parts.length >= 3) {
                     return { province: parts.pop() || '', district: parts.pop() || '', village: parts.join(' ') };
                 }
-                return { village: addressStr, district: '', province: '' };
+                return { village: clean(addressStr), district: '', province: '' };
             }
         };
-        const cusAddr = parseAddress(customer.address);
-        const workAddr = parseAddress(workInfo.address || workInfo.location);
-        const guaAddr = parseAddress(guarantor?.address);
-        const guaWorkAddr = parseAddress(guarantorWork?.address || guarantorWork?.location);
+        // =========================================================
+        // 🟢 ແກ້ໄຂໃໝ່: ໃຊ້ fulladdress() ເພື່ອດຶງຂໍ້ມູນເປັນຊຸດດຽວກ່ອນ
+        // =========================================================
+        const fullCusAddressStr = (0, formatters_1.fulladdress)(customer?.address, customer?.district_id, customer?.province_id) || customer?.address;
+        const fullWorkAddressStr = (0, formatters_1.fulladdress)(workInfo?.address || workInfo?.location, workInfo?.district_id, workInfo?.province_id) || (workInfo?.address || workInfo?.location);
+        const fullGuaAddressStr = (0, formatters_1.fulladdress)(guarantor?.address, guarantor?.district_id, guarantor?.province_id) || guarantor?.address;
+        const fullGuaWorkAddressStr = (0, formatters_1.fulladdress)(guarantorWork?.address || guarantorWork?.location, guarantorWork?.district_id, guarantorWork?.province_id) || (guarantorWork?.address || guarantorWork?.location);
+        // =========================================================
+        // 🟢 ຈາກນັ້ນນຳມາແຍກ ບ້ານ, ເມືອງ, ແຂວງ ດ້ວຍ parseAddress ອີກຄັ້ງ
+        // =========================================================
+        const cusAddr = parseAddress(fullCusAddressStr);
+        const workAddr = parseAddress(fullWorkAddressStr);
+        const guaAddr = parseAddress(fullGuaAddressStr);
+        const guaWorkAddr = parseAddress(fullGuaWorkAddressStr);
+        // const cusAddr = parseAddress(customer.address);
+        // const workAddr = parseAddress(workInfo.address || workInfo.location);
+        // const guaAddr = parseAddress(guarantor?.address);
+        // const guaWorkAddr = parseAddress(guarantorWork?.address || guarantorWork?.location);
         const price = Number(loanData?.total_amount || product.price || 0);
         const downPayment = Number(loanData?.down_payment || 0);
         const approvedAmount = price - downPayment;
@@ -831,8 +940,11 @@ const generateDeliveryReceiptPDF = async (req, res) => {
         const isMoto = pType.toLowerCase().includes('motor') || pType.includes('ລົດ') || pType === '2';
         const isGen = !isGold && !isMoto;
         const data = {
+            // 🟢 ເພີ່ມສອງຕົວແປນີ້ໃສ່
+            headerImagePath: headerDataUri,
+            footerImagePath: footerDataUri,
             logoPath: logoDataUri,
-            contractNumber: getVal(receipt?.receipts_id),
+            contractNumber: getVal(contract ? contract.loan_contract_number : receipt?.receipts_id),
             contractDay: String(today.getDate()).padStart(2, '0'),
             contractMonth: String(today.getMonth() + 1).padStart(2, '0'),
             contractYear: String(today.getFullYear()),
@@ -865,7 +977,7 @@ const generateDeliveryReceiptPDF = async (req, res) => {
             prodTerm: getVal(term, '___'),
             prodTotalInt: getVal((0, formatters_1.formatCurrency)(totalInterest > 0 ? totalInterest : 0)),
             prodFee: getVal((0, formatters_1.formatCurrency)(loanData?.fee)),
-            prodMonthly: getVal((0, formatters_1.formatCurrency)(monthlyPay)),
+            prodMonthly: getVal((0, formatters_1.formatCurrencyV2)(monthlyPay)),
             prodFirstInst: getVal((0, formatters_1.formatCurrency)(loanData?.first_installment_amount)),
             prodPayDay: getVal(loanData?.payment_day, '___'),
             shopName: getVal(partner.shop_name),
@@ -902,7 +1014,8 @@ const generateDeliveryReceiptPDF = async (req, res) => {
         const page = await browser.newPage();
         await page.setViewport({ width: 1200, height: 800 });
         try {
-            await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+            // await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
+            await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
             await page.evaluateHandle('document.fonts.ready');
         }
         catch (e) {
@@ -939,42 +1052,3 @@ const generateDeliveryReceiptPDF = async (req, res) => {
     }
 };
 exports.generateDeliveryReceiptPDF = generateDeliveryReceiptPDF;
-// // ==========================================
-// // Helper Functions
-// // ==========================================
-// function mapGender(gender: string | undefined): string {
-//     if (gender === 'male') return 'ຊາຍ';
-//     if (gender === 'female') return 'ຍິງ';
-//     return '________________';
-// }
-// function mapMaritalStatus(status: string | undefined): string {
-//     if (status === 'single') return 'ໂສດ';
-//     if (status === 'married') return 'ແຕ່ງງານແລ້ວ';
-//     if (status === 'divorced') return 'ຢ່າຮ້າງ';
-//     return '________________';
-// }
-// function mapResidenceStatus(status: string | undefined): string {
-//     if (status === 'own') return 'ເຮືອນຕົວເອງ';
-//     if (status === 'rent') return 'ເຊົ່າ';
-//     if (status === 'family') return 'ຢູ່ກັບຄອບຄົວ';
-//     return '________________';
-// }
-// function formatDate(dateStr: string | null): string {
-//     if (!dateStr) return '___/___/____';
-//     const date = new Date(dateStr);
-//     if (isNaN(date.getTime())) return '___/___/____';
-//     const day = date.getDate().toString().padStart(2, '0');
-//     const month = (date.getMonth() + 1).toString().padStart(2, '0');
-//     const year = date.getFullYear();
-//     return `${day}/${month}/${year}`;
-// }
-// function formatCurrency(amount: number | null | string): string {
-//     if (!amount && amount !== 0) return '________________';
-//     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-//     if (isNaN(num)) return '________________';
-//     return num.toLocaleString('lo-LA') + ' ກີບ';
-// }
-// function getProductTypeName(type: string): string {
-//     const types: Record<string, string> = { gold: 'ສິນຄ້າຄຳ', general: 'ສິນຄ້າທົ່ວໄປ', motorcycle: 'ສິນຄ້າລົດຈັກ' };
-//     return types[type] || '________________';
-// }

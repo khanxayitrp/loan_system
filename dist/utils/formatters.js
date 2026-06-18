@@ -11,6 +11,7 @@ exports.mapMaritalStatus = mapMaritalStatus;
 exports.mapResidenceStatus = mapResidenceStatus;
 exports.formatDate = formatDate;
 exports.formatCurrency = formatCurrency;
+exports.formatCurrencyV2 = formatCurrencyV2;
 exports.getProductTypeName = getProductTypeName;
 exports.fulladdress = fulladdress;
 const locations_json_1 = __importDefault(require("./locations.json"));
@@ -57,6 +58,14 @@ function formatCurrency(amount) {
     if (isNaN(num))
         return '________________';
     return num.toLocaleString('lo-LA') + ' ກີບ';
+}
+function formatCurrencyV2(amount) {
+    if (amount === null || amount === undefined || amount === '')
+        return '________________';
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(num))
+        return '________________';
+    return num.toLocaleString('lo-LA');
 }
 function getProductTypeName(type) {
     // ปรับให้รองรับกรณี DB เก็บเป็น ID (เช่น 1, 2, 3) หรือเก็บเป็น String

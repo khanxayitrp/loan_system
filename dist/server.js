@@ -12,6 +12,7 @@ const redis_service_1 = __importDefault(require("./services/redis.service"));
 const createUploadsDir_1 = require("./utils/createUploadsDir");
 const DailyTrackingService_1 = __importDefault(require("./services/DailyTrackingService"));
 const ReminderCronService_1 = __importDefault(require("./services/ReminderCronService"));
+const partition_service_1 = __importDefault(require("./services/partition.service"));
 class ServerApp {
     constructor() {
         this.PORT = parseInt(process.env.PORT, 10);
@@ -29,6 +30,7 @@ class ServerApp {
             // 🟢 ເປີດນຳໃຊ້ລະບົບ Tracking ອັດຕະໂນມັດ 🟢
             DailyTrackingService_1.default.startCronJob();
             ReminderCronService_1.default.startCronJob();
+            partition_service_1.default.startCronJob();
             // Start the HTTP server
             this.startServer();
             // this

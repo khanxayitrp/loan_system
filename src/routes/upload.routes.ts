@@ -96,7 +96,7 @@ router.post(
 
 /**
  * @swagger
- * /upload/application/{application_id}/documents:
+ * /upload/application/{customerId}/documents:
  *   get:
  *     summary: Get application documents
  *     tags: [Upload]
@@ -104,7 +104,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
@@ -113,7 +113,7 @@ router.post(
  *         description: List of documents
  */
 router.get(
-  '/application/:application_id/documents',
+  '/application/:customerId/documents',
   uploadController.getApplicationDocuments
 );
 

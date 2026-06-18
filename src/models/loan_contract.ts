@@ -18,8 +18,8 @@ export interface loan_contractAttributes {
   cus_phone: string;
   cus_marital_status: string;
   cus_id_pass_number: string;
-  cus_id_pass_date_start?: string;     // 🟢 เพิ่มใหม่
-  cus_id_pass_date_expired?: string;   // 🟢 เพิ่มใหม่ (แทนที่ cus_id_pass_date)
+  cus_id_pass_date_start?: string;     
+  cus_id_pass_date_expired?: string;   
   cus_census_number?: string;
   cus_census_created?: string;
   cus_census_authorize_by: string;
@@ -66,14 +66,15 @@ export interface loan_contractAttributes {
   partner_id?: number;
   shop_branch?: string;
   shop_id?: string;
+  ref_Type?: string; // 🟢 ເພີ່ມໃໝ່
   ref_name: string;
   ref_date_of_birth?: string;
   ref_phone: string;
   ref_sex: string;
   ref_marital_status: string;
   ref_id_pass_number: string;
-  ref_id_pass_date_start?: string;     // 🟢 เพิ่มใหม่
-  ref_id_pass_date_expired?: string;   // 🟢 เพิ่มใหม่ (แทนที่ ref_id_pass_date)
+  ref_id_pass_date_start?: string;     
+  ref_id_pass_date_expired?: string;   
   ref_census_number?: string;
   ref_census_created?: string;
   ref_census_authorize_by: string;
@@ -107,8 +108,8 @@ export interface loan_contractAttributes {
 
 export type loan_contractPk = "id";
 export type loan_contractId = loan_contract[loan_contractPk];
-// 🟢 อัปเดต OptionalAttributes ลบตัวเก่า ใส่ _start กับ _expired แทน
-export type loan_contractOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "cus_date_of_birth" | "cus_id_pass_date_start" | "cus_id_pass_date_expired" | "cus_census_number" | "cus_census_created" | "cus_province_id" | "cus_district_id" | "cus_occupation" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "product_detail" | "producttype_id" | "variant_id" | "product_brand" | "product_model" | "product_color" | "product_size" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "shop_branch" | "shop_id" | "ref_date_of_birth" | "ref_id_pass_date_start" | "ref_id_pass_date_expired" | "ref_census_number" | "ref_census_created" | "ref_province_id" | "ref_district_id" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
+// 🟢 ອັບເດດ: ເພີ່ມ "ref_Type" ເຂົ້າໃນ OptionalAttributes
+export type loan_contractOptionalAttributes = "id" | "loan_flow_type" | "order_id" | "cus_date_of_birth" | "cus_id_pass_date_start" | "cus_id_pass_date_expired" | "cus_census_number" | "cus_census_created" | "cus_province_id" | "cus_district_id" | "cus_occupation" | "cus_income" | "cus_payroll_date" | "cus_income_other" | "product_detail" | "producttype_id" | "variant_id" | "product_brand" | "product_model" | "product_color" | "product_size" | "product_price" | "product_down_payment" | "total_amount" | "total_interest" | "fee" | "first_installment_amount" | "payment_day" | "motor_id" | "motor_color" | "tank_number" | "motor_warranty" | "partner_id" | "shop_branch" | "shop_id" | "ref_Type" | "ref_date_of_birth" | "ref_id_pass_date_start" | "ref_id_pass_date_expired" | "ref_census_number" | "ref_census_created" | "ref_province_id" | "ref_district_id" | "ref_occupation" | "ref_relationship" | "ref_company_name" | "ref_income" | "ref_payroll_date" | "ref_income_other" | "is_confirmed" | "created_at" | "updated_at" | "version" | "created_by" | "updated_by";
 export type loan_contractCreationAttributes = Optional<loan_contractAttributes, loan_contractOptionalAttributes>;
 
 export class loan_contract extends Model<loan_contractAttributes, loan_contractCreationAttributes> implements loan_contractAttributes {
@@ -123,8 +124,8 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   cus_phone!: string;
   cus_marital_status!: string;
   cus_id_pass_number!: string;
-  cus_id_pass_date_start?: string;    // 🟢 อัปเดตที่นี่
-  cus_id_pass_date_expired?: string;  // 🟢 อัปเดตที่นี่
+  cus_id_pass_date_start?: string;    
+  cus_id_pass_date_expired?: string;  
   cus_census_number?: string;
   cus_census_created?: string;
   cus_census_authorize_by!: string;
@@ -171,14 +172,15 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
   partner_id?: number;
   shop_branch?: string;
   shop_id?: string;
+  ref_Type?: string; // 🟢 ເພີ່ມໃໝ່
   ref_name!: string;
   ref_date_of_birth?: string;
   ref_phone!: string;
   ref_sex!: string;
   ref_marital_status!: string;
   ref_id_pass_number!: string;
-  ref_id_pass_date_start?: string;    // 🟢 อัปเดตที่นี่
-  ref_id_pass_date_expired?: string;  // 🟢 อัปเดตที่นี่
+  ref_id_pass_date_start?: string;    
+  ref_id_pass_date_expired?: string;  
   ref_census_number?: string;
   ref_census_created?: string;
   ref_census_authorize_by!: string;
@@ -289,7 +291,6 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
       type: DataTypes.STRING(50),
       allowNull: false
     },
-    // 🟢 อัปเดต schema ของ sequelize
     cus_id_pass_date_start: {
       type: DataTypes.DATEONLY,
       allowNull: true
@@ -502,6 +503,12 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
       type: DataTypes.STRING(20),
       allowNull: true
     },
+    ref_Type: { // 🟢 ເພີ່ມໃໝ່
+      type: DataTypes.ENUM('guarantor', 'reference'),
+      field: 'ref_Type',
+      allowNull: true,
+      defaultValue: null
+    },
     ref_name: {
       type: DataTypes.STRING(255),
       allowNull: false
@@ -526,7 +533,6 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
       type: DataTypes.STRING(50),
       allowNull: false
     },
-    // 🟢 อัปเดต schema ของ sequelize (ผู้ค้ำประกัน)
     ref_id_pass_date_start: {
       type: DataTypes.DATEONLY,
       allowNull: true

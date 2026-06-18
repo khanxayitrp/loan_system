@@ -58,8 +58,11 @@ const isAuthorized = (allowedRoles, allowedLevels = []) => {
             return res.status(401).json({ message: 'Authentication required.' });
         }
         const hasRole = allowedRoles.includes(user.role);
+        // 🟢 ເພີ່ມເງື່ອນໄຂ: ຖ້າອະນຸຍາດໃຫ້ admin ເຂົ້າໄດ້ ແລະ ຜູ້ໃຊ້ເປັນ admin ໃຫ້ຜ່ານເລີຍ ໂດຍບໍ່ຕ້ອງກວດ Level
+        const isAdminBypass = user.role === 'admin' && allowedRoles.includes('admin');
         const hasLevel = allowedLevels.length === 0 || allowedLevels.includes((user.staff_level || 'none'));
-        if (!hasRole || !hasLevel) {
+        // 🟢 ປັບໂລຈິກ: ບໍ່ມີ Role ຫຼື (ບໍ່ມີ Level ແລະ ບໍ່ແມ່ນ Admin) -> ປະຕິເສດ
+        if (!hasRole || (!hasLevel && !isAdminBypass)) {
             return res.status(403).json({ message: 'Forbidden: You do not have the required permissions.' });
         }
         next();

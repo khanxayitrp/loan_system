@@ -603,8 +603,8 @@ class UploadController {
 
   async getApplicationDocuments(req: Request, res: Response): Promise<void> {
     try {
-      const { application_id } = req.params;
-      const documents = await documentService.getApplicationDocuments(parseInt(application_id));
+      const { customerId } = req.params;
+      const documents = await documentService.getApplicationDocuments(parseInt(customerId));
       res.status(200).json({ success: true, data: documents });
     } catch (error) {
       const errResp = handleErrorResponse(error);

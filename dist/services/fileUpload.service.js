@@ -366,10 +366,15 @@ const promises_1 = __importDefault(require("fs/promises")); // เก็บไ�
 // ============================================================================
 // 🟢 1. ตั้งค่า S3 Client สำหรับเชื่อมต่อ MinIO
 // ============================================================================
+// เช็คและเติม http:// ให้ปลอดภัยไว้ก่อน
+const minioHost = process.env.MINIO_ENDPOINT || '';
+const endpointUrl = minioHost.startsWith('http')
+    ? `${minioHost}:${process.env.MINIO_PORT}`
+    : `http://${minioHost}:${process.env.MINIO_PORT}`;
 const s3Client = new client_s3_1.S3Client({
-    region: 'ap-southeast-1', // MinIO ไม่ได้ใช้ Region แจ้งเป็นค่า default
-    endpoint: `${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}`,
-    forcePathStyle: true, // 🌟 สำคัญมากสำหรับ MinIO เพื่อให้รองรับ path-style URL
+    region: 'ap-southeast-1',
+    endpoint: endpointUrl, // 🟢 ใช้ URL ที่เติม http:// แล้ว
+    forcePathStyle: true,
     credentials: {
         accessKeyId: process.env.MINIO_ACCESS_KEY || '',
         secretAccessKey: process.env.MINIO_SECRET_KEY || '',
@@ -487,9 +492,12 @@ class FileUploadService {
             };
         }
         catch (error) {
+            // 🟢 ปรับให้ดึง Error Code และ Stack Trace ออกมาด้วย
             logger_1.logger.error('Error uploading file to MinIO:', {
-                error: error instanceof Error ? error.message : error,
-                fileName: file.originalname
+                errorMessage: error?.message || 'No Error Message',
+                errorCode: error?.name || error?.Code || 'Unknown Error',
+                fileName: file.originalname,
+                // objectKey: objectKey // ใส่มาเพื่อดูว่า Path ที่ส่งไป MinIO คืออะไร
             });
             if (error instanceof errors_1.ValidationError) {
                 throw error;

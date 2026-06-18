@@ -23,6 +23,11 @@ class credit_ledgers extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.INTEGER,
                 allowNull: true
             },
+            reference_id: {
+                type: sequelize_1.DataTypes.STRING(50),
+                allowNull: true,
+                comment: "ສຳລັບອ້າງອີງ loan_id ຫຼື repayment_id ອື່ນໆ"
+            },
             transaction_type: {
                 type: sequelize_1.DataTypes.ENUM('deduct', 'refund', 'repayment', 'limit_increase'),
                 allowNull: false
@@ -30,6 +35,17 @@ class credit_ledgers extends sequelize_1.Model {
             amount: {
                 type: sequelize_1.DataTypes.DECIMAL(15, 2),
                 allowNull: false
+            },
+            balance_after: {
+                type: sequelize_1.DataTypes.DECIMAL(15, 2),
+                allowNull: false,
+                defaultValue: 0.00,
+                comment: "ຍອດຄົງເຫຼືອຫຼັງເຮັດລາຍການ (ສຳຄັນສຳລັບກວດສອບ)"
+            },
+            description: {
+                type: sequelize_1.DataTypes.STRING(255),
+                allowNull: true,
+                comment: "ຄຳອະທິບາຍລາຍການເຊັ່ນ: ຈ່າຍຄ່າງວດ, ຊື້ສິນຄ້າ..."
             }
         }, {
             sequelize,

@@ -468,17 +468,17 @@ class DocumentService {
    * 🟢 ເພີ່ມ Function ນີ້ເພື່ອແກ້ໄຂ Error 500
    * ດຶງເອກະສານທັງໝົດໂດຍອີງຕາມ Application ID
    */
-  async getApplicationDocuments(application_id: number): Promise<DocumentRecord[]> {
+  async getApplicationDocuments(customer_id: number): Promise<DocumentRecord[]> {
     try {
       // 1. ຊອກຫາຂໍ້ມູນ Application ກ່ອນເພື່ອເອົາ customer_id
       // ໝາຍເຫດ: ໃຫ້ໝັ້ນໃຈວ່າໃນ db.loan_applications ມີຄວາມສຳພັນກັບ customer
-      const application = await db.loan_applications.findByPk(application_id);
+      // const application = await db.loan_applications.findByPk(application_id);
       
-      if (!application) {
-        throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຄຳຂໍສິນເຊື່ອ (Application not found)');
-      }
+      // if (!application) {
+      //   throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຄຳຂໍສິນເຊື່ອ (Application not found)');
+      // }
 
-      const customer_id = application.customer_id;
+      // const customer_id = application.customer_id;
 
       // 2. ເອີ້ນໃຊ້ Function ທີ່ມີຢູ່ແລ້ວເພື່ອດຶງເອກະສານຂອງ Customer ນັ້ນ
       return await this.getCustomerDocuments(customer_id);

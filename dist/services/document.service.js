@@ -420,6 +420,7 @@ class DocumentService {
                 where: { customer_id: data.customer_id, doc_type: data.doc_type },
                 transaction
             });
+            // OPTION 1: ลบเรคคอร์ดเก่าออกจาก DB ก่อน (ป้องกันขยะในตาราง แต่ยังเก็บไฟล์ไว้ชั่วคราวจนกว่าไฟล์ใหม่จะอัปโหลดเสร็จ)
             if (existingDoc) {
                 const oldFileUrl = existingDoc.file_url;
                 await existingDoc.destroy({ transaction });
@@ -464,22 +465,103 @@ class DocumentService {
     /**
      * อัปโหลดหลายเอกสารพร้อมกัน
      */
+    // async uploadMultipleDocuments(
+    //   customer_id: number,
+    //   uploaded_by: number,
+    //   documents: Array<{ file: UploadedFile; doc_type: DocumentType }>
+    // ): Promise<DocumentRecord[]> {
+    //   try {
+    //     const uploadPromises = documents.map(doc => 
+    //       this.uploadApplicationDocument({
+    //         customer_id,
+    //         file: doc.file,
+    //         original_filename: doc.file.originalname,
+    //         file_size: doc.file.size,
+    //         mime_type: doc.file.mimetype,
+    //         doc_type: doc.doc_type,
+    //         uploaded_by
+    //       })
+    //     );
+    //     const results = await Promise.all(uploadPromises);
+    //     return results;
+    //   } catch (error) {
+    //     logger.error('Error uploading multiple documents:', error);
+    //     throw error;
+    //   }
+    // }
+    /**
+       * อัปโหลดหลายเอกสารพร้อมกัน (แทนที่ไฟล์เก่าทั้งหมดใน doc_type นั้นๆ)
+       */
     async uploadMultipleDocuments(customer_id, uploaded_by, documents) {
+        const transaction = await init_models_1.db.sequelize.transaction();
+        const uploadedPaths = []; // เก็บ path ที่เพิ่งอัปโหลดไป เผื่อต้อง Rollback
         try {
-            const uploadPromises = documents.map(doc => this.uploadApplicationDocument({
-                customer_id,
-                file: doc.file,
-                original_filename: doc.file.originalname,
-                file_size: doc.file.size,
-                mime_type: doc.file.mimetype,
-                doc_type: doc.doc_type,
-                uploaded_by
-            }));
-            const results = await Promise.all(uploadPromises);
-            return results;
+            // 1. จัดกลุ่มเอกสารตาม doc_type เพื่อจะได้รู้ว่าต้องเคลียร์ประเภทไหนบ้าง
+            const uniqueDocTypes = [...new Set(documents.map(doc => doc.doc_type))];
+            // 2. ดึงข้อมูลไฟล์เก่าทั้งหมดที่กำลังจะถูกแทนที่
+            const oldDocs = await init_models_1.db.customer_documents.findAll({
+                where: {
+                    customer_id: customer_id,
+                    doc_type: uniqueDocTypes // ดึงเฉพาะประเภทที่มีการอัปโหลดเข้ามาใหม่
+                },
+                transaction
+            });
+            // 3. ลบเรคคอร์ดเก่าออกจากฐานข้อมูล
+            if (oldDocs.length > 0) {
+                await init_models_1.db.customer_documents.destroy({
+                    where: {
+                        customer_id: customer_id,
+                        doc_type: uniqueDocTypes
+                    },
+                    transaction
+                });
+            }
+            // 4. ลูปอัปโหลดไฟล์ใหม่ขึ้น MinIO
+            const newDocumentsData = [];
+            for (const doc of documents) {
+                // อัปโหลดไฟล์ไปที่ MinIO Storage
+                const uploadResult = await fileUpload_service_1.default.uploadSingleFile(doc.file, file_types_1.FILE_UPLOAD_CONFIG.DOCUMENTS, `app_cus_${customer_id}_${doc.doc_type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
+                if (!uploadResult.success) {
+                    throw new Error(uploadResult.error || 'Failed to upload file to MinIO');
+                }
+                const uploadedPath = uploadResult.fileUrl;
+                uploadedPaths.push(uploadedPath); // จดจำไว้เผื่อต้องลบทิ้งตอน Rollback
+                const expiresAt = (0, calculateExpiryDate_1.calculateExpiryDate)(doc.doc_type);
+                // เตรียมข้อมูล Insert
+                newDocumentsData.push({
+                    customer_id: customer_id,
+                    file_url: uploadedPath,
+                    original_filename: doc.file.originalname,
+                    file_size: doc.file.size,
+                    mime_type: doc.file.mimetype,
+                    doc_type: doc.doc_type,
+                    expires_at: expiresAt,
+                    uploaded_by: uploaded_by || null
+                });
+            }
+            // 5. บันทึกข้อมูลไฟล์ใหม่ทั้งหมดลง Database แบบ Bulk Insert
+            const createdDocs = await init_models_1.db.customer_documents.bulkCreate(newDocumentsData, { transaction });
+            // 6. Commit Database ให้เสร็จสิ้น
+            await transaction.commit();
+            logger_1.logger.info(`Successfully uploaded ${documents.length} documents for customer ${customer_id}`);
+            // 🟢 7. การลบไฟล์เก่าจาก MinIO (Best Practice: ลบหลังจาก Commit DB สำเร็จแล้ว)
+            // ป้องกันการลบไฟล์หายไป แต่ DB ดันพัง (Rollback) ทำให้หน้าเว็บอ้างอิงไฟล์เก่าที่เพิ่งลบไป
+            for (const oldDoc of oldDocs) {
+                if (oldDoc.file_url) {
+                    // สั่งลบแบบ Background ไม่ต้องรอ await 
+                    fileUpload_service_1.default.deleteFile(oldDoc.file_url).catch(err => logger_1.logger.warn(`Failed to delete old file from MinIO: ${oldDoc.file_url}`, err));
+                }
+            }
+            return createdDocs.map(doc => doc.get({ plain: true }));
         }
         catch (error) {
-            logger_1.logger.error('Error uploading multiple documents:', error);
+            // ยกเลิก Database Changes
+            await transaction.rollback();
+            logger_1.logger.error('Error uploading multiple documents, rolling back...', error);
+            // 🔴 Rollback File บน MinIO หาก DB Error
+            for (const path of uploadedPaths) {
+                await fileUpload_service_1.default.deleteFile(path).catch(err => logger_1.logger.error(`Failed to cleanup new file from MinIO after DB error: ${path}`, err));
+            }
             throw error;
         }
     }

@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // ============================================================================
 const express_1 = require("express");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
+const auth_controller_1 = __importDefault(require("../controllers/auth.controller"));
 const customer_middleware_1 = require("../middlewares/customer.middleware");
 const upload_middleware_1 = require("../middlewares/upload.middleware");
 const upload_controller_1 = __importDefault(require("../controllers/upload.controller"));
@@ -15,6 +16,11 @@ const loan_contract_controller_1 = __importDefault(require("../controllers/loan_
 const pdf_controller_1 = require("../controllers/pdf.controller");
 const loan_application_controller_1 = require("../controllers/loan-application.controller");
 const router = (0, express_1.Router)();
+// ==========================================================
+// 🟢 ส่วนของ Super App / Webview
+// ==========================================================
+// 1. เส้นทางนี้ "ไม่ต้องมี Middleware" เพราะใช้สำหรับ Login แลก Token
+router.post('/superapp-login', auth_controller_1.default.superAppWebviewLogin);
 /**
  * @swagger
  * tags:
@@ -41,7 +47,34 @@ const router = (0, express_1.Router)();
 router.use(auth_middleware_1.verifyCustomerToken);
 /**
  * @swagger
- * /portal/application/{application_id}/document:
+ * /loan-application/superapp-create:
+ *   post:
+ *     summary: ຍື່ນຄຳຂໍສິນເຊື່ອສຳລັບລູກຄ້າ Super App (Webview)
+ *     description: ຕ້ອງການ Token ຈາກການເຂົ້າສູ່ລະບົບ ແລະ OTP ເພື່ອຢືນຢັນການຍື່ນຄຳຂໍ
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - product_id
+ *               - otp    # 👈 ເພີ່ມ otp ເຂົ້າໄປໃນ required
+ *             properties:
+ *               otp:
+ *                 type: string
+ *                 description: ລະຫັດ OTP ທີ່ສົ່ງໄປຫາເບີໂທລະສັບລູກຄ້າ
+ *               product_id:
+ *                 type: integer
+ *               # ... fields ອື່ນໆ ...
+ */
+router.post('/superapp-create', loan_application_controller_1.createFromSuperAppWebview);
+/**
+ * @swagger
+ * /portal/application/{customerId}/document:
  *   post:
  *     summary: Upload application document (Customer Portal)
  *     description: Upload a single document (image or PDF) for a loan application. Customer must own the application.
@@ -50,11 +83,11 @@ router.use(auth_middleware_1.verifyCustomerToken);
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
- *         description: Loan application ID
+ *         description: Customer ID
  *     requestBody:
  *       required: true
  *       content:
@@ -94,13 +127,14 @@ router.use(auth_middleware_1.verifyCustomerToken);
  *       500:
  *         description: Server error
  */
-router.post('/application/:application_id/document', customer_middleware_1.checkLoanOwnership, // 1. เช็คว่าเป็นบิลของตัวเองไหม
-upload_middleware_1.uploadDocument.single('file'), // 2. รับไฟล์ภาพ/PDF
+router.post('/application/:customerId/document', upload_middleware_1.uploadDocument.single('file'), // 2. รับไฟล์ภาพ/PDF
+customer_middleware_1.allowViewDocument, 
+// checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
 upload_controller_1.default.uploadApplicationDocument // 3. ใช้ Controller เดิมบันทึกไฟล์ได้เลย!
 );
 /**
  * @swagger
- * /portal/application/{application_id}/documents:
+ * /portal/application/{customerId}/documents:
  *   post:
  *     summary: Upload multiple application documents (Customer Portal)
  *     description: Upload multiple documents (max 10 files) for a loan application. Customer must own the application.
@@ -109,11 +143,11 @@ upload_controller_1.default.uploadApplicationDocument // 3. ใช้ Controller
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
- *         description: Loan application ID
+ *         description: Customer ID
  *     requestBody:
  *       required: true
  *       content:
@@ -155,8 +189,9 @@ upload_controller_1.default.uploadApplicationDocument // 3. ใช้ Controller
  *       500:
  *         description: Server error
  */
-router.post('/application/:application_id/documents', customer_middleware_1.checkLoanOwnership, // 1. เช็คว่าเป็นบิลของตัวเองไหม
-upload_middleware_1.uploadDocument.array('files', 10), upload_controller_1.default.uploadMultipleDocuments);
+router.post('/application/:customerId/documents', upload_middleware_1.uploadDocument.array('files', 10), customer_middleware_1.allowViewDocument, 
+// checkLoanOwnership,             // 1. เช็คว่าเป็นบิลของตัวเองไหม
+upload_controller_1.default.uploadMultipleDocuments);
 /**
  * @swagger
  * /portal/applications:

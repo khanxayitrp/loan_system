@@ -85,6 +85,27 @@ export const updateLoanApplication = async (req: Request, res: Response, next: N
         throw new NotFoundError('Application not found');
     }
 
+    // =========================================================
+    // 🟢 ຈັດການລຶບ Cache ຫຼັງຈາກອັບເດດຂໍ້ມູນສຳເລັດ
+    // =========================================================
+    if (redisService) {
+        // 1. ລຶບ Cache ຂອງໂຕ Loan Application ເອງ
+        await redisService.del(`cache:loan_application:${id}`);
+        await redisService.delByPattern('cache:loan_applications:list:*');
+
+        // 2. ຊອກຫາ ສັນຍາ (Contract) ທີ່ຜູກກັບ Loan ນີ້
+        const contract = await db.loan_contract.findOne({
+            where: { loan_id: Number(id) } // ໝາຍເຫດ: ກວດເບິ່ງວ່າຕາຕະລາງທ່ານໃຊ້ application_id ຫຼື loan_id
+        });
+
+        // 3. ຖ້າມີສັນຍາແລ້ວ ໃຫ້ລຶບ Cache PDF ສັນຍາຖິ້ມ
+        if (contract && contract.id) {
+            await redisService.del(`cache:pdf:contract:${contract.id}`);
+            console.log(`🗑️ ລຶບ Cache PDF ສັນຍາສຳເລັດ: ${contract.id}`);
+        }
+    }
+    // =========================================================
+
     return res.status(200).json({
       success: true,
       message: 'Loan application updated',
@@ -111,6 +132,33 @@ export const updateDraftLoanApplication = async (req: Request, res: Response, ne
     if (!updated) {
         throw new NotFoundError('Application not found');
     }
+
+    // =========================================================
+    // 🟢 ຈັດການລຶບ Cache PDF ທັງໝົດເມື່ອຂໍ້ມູນລູກຄ້າ/ສິນເຊື່ອປ່ຽນແປງ
+    // =========================================================
+    if (redisService) {
+        // 1. ລຶບ Cache ຂໍ້ມູນ Loan ເພື່ອໃຫ້ດຶງໃໝ່
+        await redisService.del(`cache:loan_application:${id}`);
+
+        // 2. ລຶບ Cache PDF ໃບຮັບເຄື່ອງ (Delivery Receipt) ໂດຍການຊອກຫາ receipts_id ຜ່ານ loanId
+        const receipt = await db.delivery_receipts.findOne({
+            where: { application_id: id } // ໃຫ້ກວດສອບວ່າມີ column application_id ໃນຕາຕະລາງນີ້ບໍ່
+        });
+        if (receipt && receipt.receipts_id) {
+            await redisService.del(`cache:pdf:receipt:${receipt.receipts_id}`);
+            console.log(`🗑️ ລຶບ Cache PDF ໃບຮັບເຄື່ອງແລ້ວ: ${receipt.receipts_id}`);
+        }
+
+        // 3. ລຶບ Cache PDF ສັນຍາ (Contract)
+        const contract = await db.loan_contract.findOne({
+            where: { loan_id: id }
+        });
+        if (contract && contract.id) {
+            await redisService.del(`cache:pdf:contract:${contract.id}`);
+            console.log(`🗑️ ລຶບ Cache PDF ສັນຍາແລ້ວ: ${contract.id}`);
+        }
+    }
+    // =========================================================
 
     return res.status(200).json({
       success: true,
@@ -383,9 +431,21 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
                 await customer.update(customerUpdatePayload, { transaction });
                 await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
             } else {
-                customer = await customerRepo.createCustomer(customerPayload, { transaction });
-                await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
+                // 🟢 ຖ້າ Frontend ບໍ່ໄດ້ສົ່ງ ID ມາ (ພະນັກງານລືມກົດຄົ້ນຫາ), ໃຫ້ Backend ກວດເບີໂທເອງເລີຍ!
+                customer = await customerRepo.findCustomersByPhone(phone); // <- ເພີ່ມການກວດສອບເບີໂທຢູ່ນີ້
+                
+                if (customer) {
+                    // ເຈອລູກຄ້າເກົ່າຈາກເບີໂທ: ອັບເດດຂໍ້ມູນ
+                    const oldCustomerData = customer.toJSON();
+                    await customer.update(customerUpdatePayload, { transaction });
+                    await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
+                } else {
+                    // ບໍ່ເຄີຍມີເບີໂທນີ້ໃນລະບົບ: ສ້າງໃໝ່ເລີຍ
+                    customer = await customerRepo.createCustomer(customerPayload, { transaction });
+                    await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
+                }
             }
+            
         } else {
             // CUSTOMER (PUBLIC) FLOW: ລູກຄ້າສະໝັກເອງ (ຜ່ານ OTP ແລ້ວ)
             customer = await customerRepo.findCustomersByPhone(phone);  

@@ -32,6 +32,14 @@ class loan_applications extends sequelize_1.Model {
                     key: 'id'
                 }
             },
+            variant_id: {
+                type: sequelize_1.DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'product_variants',
+                    key: 'id'
+                }
+            },
             order_id: {
                 type: sequelize_1.DataTypes.INTEGER,
                 allowNull: true,
@@ -192,6 +200,13 @@ class loan_applications extends sequelize_1.Model {
                     using: "BTREE",
                     fields: [
                         { name: "order_id" },
+                    ]
+                },
+                {
+                    name: "fk_loan_variant",
+                    using: "BTREE",
+                    fields: [
+                        { name: "variant_id" },
                     ]
                 },
             ]

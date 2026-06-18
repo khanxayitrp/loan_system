@@ -57,7 +57,11 @@ class loan_contract extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.STRING(50),
                 allowNull: false
             },
-            cus_id_pass_date: {
+            cus_id_pass_date_start: {
+                type: sequelize_1.DataTypes.DATEONLY,
+                allowNull: true
+            },
+            cus_id_pass_date_expired: {
                 type: sequelize_1.DataTypes.DATEONLY,
                 allowNull: true
             },
@@ -164,11 +168,27 @@ class loan_contract extends sequelize_1.Model {
                     key: 'id'
                 }
             },
+            variant_id: {
+                type: sequelize_1.DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'product_variants',
+                    key: 'id'
+                }
+            },
             product_brand: {
                 type: sequelize_1.DataTypes.STRING(100),
                 allowNull: true
             },
             product_model: {
+                type: sequelize_1.DataTypes.STRING(100),
+                allowNull: true
+            },
+            product_color: {
+                type: sequelize_1.DataTypes.STRING(100),
+                allowNull: true
+            },
+            product_size: {
                 type: sequelize_1.DataTypes.STRING(100),
                 allowNull: true
             },
@@ -249,6 +269,11 @@ class loan_contract extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.STRING(20),
                 allowNull: true
             },
+            ref_Type: {
+                type: sequelize_1.DataTypes.ENUM('guarantor', 'reference'),
+                allowNull: true,
+                defaultValue: null
+            },
             ref_name: {
                 type: sequelize_1.DataTypes.STRING(255),
                 allowNull: false
@@ -273,7 +298,11 @@ class loan_contract extends sequelize_1.Model {
                 type: sequelize_1.DataTypes.STRING(50),
                 allowNull: false
             },
-            ref_id_pass_date: {
+            ref_id_pass_date_start: {
+                type: sequelize_1.DataTypes.DATEONLY,
+                allowNull: true
+            },
+            ref_id_pass_date_expired: {
                 type: sequelize_1.DataTypes.DATEONLY,
                 allowNull: true
             },
@@ -454,6 +483,13 @@ class loan_contract extends sequelize_1.Model {
                     using: "BTREE",
                     fields: [
                         { name: "updated_by" },
+                    ]
+                },
+                {
+                    name: "fk_contract_variant",
+                    using: "BTREE",
+                    fields: [
+                        { name: "variant_id" },
                     ]
                 },
             ]

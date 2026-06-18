@@ -26,7 +26,7 @@ class customers extends sequelize_1.Model {
             },
             last_name: {
                 type: sequelize_1.DataTypes.STRING(100),
-                allowNull: false
+                allowNull: true
             },
             date_of_birth: {
                 type: sequelize_1.DataTypes.DATEONLY,

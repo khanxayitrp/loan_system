@@ -484,8 +484,8 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
     try {
         const { formData, contractId } = req.body;
 
-        // console.log('✅ formData received for Contract PDF generation:', formData);
-        // console.log('✅ contractId:', contractId);
+        console.log('✅ formData received for Contract PDF generation:', formData);
+        console.log('✅ contractId:', contractId);
 
         // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
@@ -629,6 +629,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             cusIdIssueDate: formatDate(formData.customer?.idCardIssueDate),
             cusCensus: formData.customer?.censusBook || '________________',
             cusIdExpiryDate: formatDate(formData.customer?.idCardExpiryDate),
+            censusBookIssueDate: formatDate(formData.customer?.censusBookIssueDate),
             cusIssuePlace: formData.customer?.censusAuthorizeBy || '________________',
             cusHouseNo: formData.customer?.houseNumber || '_____',
             cusUnit: formData.customer?.unit || '_____',
@@ -1006,6 +1007,11 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const guarantorWork = guarantor?.work_info?.[0] || guarantor?.work || {};
         const receipt = receiptData || loanData?.delivery_receipts?.[0] || {};
         const contract = loanData?.loan_contracts?.[0] || {};
+
+        // กรองเอา ref_type ออกมาและกันเหนียวด้วยการทำ lower case
+        const rawRefType = guarantor?.ref_type || guarantor?.ref_Type || '';
+        const currentRefType = rawRefType.toLowerCase();
+
         const today = new Date();
 
         // =========================================================
@@ -1062,7 +1068,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
 
         const fullGuaAddressStr = fulladdress(guarantor?.address, guarantor?.district_id, guarantor?.province_id) || guarantor?.address;
 
-        const fullGuaWorkAddressStr = fulladdress(guarantorWork?.address || guarantorWork?.location, guarantorWork?.district_id, guarantorWork?.province_id) || (guarantorWork?.address || guarantorWork?.location);
+        const fullGuaWorkAddressStr = fulladdress(guarantorWork?.address || guarantor?.work_location, guarantor?.work_district_id, guarantor?.work_province_id) || (guarantorWork?.address || guarantorWork?.location);
 
         // =========================================================
         // 🟢 ຈາກນັ້ນນຳມາແຍກ ບ້ານ, ເມືອງ, ແຂວງ ດ້ວຍ parseAddress ອີກຄັ້ງ
@@ -1084,9 +1090,18 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const monthlyPay = Number(loanData?.monthly_pay || 0);
         const totalInterest = (monthlyPay * term) - approvedAmount;
 
-        const pType = String(product.productType_id || product.product_type?.name || product.type || '');
-        const isGold = pType.toLowerCase().includes('gold') || pType.includes('ຄຳ') || pType === '1';
-        const isMoto = pType.toLowerCase().includes('motor') || pType.includes('ລົດ') || pType === '2';
+        // const pType = String(product.productType_id || product.product_type?.name || product.type || '');
+        // const isGold = pType.toLowerCase().includes('gold') || pType.includes('ຄຳ') || pType === '1';
+        // const isMoto = pType.toLowerCase().includes('motor') || pType.includes('ລົດ') || pType === '2';
+        // const isGen = !isGold && !isMoto;
+        // =========================================================
+        // 🟢 ປັບປຸງໂລຈິກການກວດສອບປະເພດສິນຄ້າໃໝ່ (ຮອງຮັບ ID = 8 ແລະ ອ່ານຄ່າ type_name)
+        // =========================================================
+        const typeName = String(product.productType?.type_name || product.product_type?.name || product.type || '').trim();
+        const typeId = Number(product.productType_id || product.producttype_id || 0);
+
+        const isGold = typeName.includes('ຄຳ') || typeName.toLowerCase().includes('gold') || typeId === 8 || typeId === 1;
+        const isMoto = typeName.includes('ລົດ') || typeName.toLowerCase().includes('motor') || typeId === 2;
         const isGen = !isGold && !isMoto;
 
         const data = {
@@ -1139,9 +1154,11 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             shopName: getVal(partner.shop_name),
             shopBranch: getVal(partner.branch || 'ສຳນັກງານໃຫຍ່'),
 
-            hasGuarantor: guarantor ? '✔' : '',
-            hasReference: !guarantor ? '✔' : '',
-            guaName: getVal(guarantor ? `${guarantor.first_name || ''} ${guarantor.last_name || ''}`.trim() : null),
+            // 🟢 อัปเดตตรรกะใหม่สำหรับ Checkbox ตรงนี้
+            hasGuarantor: currentRefType === 'guarantor' ? '✔' : '',
+            hasReference: currentRefType === 'reference' ? '✔' : '',
+
+            guaName: getVal(guarantor ? `${guarantor.name || ''}`.trim() : null),
             guaDob: getVal(formatDate(guarantor?.date_of_birth)),
             guaPhone: getVal(guarantor?.phone),
             guaIdCard: getVal(guarantor?.identity_number),
@@ -1149,11 +1166,11 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             guaDistrict: getVal(guaAddr.district, '____________'),
             guaProvince: getVal(guaAddr.province, '____________'),
 
-            guaWorkName: getVal(guarantorWork.company_name),
+            guaWorkName: getVal(guarantor.work_company_name),
             guaWorkVillage: getVal(guaWorkAddr.village, '____________'),
             guaWorkDistrict: getVal(guaWorkAddr.district, '____________'),
             guaWorkProvince: getVal(guaWorkAddr.province, '____________'),
-            guaIncome: getVal(formatCurrency(guarantorWork.salary || guarantor?.salary)),
+            guaIncome: getVal(formatCurrency(guarantorWork.work_salary || guarantor?.work_salary)),
             guaRelation: getVal(guarantor?.relationship),
 
             approveChecked: receipt.status === 'approved' ? '✔' : '',

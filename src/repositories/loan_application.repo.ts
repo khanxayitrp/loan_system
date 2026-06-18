@@ -255,7 +255,7 @@ class LoanApplicationRepository {
                 {
                     model: db.loan_guarantors,
                     as: 'loan_guarantors',
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_province_id', 'work_district_id', 'work_phone']
+                    attributes: ['id', 'ref_type', 'name', 'identity_number', 'phone', 'address', 'province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_province_id', 'work_district_id', 'work_phone']
                 },
                 {
                     model: db.delivery_receipts,
@@ -428,7 +428,7 @@ class LoanApplicationRepository {
                 { model: db.users, as: 'requester', attributes: ['id', 'username', 'full_name'] },
                 { model: db.users, as: 'approver', attributes: ['id', 'username', 'full_name'] },
                 { model: db.delivery_receipts, as: 'delivery_receipt', attributes: ['id', 'application_id', 'receipts_id', 'status'] },
-                { model: db.loan_contract, as: 'loan_contracts', attributes: ['id'] },
+                { model: db.loan_contract, as: 'loan_contracts', attributes: ['id', 'loan_contract_number'] },
                 { model: db.document_signatures, as: 'document_signatures', attributes: ['id', 'document_type', 'status'], where: { document_type: 'delivery_note' }, required: false }
             ],
             order: [['created_at', 'DESC']],

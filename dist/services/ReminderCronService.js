@@ -9,6 +9,7 @@ const sequelize_1 = require("sequelize");
 const logger_1 = require("../utils/logger");
 const notification_service_1 = __importDefault(require("./notification.service"));
 const redis_service_1 = __importDefault(require("./redis.service"));
+const notification_1 = require("../types/notification");
 class ReminderCronService {
     async processReminders() {
         const LOCK_KEY = 'lock:cron:reminders_sms';
@@ -86,21 +87,53 @@ class ReminderCronService {
                     const shortDate = `${dueDate.getDate().toString().padStart(2, '0')}/${(dueDate.getMonth() + 1).toString().padStart(2, '0')}`;
                     const strAmount = unpaidAmount.toLocaleString();
                     let messageBody = '';
+                    let title = '';
                     if (daysRemaining === 0) {
+                        title = '🔴 ເຖິງກຳນົດຊຳລະຄ່າງວດມື້ນີ້';
                         messageBody = `ມື້ນີ້ຮອດກຳນົດຊຳລະ ${strAmount} ₭. ກະລຸນາຊຳລະພາຍໃນມື້ນີ້.`;
                     }
                     else if (daysRemaining === 3) {
+                        title = '🟡 ແຈ້ງເຕືອນກຽມຊຳລະຄ່າງວດ';
                         messageBody = `ກະລຸນາກຽມຊຳລະ ${strAmount} ₭ ພາຍໃນ 3 ມື້ (${shortDate}).`;
                     }
                     else if (daysRemaining === 7) {
+                        title = '🟢 ແຈ້ງເຕືອນລ່ວງໜ້າ 7 ມື້';
                         messageBody = `ຂໍແຈ້ງຍອດຊຳລະ ${strAmount} ₭ ພາຍໃນວັນທີ ${shortDate}. ຂອບໃຈ`;
                     }
                     if (messageBody === '')
                         continue;
-                    // 🚀 ສັ່ງຍິງ SMS
-                    const isSent = await notification_service_1.default.sendSMS(customer.phone, messageBody);
-                    if (isSent) {
-                        successCount++;
+                    // // 🚀 ສັ່ງຍິງ SMS
+                    // const isSent = await notificationService.sendSMS(customer.phone, messageBody);
+                    // if (isSent) {
+                    //     successCount++;
+                    // }
+                    // ==================================================
+                    // 🚀 1. ສັ່ງບັນທຶກແຈ້ງເຕືອນລົງໃນລະບົບ (In-App Notification)
+                    // ==================================================
+                    const notificationPayload = {
+                        recipient_type: notification_1.RecipientType.CUSTOMER,
+                        recipient_id: customer.id,
+                        event_type: notification_1.NotificationEventType.PAYMENT_DUE, // ໃຊ້ Enum ທີ່ສ້າງໄວ້
+                        title: title,
+                        body: messageBody,
+                        reference_type: 'Repayment',
+                        reference_id: schedule.id,
+                        data: {
+                            unpaid_amount: unpaidAmount,
+                            days_remaining: daysRemaining,
+                            due_date: schedule.due_date
+                        }
+                    };
+                    // ບັນທຶກລົງ Database ແລະ ອັບເດດ Redis Unread Count
+                    await notification_service_1.default.sendNotification(notificationPayload);
+                    // ==================================================
+                    // 🚀 2. ສັ່ງຍິງ SMS ໄປຫາເບີໂທລູກຄ້າ
+                    // ==================================================
+                    if (customer.phone) {
+                        const isSent = await notification_service_1.default.sendSMS(customer.phone, messageBody);
+                        if (isSent) {
+                            successCount++;
+                        }
                     }
                     // ໜ່ວງເວລາ 1 ວິນາທີ ປ້ອງກັນ API ຂອງ Gateway ບລັອກ
                     await new Promise(resolve => setTimeout(resolve, 1000));

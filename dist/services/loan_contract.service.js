@@ -61,7 +61,8 @@ class LoanContractService {
                 cus_phone: data.cusPhone,
                 cus_marital_status: data.cusMaritalStatus,
                 cus_id_pass_number: data.cusIdPassNumber,
-                cus_id_pass_date: data.cusIdPassDate || null,
+                cus_id_pass_date_start: data.cusIdPassDate || null,
+                cus_id_pass_date_expired: data.cusIdPassExpiryDate || null,
                 cus_census_number: data.cusCensusNumber || null,
                 cus_census_created: data.cusCensusCreated || null,
                 cus_census_authorize_by: data.cusCensusAuthorizeBy,
@@ -86,8 +87,11 @@ class LoanContractService {
                 cus_income_other_source: data.cusIncomeOtherSource,
                 product_detail: data.productDetail,
                 producttype_id: data.producttypeId || null,
+                variant_id: data.variant_id || null,
                 product_brand: data.productBrand,
                 product_model: data.productModel,
+                product_color: data.product_color || null,
+                product_size: data.product_size || null,
                 product_price: data.productPrice || null,
                 product_down_payment: data.productDownPayment || null,
                 total_amount: data.totalAmount || null,
@@ -102,7 +106,7 @@ class LoanContractService {
                 motor_color: data.motorColor || null,
                 tank_number: data.tankNumber || null,
                 motor_warranty: data.motorWarranty || null,
-                partner_id: data.partnerId || null,
+                partner_id: data.partner_id || null,
                 shop_branch: data.shopBranch,
                 shop_id: data.shopId,
                 ref_name: data.refName,
@@ -111,7 +115,8 @@ class LoanContractService {
                 ref_sex: data.refSex,
                 ref_marital_status: data.refMaritalStatus,
                 ref_id_pass_number: data.refIdPassNumber,
-                ref_id_pass_date: data.refIdPassDate || null,
+                ref_id_pass_date_start: data.refIdPassDate || null,
+                ref_id_pass_date_expired: data.refIdPassExpiryDate || null,
                 ref_census_number: data.refCensusNumber || null,
                 ref_census_created: data.refCensusCreated || null,
                 ref_census_authorize_by: data.refCensusAuthorizeBy,
@@ -218,6 +223,44 @@ class LoanContractService {
         }
         catch (error) {
             logger_1.logger.error('Get Loan Contract Error:', error.message);
+            throw error;
+        }
+    }
+    async updateLoanContract(updateData) {
+        const t = await init_models_1.db.sequelize.transaction();
+        try {
+            const existingContract = await init_models_1.db.loan_contract.findOne({
+                where: { loan_id: updateData.loan_id },
+                transaction: t,
+                lock: t.LOCK.UPDATE
+            });
+            if (!existingContract) {
+                throw new Error('Loan Contract not found for update');
+            }
+            const oldContractData = existingContract.toJSON();
+            // 🟢 Mapping ຂໍ້ມູນທີ່ຈະອັບເດດ (เฉพาะฟิลด์ที่อนุญาตให้แก้ไข)
+            const allowedFields = ['cusPhone', 'cusAddress', 'cusOccupation', 'payment_day', 'refPhone', 'refAddress', 'refOccupation'];
+            const updatedFields = {};
+            allowedFields.forEach(field => {
+                if (updateData[field] !== undefined) {
+                    updatedFields[field] = updateData[field];
+                }
+            });
+            if (Object.keys(updatedFields).length === 0) {
+                throw new Error('No valid fields provided for update');
+            }
+            await existingContract.update(updatedFields, { transaction: t });
+            await (0, auditLogger_1.logAudit)('loan_contract', existingContract.id, 'UPDATE', oldContractData, updatedFields, updateData.performed_by, t);
+            await t.commit();
+            return {
+                success: true,
+                message: 'Loan Contract updated successfully',
+                data: existingContract
+            };
+        }
+        catch (error) {
+            await t.rollback();
+            logger_1.logger.error('Update Loan Contract Error:', error.message);
             throw error;
         }
     }

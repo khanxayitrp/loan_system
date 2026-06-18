@@ -25,6 +25,9 @@ const customer_portal_routes_1 = __importDefault(require("./customer-portal.rout
 const global_categories_routes_1 = __importDefault(require("./global_categories.routes"));
 const repayment_routes_1 = __importDefault(require("./repayment.routes"));
 const province_district_routes_1 = __importDefault(require("./province_district.routes"));
+const loan_superapp_routes_1 = __importDefault(require("./loan_superapp.routes"));
+const notification_routes_1 = __importDefault(require("./notification.routes"));
+const loan_restructure_routes_1 = __importDefault(require("./loan-restructure.routes"));
 const router = express_1.default.Router();
 router.use('/auth', auth_routes_1.default);
 router.use('/upload', upload_routes_1.default);
@@ -47,4 +50,7 @@ router.use('/portal', customer_portal_routes_1.default);
 router.use('/global-categories', global_categories_routes_1.default);
 router.use('/repayments', repayment_routes_1.default);
 router.use('/address', province_district_routes_1.default);
+router.use('/loan-superapp', loan_superapp_routes_1.default);
+router.use('/notifications', notification_routes_1.default);
+router.use('/loan-restructure', loan_restructure_routes_1.default);
 exports.default = router;

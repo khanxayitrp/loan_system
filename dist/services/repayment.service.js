@@ -32,18 +32,81 @@ class RepaymentService {
             // 🔴 ກໍລະນີປິດບັນຊີກ່ອນກຳນົດ (Early Payoff)
             // ==========================================
             if (data.is_early_payoff) {
-                const payoffInfo = await repayment_repo_1.default.calculateEarlyPayoff(applicationId);
-                if (!payoffInfo)
-                    throw new errors_1.BadRequestError('ບໍ່ມີຍອດຄົງຄ້າງສຳລັບການປິດບັນຊີ');
-                const totalRequired = payoffInfo.total_payoff_amount - remaining_discount;
-                // ເຊັກວ່າຍອດທີ່ຈ່າຍມາ ພໍສຳລັບປິດບັນຊີແທ້ຫຼືບໍ່ (ອະນຸຍາດໃຫ້ຫຼຸດກັນໄດ້ 1 ກີບ ກໍລະນີປັດເສດ)
-                if (remaining_cash < (totalRequired - 1)) {
-                    throw new errors_1.BadRequestError(`ຍອດເງິນບໍ່ພຽງພໍສຳລັບປິດບັນຊີ. ຕ້ອງຈ່າຍ: ${totalRequired} ກີບ`);
+                // const payoffInfo = await repaymentRepo.calculateEarlyPayoff(applicationId);
+                // if (!payoffInfo) throw new BadRequestError('ບໍ່ມີຍອດຄົງຄ້າງສຳລັບການປິດບັນຊີ');
+                // const totalRequired = payoffInfo.total_payoff_amount - remaining_discount;
+                // // ເຊັກວ່າຍອດທີ່ຈ່າຍມາ ພໍສຳລັບປິດບັນຊີແທ້ຫຼືບໍ່ (ອະນຸຍາດໃຫ້ຫຼຸດກັນໄດ້ 1 ກີບ ກໍລະນີປັດເສດ)
+                // if (remaining_cash < (totalRequired - 1)) {
+                //     throw new BadRequestError(`ຍອດເງິນບໍ່ພຽງພໍສຳລັບປິດບັນຊີ. ຕ້ອງຈ່າຍ: ${totalRequired} ກີບ`);
+                // }
+                // // ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ເປັນ Paid ແລະ ຍັດຍອດເງິນຕົ້ນ/ດອກເບ້ຍ ໃຫ້ເຕັມ
+                // await repaymentRepo.processEarlyPayoffSettlement(applicationId, transaction);
+                // await repaymentRepo.updateLoanStatus(applicationId, 'completed', transaction);
+                // logger.info(`App ${applicationId} PAID OFF by user ${receivedBy}`);
+                // 1. ดึงตารางที่ยังค้างชำระทั้งหมดมาเรียงลำดับ
+                const unpaidSchedules = await init_models_1.db.repayments.findAll({
+                    where: {
+                        application_id: applicationId,
+                        payment_status: { [sequelize_1.Op.in]: ['unpaid', 'overdue', 'partial'] }
+                    },
+                    order: [['installment_no', 'ASC']],
+                    lock: transaction.LOCK.UPDATE,
+                    transaction
+                });
+                if (unpaidSchedules.length === 0) {
+                    throw new errors_1.BadRequestError('ບໍ່ມຍອດຄົງຄ້າງສຳລັບການປິດບັນຊີ');
                 }
-                // ອັບເດດທຸກງວດທີ່ເຫຼືອໃຫ້ເປັນ Paid ແລະ ຍັດຍອດເງິນຕົ້ນ/ດອກເບ້ຍ ໃຫ້ເຕັມ
-                await repayment_repo_1.default.processEarlyPayoffSettlement(applicationId, transaction);
+                // 2. คำนวณจำนวนเดือนที่ต้องเก็บดอกเบี้ย (รับจาก Frontend หรือใช้ Default Rule)
+                let interestMonthsToCharge = 0;
+                if (data.payoff_interest_months !== undefined && data.payoff_interest_months !== null) {
+                    interestMonthsToCharge = Number(data.payoff_interest_months);
+                }
+                else {
+                    // Default Rule: ถ้างวดเหลือ > 6 ให้เก็บ 5 เดือน, ถ้าไม่ถึงเก็บตามจริง
+                    interestMonthsToCharge = unpaidSchedules.length > 6 ? 5 : unpaidSchedules.length;
+                }
+                // 3. คำนวณยอดรวมที่ต้องจ่าย (Principal ทั้งหมด + ดอกเบี้ยตามเดือนที่กำหนด + ค่าปรับที่ค้าง)
+                let totalExpectedPrincipal = 0;
+                let totalExpectedInterest = 0;
+                let totalExpectedPenalty = 0;
+                for (let i = 0; i < unpaidSchedules.length; i++) {
+                    const sch = unpaidSchedules[i];
+                    // ต้นทุนเก็บทุกงวด
+                    totalExpectedPrincipal += Number(sch.principal_amount) - Number(sch.paid_principal || 0);
+                    // ค่าปรับเก็บเฉพาะงวดที่มี (โดยปกติมักจะอยู่ในงวดแรกๆ ที่ค้าง)
+                    totalExpectedPenalty += Number(sch.penalty || 0);
+                    // ดอกเบี้ยเก็บเฉพาะจำนวนเดือนที่กำหนดไว้
+                    if (i < interestMonthsToCharge) {
+                        totalExpectedInterest += Number(sch.interest_amount) - Number(sch.paid_interest || 0);
+                    }
+                }
+                const totalRequired = Math.max(0, (totalExpectedPrincipal + totalExpectedInterest + totalExpectedPenalty) - remaining_discount);
+                // 4. ตรวจสอบยอดเงิน (ให้หักลดได้ 1 กีบ ป้องกันทศนิยม)
+                if (remaining_cash < (totalRequired - 1)) {
+                    throw new errors_1.BadRequestError(`ຍອດເງິນບໍ່ພຽງພໍສຳລັບປິດບັນຊີ. ຕ້ອງຈ່າຍ: ${totalRequired} ກີບ (ຮັບມາ: ${remaining_cash} ກີບ)`);
+                }
+                // 5. ปรับปรุงตารางผ่อนชำระ (Waterfall Settlement สำหรับ Early Payoff)
+                for (let i = 0; i < unpaidSchedules.length; i++) {
+                    const sch = unpaidSchedules[i];
+                    let pay_principal = Number(sch.principal_amount) - Number(sch.paid_principal || 0);
+                    let pay_interest = 0;
+                    // หากยังอยู่ในโควตาเดือนที่ต้องเก็บดอกเบี้ย ให้คิดดอกเบี้ยเต็ม
+                    if (i < interestMonthsToCharge) {
+                        pay_interest = Number(sch.interest_amount) - Number(sch.paid_interest || 0);
+                    }
+                    // อัปเดตตารางงวดนั้นให้เป็น Paid (แม้จะไม่ได้เก็บดอกเบี้ยงวดนี้ก็ตาม เพราะเป็นการยกเว้น)
+                    await repayment_repo_1.default.updateRepayment(sch.id, {
+                        paid_principal: Number(sch.paid_principal || 0) + pay_principal,
+                        paid_interest: Number(sch.paid_interest || 0) + pay_interest,
+                        payment_status: 'paid',
+                        paid_at: new Date()
+                    }, transaction);
+                }
+                // 6. เปลี่ยนสถานะสัญญาเป็น Completed
                 await repayment_repo_1.default.updateLoanStatus(applicationId, 'completed', transaction);
-                logger_1.logger.info(`App ${applicationId} PAID OFF by user ${receivedBy}`);
+                // หักเงินทอน
+                remaining_cash -= totalRequired;
+                logger_1.logger.info(`App ${applicationId} PAID OFF by user ${receivedBy}. Interest charged for ${interestMonthsToCharge} months.`);
             }
             // ==========================================
             // 🟢 ກໍລະນີຈ່າຍປົກກະຕິ - ລະບົບຕັດນ້ຳຕົກ (Waterfall & FIFO)
