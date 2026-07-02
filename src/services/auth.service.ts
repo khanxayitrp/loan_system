@@ -327,29 +327,28 @@ class AuthService {
 
   // 🟢 1. ฟังก์ชันจำลองการยิง API ไปเช็คกับ Super App (ปรับใช้ axios จริงตามเอกสารของ Super App)
   private async verifyWithSuperAppServer(tempToken: string, phone: string): Promise<any> {
-  try {
-    const response = await axios.get(
-      process.env.SUPERAPP_VERIFY_URL!,
-      {
-        params: {
-          token: tempToken,
-          phonenumber: phone,
-        },
-        headers: {
-          'Authorization': `Bearer ${process.env.SUPERAPP_API_KEY}`,
-        },
-        timeout: 10000,
-      }
-    );
-    return response.data;
-  } catch (error: any) {
-    console.error('[AUTH SERVICE] Error verifying with Super App:', {
-      message: error.message,
-      status: error.response?.status,
-    });
-    return { isValid: false };
+    try {
+      // นำเบอร์โทรไปต่อท้าย URL โดยตรง แบบที่คุณเทสต์ใน Postman
+      const url = `${process.env.SUPERAPP_VERIFY_URL}/${phone}`;
+      
+      const response = await axios.get(
+        url,
+        {
+          headers: {
+            'Authorization': `Bearer ${tempToken}`, // ใน Postman มีแท็บ Authorization สีเขียว แปลว่าน่าจะใช้ตัวนี้
+          },
+          timeout: 10000,
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('[AUTH SERVICE] Error verifying with Super App:', {
+        message: error.message,
+        status: error.response?.status,
+      });
+      return { status: error.response?.status || 500, error: true }; // คืนค่า error กลับไป
+    }
   }
-}
 
   // 🟢 2. ลอจิกหลัก: รับ Temp Token -> เช็ค -> ค้นหา/สร้าง Customer -> คืนค่า
   public async processSuperAppLogin(tempToken: string) {
@@ -357,17 +356,23 @@ class AuthService {
     
     try {
       // Step 1: แกะเบอร์โทรออกจาก token ก่อน (decode เฉยๆ ยังไม่เชื่อ)
-    const phoneFromToken = this.extractPhoneFromToken(tempToken);
+      const phoneFromToken = this.extractPhoneFromToken(tempToken);
 
-    // Step 2: เอาทั้ง token + เบอร์โทร ไปให้ superapp ยืนยันจริง
-    const superAppInfo = await this.verifyWithSuperAppServer(tempToken, phoneFromToken);
+      // Step 2: เอาทั้ง token + เบอร์โทร ไปให้ superapp ยืนยันจริง
+      const superAppInfo = await this.verifyWithSuperAppServer(tempToken, phoneFromToken);
 
-    if (!superAppInfo || !superAppInfo.isValid) {
-      throw new UnauthorizedError('Token ຊົ່ວຄາວຈາກ Super App ບໍ່ຖືກຕ້ອງ (Invalid Temp Token)');
-    }
+      console.log('[AUTH SERVICE] Super App verification result:', superAppInfo);
+      console.log('[AUTH SERVICE] Phone from token:', phoneFromToken);
 
+      // 🟢 แก้ไข 1: เปลี่ยนมาเช็ค status === 200 และ error === false ตาม Log ของ Super App
+      if (!superAppInfo || superAppInfo.status !== 200 || superAppInfo.error !== false) {
+        throw new UnauthorizedError('Token ຊົ່ວຄາວຈາກ Super App ບໍ່ຖືກຕ້ອງ (Invalid Temp Token)');
+      }
 
-      const phone = superAppInfo.phone;
+      // 🟢 แก้ไข 2: ดึงข้อมูลจากก้อน .data และใช้ชื่อฟิลด์ให้ตรงกับที่เขาส่งมา
+      const phone = superAppInfo.data.userPhone;
+      const firstName = superAppInfo.data.firstName;
+      const lastName = superAppInfo.data.lastName;
 
       // Step 3: เช็คเบอร์โทรกับตาราง customers
       let customer = await db.customers.findOne({ 
@@ -379,9 +384,9 @@ class AuthService {
       if (!customer) {
         customer = await db.customers.create({
           phone: phone,
-          first_name: superAppInfo.firstName || '-',
-          last_name: superAppInfo.lastName || '-',
-          // identity_number: `TEMP-${Date.now()}`, // จำเป็นต้องใส่เพราะตารางคุณบังคับ NOT NULL
+          first_name: firstName || '-',
+          last_name: lastName || '-',
+          // identity_number: `TEMP-${Date.now()}`, 
           kyc_status: 'unverified'
         }, { transaction });
         
