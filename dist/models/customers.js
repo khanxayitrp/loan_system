@@ -13,7 +13,7 @@ class customers extends sequelize_1.Model {
             },
             identity_number: {
                 type: sequelize_1.DataTypes.STRING(50),
-                allowNull: false,
+                allowNull: true,
                 unique: "identity_number"
             },
             census_number: {

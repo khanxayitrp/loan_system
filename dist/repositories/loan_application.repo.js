@@ -246,7 +246,7 @@ class LoanApplicationRepository {
                 {
                     model: init_models_1.db.loan_guarantors,
                     as: 'loan_guarantors',
-                    attributes: ['id', 'name', 'identity_number', 'phone', 'address', 'province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_province_id', 'work_district_id', 'work_phone']
+                    attributes: ['id', 'ref_type', 'name', 'identity_number', 'phone', 'address', 'province_id', 'district_id', 'occupation', 'relationship', 'work_company_name', 'work_position', 'work_salary', 'date_of_birth', 'age', 'work_location', 'work_province_id', 'work_district_id', 'work_phone']
                 },
                 {
                     model: init_models_1.db.delivery_receipts,

@@ -20,7 +20,7 @@
 
         body {
             /* 🟢 2. ຕັ້ງຄ່າໃຫ້ໃຊ້ Noto Sans Lao ເປັນອັນດັບທຳອິດ */
-            font-family: 'Noto Sans Lao', 'Phetsarath OT', sans-serif;
+            font-family:  'Phetsarath OT','Noto Sans Lao', sans-serif;
             font-size: 13px;
             color: var(--text-color);
             line-height: 1.4;
@@ -363,7 +363,7 @@
             <div class="section-title">I. ຂໍ້ມູນສ່ວນຕົວລູກຄ້າ:</div>
             <table class="form-grid">
                 <tr>
-                    <td class="td-label" style="width: 20%;">ຊື່ ແລະ ນາມສະກຸນລູກຄ້າ</td>
+                    <td class="td-label" style="width: 20%;">ຊື່ ແລະ ນາມສະກຸນ</td>
                     <td colspan="3" style="width: 45%;">{{cusName}}</td>
                     <td class="td-label" style="width: 15%;">ວັນເດືອນປີເກີດ:</td>
                     <td style="width: 20%;">{{cusDob}}</td>
@@ -371,15 +371,15 @@
                 <tr>
                     <td class="td-label">ເບີໂທລະສັບມືຖື:</td>
                     <td colspan="3">{{cusPhone}}</td>
-                    <td class="td-label">ບັດປະຈຳຕົວ/ໜັງສືຜ່ານແດນເລກທີ:</td>
+                    <td class="td-label">IDCard/Passport:</td>
                     <td>{{cusIdCard}}</td>
                 </tr>
                 <tr>
                     <td class="td-label">ທີ່ຢູ່ປັດຈຸບັນ ບ້ານ:</td>
                     <td style="width: 18%;">{{cusVillage}}</td>
-                    <td class="td-label" style="width: 8%; text-align: center;">ເມືອງ:</td>
+                    <td class="td-label" style="width: 8%;">ເມືອງ:</td>
                     <td style="width: 19%;">{{cusDistrict}}</td>
-                    <td class="td-label text-center">ແຂວງ:</td>
+                    <td class="td-label">ແຂວງ:</td>
                     <td>{{cusProvince}}</td>
                 </tr>
             </table>
@@ -395,9 +395,9 @@
                 <tr>
                     <td class="td-label">ເມືອງ:</td>
                     <td style="width: 18%;">{{workDistrict}}</td>
-                    <td class="td-label text-center" style="width: 8%;">ແຂວງ:</td>
+                    <td class="td-label" style="width: 8%;">ແຂວງ:</td>
                     <td style="width: 19%;">{{workProvince}}</td>
-                    <td class="td-label text-center">ພະແນກ</td>
+                    <td class="td-label">ພະແນກ</td>
                     <td>{{workDepartment}}</td>
                 </tr>
                 <tr>
@@ -465,7 +465,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td class="td-label">ຄ່າງວດເດືອນທຳອິດ:(ບວກຄ່າທຳນຽມ):</td>
+                    <td class="td-label">ຄ່າງວດເດືອນທຳອິດ+ຄ່າທຳນຽມ:</td>
                     <td>
                         <div class="flex justify-between"><span>{{prodFirstInst}}</span></div>
                     </td>
@@ -484,7 +484,7 @@
             </table>
 
             <div class="section-title flex align-center gap-2">
-                IV. ມູນສ່ວນຕົວ ແລະ ຫ້ອງການ ຂອງ <span class="checkbox">{{hasGuarantor}}</span> ຜູ້ຄຳປະກັນ / <span
+                IV. ຂໍ້ມູນສ່ວນຕົວ ແລະ ຫ້ອງການ ຂອງ <span class="checkbox">{{hasGuarantor}}</span> ຜູ້ຄຳປະກັນ / <span
                     class="checkbox">{{hasReference}}</span> ຜູ້ອ້າງອີງ (ຖ້າມີ) ເຊິ່ງມີລາຍລະອຽດດັ່ງລຸ່ມນີ້
             </div>
             <table class="form-grid">
@@ -497,31 +497,31 @@
                 <tr>
                     <td class="td-label">ເບີໂທລະສັບມືຖື:</td>
                     <td colspan="3">{{guaPhone}}</td>
-                    <td class="td-label">ບັດປະຈຳຕົວ/ໜັງສືຜ່ານແດນເລກທີ:</td>
+                    <td class="td-label">IDCard/Passport:</td>
                     <td>{{guaIdCard}}</td>
                 </tr>
                 <tr>
                     <td class="td-label">ທີ່ຢູ່ປັດຈຸບັນ ບ້ານ:</td>
                     <td style="width: 18%;">{{guaVillage}}</td>
-                    <td class="td-label text-center" style="width: 8%;">ເມືອງ:</td>
+                    <td class="td-label" style="width: 8%;">ເມືອງ:</td>
                     <td style="width: 19%;">{{guaDistrict}}</td>
-                    <td class="td-label text-center">ແຂວງ:</td>
+                    <td class="td-label">ແຂວງ:</td>
                     <td>{{guaProvince}}</td>
                 </tr>
                 <tr>
                     <td class="td-label">ຫ້ອງການ/ບໍລິສັດ:</td>
                     <td>{{guaWorkName}}</td>
-                    <td class="td-label text-center">ບ້ານ:</td>
+                    <td class="td-label">ບ້ານ:</td>
                     <td>{{guaWorkVillage}}</td>
-                    <td class="td-label text-center">ເມືອງ:</td>
+                    <td class="td-label">ເມືອງ:</td>
                     <td>{{guaWorkDistrict}}</td>
                 </tr>
                 <tr>
                     <td class="td-label">ແຂວງ:</td>
                     <td>{{guaWorkProvince}}</td>
-                    <td class="td-label text-center">ລາຍຮັບ:</td>
+                    <td class="td-label">ລາຍຮັບ:</td>
                     <td>{{guaIncome}}</td>
-                    <td class="td-label text-center">ສາຍສຳພັນ:</td>
+                    <td class="td-label">ສາຍສຳພັນ:</td>
                     <td>{{guaRelation}}</td>
                 </tr>
             </table>
@@ -547,7 +547,7 @@
                     <td style="width: 25%; vertical-align: top; padding: 10px;">
                         <div class="font-bold mb-4" style="font-size: 13px;">❖ ຊ່ອງຄໍາຄິດເຫັນຂອງຜູ້ອະນຸມັດ</div>
                         <div class="flex justify-center gap-4 mt-2">
-                            <div><span class="checkbox">{{approveChecked}}</span> ອະນຸມັດ</div>
+                            <div><span class="checkbox">{{approveChecked}}</span> ອະນຸມັດ  </div>
                             <div><span class="checkbox">{{rejectChecked}}</span> ປະຕິເສດ</div>
                         </div>
                     </td>

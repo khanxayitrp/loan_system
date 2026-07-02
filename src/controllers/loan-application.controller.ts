@@ -12,6 +12,7 @@ import { otpService } from '../services/otp.service';
 import { Transaction } from 'sequelize';
 import { logAudit } from '../utils/auditLogger';
 import { logApprovalAction } from '../utils/approvalLogger';
+import { formatStandardPhoneNumber } from '../utils/formatters';
 
 import redisService from '../services/redis.service';
 
@@ -381,12 +382,29 @@ export const sentApplyDraft = async (req: Request, res: Response, next: NextFunc
 export const createWithCustomer = async (req: Request, res: Response, next: NextFunction) => {
     const transaction = await db.sequelize.transaction();
     try {
+
+      // 🟢 1. ແຍກເອົາ phone ແລະ identity_number ມາເປັນ let ເພື່ອດັດແປງຄ່າໄດ້
+        let { phone, identity_number } = req.body;
         const {
-            phone, otp, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
+             otp, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
             product_id, variant_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
             interest_type, interest_rate_type, 
             existing_customer_id 
         } = req.body;
+
+        // =======================================================
+        // 🟢 2. Data Standardization (ກັ່ນຕອງຂໍ້ມູນກ່ອນນຳໄປໃຊ້)
+        // =======================================================
+        
+        // ປ່ຽນຄ່າວ່າງ ຫຼື ຄຳວ່າ "ບໍ່ມີ" ໃຫ້ກາຍເປັນ null ແທ້ໆ ເພື່ອປ້ອງກັນ Duplicate Key Error
+        if (!identity_number || identity_number.trim() === '' || identity_number === 'ບໍ່ມີ') {
+            identity_number = null;
+        }
+
+        // ແປງເບີໂທໃຫ້ເປັນມາດຕະຖານ (020/030) ກັນໜຽວໄວ້ອີກຊັ້ນໜຶ່ງ
+        if (phone) {
+            phone = formatStandardPhoneNumber(phone);
+        }
 
         // 🔍 ກວດສອບກ່ອນວ່າມັກຈາກພະນັກງານ (Staff ຫຼື Admin) ຫຼື ບໍ່
         const isEmployeeRequest = !!req.userPayload && (req.userPayload.role === 'staff' || req.userPayload.role === 'admin'); 
@@ -416,7 +434,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
         // =======================================================
         let customer;
         const customerPayload = { phone, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
-        const customerUpdatePayload = { first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
+        const customerUpdatePayload = { identity_number,  first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
 
         if (isEmployeeRequest) {
             // STAFF FLOW: ຈັດການຂໍ້ມູນລູກຄ້າໂດຍພະນັກງານ

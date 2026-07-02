@@ -6,6 +6,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.formatStandardPhoneNumber = exports.normalizePhoneNumber = void 0;
 exports.mapGender = mapGender;
 exports.mapMaritalStatus = mapMaritalStatus;
 exports.mapResidenceStatus = mapResidenceStatus;
@@ -57,7 +58,11 @@ function formatCurrency(amount) {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(num))
         return '________________';
-    return num.toLocaleString('lo-LA') + ' ກີບ';
+    // 🟢 ເພີ່ມ Options ເພື່ອບັງຄັບໃຫ້ມີທົດສະນິຍົມ 2 ຕຳແໜ່ງສະເໝີ
+    return num.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }) + ' ກີບ';
 }
 function formatCurrencyV2(amount) {
     if (amount === null || amount === undefined || amount === '')
@@ -65,8 +70,24 @@ function formatCurrencyV2(amount) {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(num))
         return '________________';
-    return num.toLocaleString('lo-LA');
+    // 🟢 ເພີ່ມ Options ເພື່ອບັງຄັບໃຫ້ມີທົດສະນິຍົມ 2 ຕຳແໜ່ງສະເໝີ
+    return num.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
 }
+// export function formatCurrency(amount: number | null | string | undefined): string {
+//     if (amount === null || amount === undefined || amount === '') return '________________';
+//     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+//     if (isNaN(num)) return '________________';
+//     return num.toLocaleString('lo-LA') + ' ກີບ';
+// }
+// export function formatCurrencyV2(amount: number | null | string | undefined): string {
+//     if (amount === null || amount === undefined || amount === '') return '________________';
+//     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+//     if (isNaN(num)) return '________________';
+//     return num.toLocaleString('lo-LA');
+// }
 function getProductTypeName(type) {
     // ปรับให้รองรับกรณี DB เก็บเป็น ID (เช่น 1, 2, 3) หรือเก็บเป็น String
     const typeStr = String(type).toLowerCase();
@@ -84,3 +105,55 @@ function fulladdress(address, districtId, provinceId) {
     // ປະກອບເປັນ String ດຽວ
     return `${address}, ${districtName}, ${provinceName}`;
 }
+// src/utils/formatters.ts (ຫຼື ໄຟລ໌ utils ທີ່ທ່ານມີ)
+const normalizePhoneNumber = (phone) => {
+    if (!phone)
+        return '';
+    // ລຶບຊ່ອງຫວ່າງ, ຂີດ, ວົງເລັບ ແລະ ເຄື່ອງໝາຍບວກອອກກ່ອນ
+    let cleanPhone = phone.replace(/[\s\-\+\(\)]/g, '');
+    // ຕັດ Prefix ຍອດຮິດອອກ (ກວດຈາກຍາວໄປຫາສັ້ນ)
+    if (cleanPhone.startsWith('020')) {
+        cleanPhone = cleanPhone.substring(3);
+    }
+    else if (cleanPhone.startsWith('20')) {
+        cleanPhone = cleanPhone.substring(2);
+    }
+    else if (cleanPhone.startsWith('030')) {
+        cleanPhone = cleanPhone.substring(3);
+    }
+    else if (cleanPhone.startsWith('30')) {
+        cleanPhone = cleanPhone.substring(2);
+    }
+    return cleanPhone;
+};
+exports.normalizePhoneNumber = normalizePhoneNumber;
+// src/utils/formatters.ts
+const formatStandardPhoneNumber = (phone) => {
+    if (!phone)
+        return '';
+    // 1. ลบอักขระที่ไม่ใช่ตัวเลขออกให้หมด (ตัดช่องว่าง, -, +, (), ตัวอักษร)
+    let cleanPhone = phone.replace(/\D/g, '');
+    // 2. ลบ Prefix เก่าที่ผู้ใช้อาจจะพิมพ์ติดมาออกให้หมด ให้เหลือแค่เบอร์หลัก
+    if (cleanPhone.startsWith('85620'))
+        cleanPhone = cleanPhone.substring(5);
+    else if (cleanPhone.startsWith('85630'))
+        cleanPhone = cleanPhone.substring(5);
+    else if (cleanPhone.startsWith('020'))
+        cleanPhone = cleanPhone.substring(3);
+    else if (cleanPhone.startsWith('20'))
+        cleanPhone = cleanPhone.substring(2);
+    else if (cleanPhone.startsWith('030'))
+        cleanPhone = cleanPhone.substring(3);
+    else if (cleanPhone.startsWith('30'))
+        cleanPhone = cleanPhone.substring(2);
+    // 3. ประกอบร่างใหม่ให้เป็นมาตรฐาน (Standardization)
+    if (cleanPhone.length === 8) {
+        return '020' + cleanPhone;
+    }
+    else if (cleanPhone.length === 7) {
+        return '030' + cleanPhone;
+    }
+    // ถ้าเบอร์สั้นหรือยาวเกินไป (ผิดปกติ) ให้ส่งค่าเดิมกลับไปเพื่อให้ Validation ของ API เตะ Error
+    return cleanPhone;
+};
+exports.formatStandardPhoneNumber = formatStandardPhoneNumber;

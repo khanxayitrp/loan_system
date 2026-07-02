@@ -21,6 +21,7 @@ class loan_guarantors extends sequelize_1.Model {
             },
             ref_Type: {
                 type: sequelize_1.DataTypes.ENUM('guarantor', 'reference'),
+                field: 'ref_Type',
                 allowNull: true,
                 defaultValue: null
             },

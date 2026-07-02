@@ -6,10 +6,12 @@ import tokenService from './token.service'; // เรียกใช้ TokenSer
 import { Tokens } from '../interfaces/token.interface';
 import { db } from '../models/init-models';
 import { Transaction } from 'sequelize';
+import jwt from 'jsonwebtoken';
 
 // 🟢 1. Import Helper ของเราเข้ามา
 import { logAudit } from '../utils/auditLogger';
 import { BadRequestError, NotFoundError, ConflictError, UnauthorizedError } from '../utils/errors';
+import axios from 'axios';
 
 class AuthService {
 
@@ -298,40 +300,72 @@ class AuthService {
     }
   }
 
-  // 🟢 1. ฟังก์ชันจำลองการยิง API ไปเช็คกับ Super App (ปรับใช้ axios จริงตามเอกสารของ Super App)
-  private async verifyWithSuperAppServer(tempToken: string): Promise<any> {
-    try {
-      // 🚨 ตำแหน่งสำหรับใส่ axios ยิงไปหา Super App Server
-      // const response = await axios.post('SUPER_APP_URL/verify', { token: tempToken });
-      // return response.data;
+  private extractPhoneFromToken(tempToken: string): string {
+  try {
+    // ถ้า token เป็น JWT ให้ decode ดูเนื้อใน (ยังไม่ verify signature ตรงนี้)
+    const decoded: any = jwt.decode(tempToken);
 
-      // 🟢 MOCKUP สำหรับทดสอบ
-      if (tempToken === 'VALID_TEMP_TOKEN') {
-        return {
-          isValid: true,
-          phone: '02099998888',
-          firstName: 'ລູກຄ້າ',
-          lastName: 'SuperApp'
-        };
-      }
-      return { isValid: false };
-    } catch (error) {
-      console.error('[AUTH SERVICE] Error verifying with Super App:', error);
-      return { isValid: false };
+    if (!decoded || decoded.iss != 'https://laolot.digital/') {
+      throw new UnauthorizedError('Token ไม่ถูกต้อง');
     }
+
+    if (!decoded || !decoded.roleid || !decoded.userid || !decoded.DisplayName || !decoded.accesstype) {
+      throw new UnauthorizedError('Token ไม่ถูกต้อง');
+    }
+
+    if (!decoded || !decoded.DisplayName) {
+      throw new UnauthorizedError('ไม่พบเบอร์โทรใน Token');
+    }
+
+    const phone = decoded.DisplayName;
+    return phone; // ⚠️ ค่านี้ยังไม่น่าเชื่อถือ 100% ต้องเอาไป verify กับ superapp อีกที
+  } catch (error) {
+    console.error('[AUTH SERVICE] Error decoding token:', error);
+    throw new UnauthorizedError('รูปแบบ Token ไม่ถูกต้อง');
   }
+}
+
+  // 🟢 1. ฟังก์ชันจำลองการยิง API ไปเช็คกับ Super App (ปรับใช้ axios จริงตามเอกสารของ Super App)
+  private async verifyWithSuperAppServer(tempToken: string, phone: string): Promise<any> {
+  try {
+    const response = await axios.get(
+      process.env.SUPERAPP_VERIFY_URL!,
+      {
+        params: {
+          token: tempToken,
+          phonenumber: phone,
+        },
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPERAPP_API_KEY}`,
+        },
+        timeout: 10000,
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error('[AUTH SERVICE] Error verifying with Super App:', {
+      message: error.message,
+      status: error.response?.status,
+    });
+    return { isValid: false };
+  }
+}
 
   // 🟢 2. ลอจิกหลัก: รับ Temp Token -> เช็ค -> ค้นหา/สร้าง Customer -> คืนค่า
   public async processSuperAppLogin(tempToken: string) {
     const transaction = await db.sequelize.transaction();
     
     try {
-      // Step 1 & 2: ส่งไป verify และรับข้อมูลกลับมา
-      const superAppInfo = await this.verifyWithSuperAppServer(tempToken);
+      // Step 1: แกะเบอร์โทรออกจาก token ก่อน (decode เฉยๆ ยังไม่เชื่อ)
+    const phoneFromToken = this.extractPhoneFromToken(tempToken);
 
-      if (!superAppInfo || !superAppInfo.isValid) {
-        throw new UnauthorizedError('Token ຊົ່ວຄາວຈາກ Super App ບໍ່ຖືກຕ້ອງ (Invalid Temp Token)');
-      }
+    // Step 2: เอาทั้ง token + เบอร์โทร ไปให้ superapp ยืนยันจริง
+    const superAppInfo = await this.verifyWithSuperAppServer(tempToken, phoneFromToken);
+
+    if (!superAppInfo || !superAppInfo.isValid) {
+      throw new UnauthorizedError('Token ຊົ່ວຄາວຈາກ Super App ບໍ່ຖືກຕ້ອງ (Invalid Temp Token)');
+    }
+
 
       const phone = superAppInfo.phone;
 
@@ -347,7 +381,7 @@ class AuthService {
           phone: phone,
           first_name: superAppInfo.firstName || '-',
           last_name: superAppInfo.lastName || '-',
-          identity_number: `TEMP-${Date.now()}`, // จำเป็นต้องใส่เพราะตารางคุณบังคับ NOT NULL
+          // identity_number: `TEMP-${Date.now()}`, // จำเป็นต้องใส่เพราะตารางคุณบังคับ NOT NULL
           kyc_status: 'unverified'
         }, { transaction });
         

@@ -77,7 +77,7 @@ router.post('/application/:customerId/document', upload_middleware_1.uploadDocum
 router.post('/application/:customerId/documents', upload_middleware_1.uploadDocument.array('files', 10), upload_controller_1.default.uploadMultipleDocuments);
 /**
  * @swagger
- * /upload/application/{application_id}/documents:
+ * /upload/application/{customerId}/documents:
  *   get:
  *     summary: Get application documents
  *     tags: [Upload]
@@ -85,7 +85,7 @@ router.post('/application/:customerId/documents', upload_middleware_1.uploadDocu
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: application_id
+ *         name: customerId
  *         required: true
  *         schema:
  *           type: integer
@@ -93,7 +93,7 @@ router.post('/application/:customerId/documents', upload_middleware_1.uploadDocu
  *       200:
  *         description: List of documents
  */
-router.get('/application/:application_id/documents', upload_controller_1.default.getApplicationDocuments);
+router.get('/application/:customerId/documents', upload_controller_1.default.getApplicationDocuments);
 /**
  * @swagger
  * /upload/document/{document_id}:

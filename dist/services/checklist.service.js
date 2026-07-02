@@ -90,7 +90,9 @@ class CheckListService {
                     first_name: data.verifiedFirstName || data.verified_first_name,
                     last_name: data.verifiedLastName || data.verified_last_name,
                     date_of_birth: data.verifiedDob || data.verified_dob || null,
-                    address: data.verifiedAddress || data.verified_address || null
+                    address: data.verifiedAddress || data.verified_address || null,
+                    province_id: data.verifiedProvinceId || data.verified_province_id || null,
+                    district_id: data.verifiedDistrictId || data.verified_district_id || null
                 };
                 customer_info = await existingCustomer.update(updateCustomerPayload, { transaction: t });
                 // 🟢 Audit Log (UPDATE Customer)

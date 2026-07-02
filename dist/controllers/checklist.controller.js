@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const checklist_service_1 = __importDefault(require("../services/checklist.service"));
 const errors_1 = require("../utils/errors");
+const redis_service_1 = __importDefault(require("../services/redis.service"));
+const init_models_1 = require("../models/init-models");
 class ChecklistController {
     async saveIncomeAssessment(req, res, next) {
         try {
@@ -35,6 +37,21 @@ class ChecklistController {
             next(error);
         }
     }
+    // public async saveBasicChecklist(req: Request, res: Response, next: NextFunction) {
+    //     try {
+    //         const loan_id = parseInt(req.params.loanId, 10);
+    //         const verified_by = (req as any).userPayload?.userId || 1;
+    //         const data = req.body;
+    //         if (!loan_id || isNaN(loan_id)) throw new BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
+    //         if (!data || Object.keys(data).length === 0) throw new BadRequestError('data is required');
+    //         const checklistData: any = { ...data, loan_id, verified_by };
+    //         const result = await checklistService.CreateBasicVerification(checklistData);
+    //         if (!result.success) throw new BadRequestError(result.message);
+    //         return res.status(200).json(result);
+    //     } catch (error) {
+    //         next(error);
+    //     }
+    // }
     async saveBasicChecklist(req, res, next) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
@@ -48,6 +65,24 @@ class ChecklistController {
             const result = await checklist_service_1.default.CreateBasicVerification(checklistData);
             if (!result.success)
                 throw new errors_1.BadRequestError(result.message);
+            // =========================================================
+            // 🟢 จัดการลบ Cache เมื่อมีการอัปเดตข้อมูลสำเร็จ
+            // =========================================================
+            if (redis_service_1.default) {
+                // 1. ลบ Cache หน้าสรุป Checklist ปกติ
+                await redis_service_1.default.del(`cache:checklist:summary:${loan_id}`);
+                await redis_service_1.default.del(`cache:loan_application:${loan_id}`);
+                await redis_service_1.default.delByPattern('cache:loan_applications:list:*');
+                // 2. 🟢 Query หา Delivery Receipt ที่ผูกกับ loan_id นี้
+                const receipt = await init_models_1.db.delivery_receipts.findOne({
+                    where: { application_id: loan_id } // หรือเช็คตาม column ที่เก็บ loan id ของคุณ
+                });
+                // 3. 🟢 ถ้าเจอใบรับเครื่อง ให้เอา receipts_id ไปลบ Cache PDF ทิ้ง
+                if (receipt && receipt.receipts_id) {
+                    await redis_service_1.default.del(`cache:pdf:receipt:${receipt.receipts_id}`);
+                    console.log(`🗑️ ลบ Cache PDF ใบรับเครื่องสำเร็จ: ${receipt.receipts_id}`);
+                }
+            }
             return res.status(200).json(result);
         }
         catch (error) {

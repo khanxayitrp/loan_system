@@ -545,7 +545,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
         // =========================================================
         // 🟢 1. ปรับ getVal ให้กำจัดข้อความว่า 'undefined'
         // =========================================================
-        const getVal = (val: any, defaultStr = '________________') => {
+        const getVal = (val: any, defaultStr = '_________') => {
             // เช็คทั้งค่าว่าง null และ String คำว่า 'undefined'
             if (
                 val === null ||
@@ -646,6 +646,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
 
             workName: formData.work?.companyName || '________________',
             workType: formData.work?.businessType || '________________',
+            workBusinessDetail: formData.work?.businessDetail || '________________',
             workVillage: getVal(workAddr.village, '____________'),
             workDistrict: getVal(workAddr.district, '____________'),
             workProvince: getVal(workAddr.province, '____________'),
@@ -654,7 +655,9 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             // workDistrict: formData.work?.address?.district || '________________',
             // workProvince: formData.work?.address?.province || '________________',
             workYears: formData.work?.workYears || '___',
+            workMonths: formData.work?.workMonths || '___',
             workPosition: formData.work?.position || '________________',
+            workDepartment: formData.work?.department || '________________',
             workSalary: formatCurrency(formData.work?.salary),
             workSalaryDay: formData.work?.salaryDay || '___',
             workTotalEmp: formData.work?.totalEmployees || '___',

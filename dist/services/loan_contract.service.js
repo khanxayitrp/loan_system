@@ -109,6 +109,7 @@ class LoanContractService {
                 partner_id: data.partner_id || null,
                 shop_branch: data.shopBranch,
                 shop_id: data.shopId,
+                ref_Type: data.ref_Type,
                 ref_name: data.refName,
                 ref_date_of_birth: data.refDateOfBirth || null,
                 ref_phone: data.refPhone,

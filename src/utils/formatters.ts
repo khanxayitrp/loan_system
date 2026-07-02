@@ -35,9 +35,9 @@ export function formatDate(dateStr: string | Date | null | undefined): string {
 }
 
 export function formatCurrency(amount: number | null | string | undefined): string {
-    if (amount === null || amount === undefined || amount === '') return '________________';
+    if (amount === null || amount === undefined || amount === '') return '___________';
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(num)) return '________________';
+    if (isNaN(num)) return '___________';
     
     // 🟢 ເພີ່ມ Options ເພື່ອບັງຄັບໃຫ້ມີທົດສະນິຍົມ 2 ຕຳແໜ່ງສະເໝີ
     return num.toLocaleString('en-US', { 
@@ -47,9 +47,9 @@ export function formatCurrency(amount: number | null | string | undefined): stri
 }
 
 export function formatCurrencyV2(amount: number | null | string | undefined): string {
-    if (amount === null || amount === undefined || amount === '') return '________________';
+    if (amount === null || amount === undefined || amount === '') return '___________';
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(num)) return '________________';
+    if (isNaN(num)) return '___________';
     
     // 🟢 ເພີ່ມ Options ເພື່ອບັງຄັບໃຫ້ມີທົດສະນິຍົມ 2 ຕຳແໜ່ງສະເໝີ
     return num.toLocaleString('en-US', { 
@@ -90,3 +90,52 @@ export function fulladdress(address: string, districtId: string, provinceId: str
     // ປະກອບເປັນ String ດຽວ
     return `${address}, ${districtName}, ${provinceName}`;
 }
+
+// src/utils/formatters.ts (ຫຼື ໄຟລ໌ utils ທີ່ທ່ານມີ)
+
+export const normalizePhoneNumber = (phone: string | null | undefined): string => {
+    if (!phone) return '';
+    
+    // ລຶບຊ່ອງຫວ່າງ, ຂີດ, ວົງເລັບ ແລະ ເຄື່ອງໝາຍບວກອອກກ່ອນ
+    let cleanPhone = phone.replace(/[\s\-\+\(\)]/g, ''); 
+  
+    // ຕັດ Prefix ຍອດຮິດອອກ (ກວດຈາກຍາວໄປຫາສັ້ນ)
+    if (cleanPhone.startsWith('020')) {
+      cleanPhone = cleanPhone.substring(3);
+    } else if (cleanPhone.startsWith('20')) {
+      cleanPhone = cleanPhone.substring(2);
+    } else if (cleanPhone.startsWith('030')) {
+      cleanPhone = cleanPhone.substring(3);
+    } else if (cleanPhone.startsWith('30')) {
+      cleanPhone = cleanPhone.substring(2);
+    }
+    
+    return cleanPhone; 
+};
+
+// src/utils/formatters.ts
+
+export const formatStandardPhoneNumber = (phone: string | null | undefined): string => {
+    if (!phone) return '';
+    
+    // 1. ลบอักขระที่ไม่ใช่ตัวเลขออกให้หมด (ตัดช่องว่าง, -, +, (), ตัวอักษร)
+    let cleanPhone = phone.replace(/\D/g, ''); 
+  
+    // 2. ลบ Prefix เก่าที่ผู้ใช้อาจจะพิมพ์ติดมาออกให้หมด ให้เหลือแค่เบอร์หลัก
+    if (cleanPhone.startsWith('85620')) cleanPhone = cleanPhone.substring(5);
+    else if (cleanPhone.startsWith('85630')) cleanPhone = cleanPhone.substring(5);
+    else if (cleanPhone.startsWith('020')) cleanPhone = cleanPhone.substring(3);
+    else if (cleanPhone.startsWith('20')) cleanPhone = cleanPhone.substring(2);
+    else if (cleanPhone.startsWith('030')) cleanPhone = cleanPhone.substring(3);
+    else if (cleanPhone.startsWith('30')) cleanPhone = cleanPhone.substring(2);
+    
+    // 3. ประกอบร่างใหม่ให้เป็นมาตรฐาน (Standardization)
+    if (cleanPhone.length === 8) {
+        return '020' + cleanPhone;
+    } else if (cleanPhone.length === 7) {
+        return '030' + cleanPhone;
+    }
+    
+    // ถ้าเบอร์สั้นหรือยาวเกินไป (ผิดปกติ) ให้ส่งค่าเดิมกลับไปเพื่อให้ Validation ของ API เตะ Error
+    return cleanPhone; 
+};

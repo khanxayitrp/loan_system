@@ -18,7 +18,7 @@ import type { wishlists, wishlistsId } from './wishlists';
 
 export interface customersAttributes {
   id: number;
-  identity_number: string;
+  identity_number?: string;
   census_number?: string;
   first_name: string;
   last_name?: string;
@@ -49,7 +49,7 @@ export type customersCreationAttributes = Optional<customersAttributes, customer
 
 export class customers extends Model<customersAttributes, customersCreationAttributes> implements customersAttributes {
   id!: number;
-  identity_number!: string;
+  identity_number?: string;
   census_number?: string;
   first_name!: string;
   last_name?: string;
@@ -235,7 +235,7 @@ export class customers extends Model<customersAttributes, customersCreationAttri
     },
     identity_number: {
       type: DataTypes.STRING(50),
-      allowNull: false,
+      allowNull: true,
       unique: "identity_number"
     },
     census_number: {
