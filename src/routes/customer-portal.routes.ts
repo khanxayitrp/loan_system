@@ -48,7 +48,7 @@ router.use(verifyCustomerToken);
 
 /**
  * @swagger
- * /loan-application/superapp-create:
+ * /portal/superapp-create:
  *   post:
  *     summary: ຍື່ນຄຳຂໍສິນເຊື່ອສຳລັບລູກຄ້າ Super App (Webview)
  *     description: ຕ້ອງການ Token ຈາກການເຂົ້າສູ່ລະບົບ ແລະ OTP ເພື່ອຢືນຢັນການຍື່ນຄຳຂໍ

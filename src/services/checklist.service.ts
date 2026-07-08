@@ -68,6 +68,7 @@ class CheckListService {
                 work_position: data.workPosition || data.work_position || null,
                 work_salary: data.workSalary || data.work_salary || null,
                 work_years: data.workYears || data.work_years || null,
+                work_months: data.workMonths || data.work_months || null,
                 workplace_assessment: data.workplaceAssessment || data.workplace_assessment || null,
                 status: data.status || null,
                 verified_by: performedBy

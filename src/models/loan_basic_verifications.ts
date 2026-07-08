@@ -27,6 +27,7 @@ export interface loan_basic_verificationsAttributes {
   work_position?: string;
   work_salary?: number;
   work_years?: number;
+  work_months?: number;
   workplace_assessment?: 'good' | 'moderate' | 'bad';
   status?: 'draft' | 'completed';
   verified_by: number;
@@ -36,7 +37,7 @@ export interface loan_basic_verificationsAttributes {
 
 export type loan_basic_verificationsPk = "id";
 export type loan_basic_verificationsId = loan_basic_verifications[loan_basic_verificationsPk];
-export type loan_basic_verificationsOptionalAttributes = "id" | "cus_contact_method" | "verified_first_name" | "verified_last_name" | "verified_dob" | "verified_address" | "verified_province_id" | "verified_district_id" | "verified_product_type" | "verified_price" | "verified_down_payment" | "verified_monthly_pay" | "has_id_card" | "has_census_book" | "has_income_doc" | "has_other_doc" | "other_doc_detail" | "cus_credibility_assessment" | "work_company_name" | "work_position" | "work_salary" | "work_years" | "workplace_assessment" | "status" | "created_at" | "updated_at";
+export type loan_basic_verificationsOptionalAttributes = "id" | "cus_contact_method" | "verified_first_name" | "verified_last_name" | "verified_dob" | "verified_address" | "verified_province_id" | "verified_district_id" | "verified_product_type" | "verified_price" | "verified_down_payment" | "verified_monthly_pay" | "has_id_card" | "has_census_book" | "has_income_doc" | "has_other_doc" | "other_doc_detail" | "cus_credibility_assessment" | "work_company_name" | "work_position" | "work_salary" | "work_years" | "work_months" | "workplace_assessment" | "status" | "created_at" | "updated_at";
 export type loan_basic_verificationsCreationAttributes = Optional<loan_basic_verificationsAttributes, loan_basic_verificationsOptionalAttributes>;
 
 export class loan_basic_verifications extends Model<loan_basic_verificationsAttributes, loan_basic_verificationsCreationAttributes> implements loan_basic_verificationsAttributes {
@@ -63,6 +64,7 @@ export class loan_basic_verifications extends Model<loan_basic_verificationsAttr
   work_position?: string;
   work_salary?: number;
   work_years?: number;
+  work_months?: number;
   workplace_assessment?: 'good' | 'moderate' | 'bad';
   status?: 'draft' | 'completed';
   verified_by!: number;
@@ -181,6 +183,11 @@ export class loan_basic_verifications extends Model<loan_basic_verificationsAttr
       allowNull: true
     },
     work_years: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 0
+    },
+    work_months: {
       type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: 0

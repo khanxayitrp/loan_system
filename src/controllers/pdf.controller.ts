@@ -1137,6 +1137,7 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             workProvince: getVal(workAddr.province, '____________'),
             workDepartment: getVal(workInfo.department),
             workYears: getVal(workInfo.duration_years || workInfo.workYears, '___'),
+            workMonths: getVal(workInfo.duration_months || workInfo.workMonths, '___'),
             workPosition: getVal(workInfo.position || customer.occupation),
             workSalary: getVal(formatCurrency(workInfo.salary || customer.income_per_month)),
 

@@ -11,6 +11,7 @@ import {
     NotFoundError, 
     ForbiddenError // เตรียมไว้เผื่อใช้กรณี user ถูกแบน
 } from '../utils/errors'; 
+import { formatStandardPhoneNumber } from '../utils/formatters';
 
 export const requestOtpForCustomer = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -166,8 +167,9 @@ export const verifyOtpAndGetToken = async (req: Request, res: Response, next: Ne
         // หรือใช้วิธีส่งผ่าน ValidationError ได้เช่นกัน
     }
 
+    const standardPhone = formatStandardPhoneNumber(phone);
     // 2. ຄົ້ນຫາລູກຄ້າໃນຖານຂໍ້ມູນ ດ້ວຍເບີໂທ
-    const customer = await db.customers.findOne({ where: { phone } });
+    const customer = await db.customers.findOne({ where: { phone:standardPhone } });
 
     if (!customer) {
         throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້ານີ້ໃນລະບົບ. ກະລຸນາສະໝັກ ຫຼື ສົ່ງຄຳຂໍສິນເຊື່ອກ່ອນ.');

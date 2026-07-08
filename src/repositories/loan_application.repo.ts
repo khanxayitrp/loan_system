@@ -265,7 +265,7 @@ class LoanApplicationRepository {
                 {
                     model: db.loan_contract,
                     as: 'loan_contracts',
-                    attributes: ['id', 'loan_contract_number']
+                    attributes: ['id', 'loan_contract_number', 'cus_income', 'cus_income_other']
                 }
             ],
         });
@@ -387,56 +387,83 @@ class LoanApplicationRepository {
     }
 
     async findLoanApplications(filters: any): Promise<{ rows: loan_applications[]; count: number }> {
-        const { customerId, requesterId, productId, status, min, max, is_confirmed, page, limit } = filters;
-        const whereClause: any = {};
+    const { customerId, requesterId, productId, status, min, max, is_confirmed, page, limit } = filters;
+    const whereClause: any = {};
 
-        if (customerId) whereClause.customer_id = customerId;
-        if (requesterId) whereClause.requester_id = requesterId;
-        if (productId) whereClause.product_id = productId;
-        if (status) whereClause.status = status;
-        if (is_confirmed !== undefined) whereClause.is_confirmed = is_confirmed;
+    if (customerId) whereClause.customer_id = customerId;
+    if (requesterId) whereClause.requester_id = requesterId;
+    if (productId) whereClause.product_id = productId;
+    if (status) whereClause.status = status;
+    if (is_confirmed !== undefined) whereClause.is_confirmed = is_confirmed;
 
-        let inputStatus = filters.status || filters['status[]'];
+    let inputStatus = filters.status || filters['status[]'];
 
-        if (inputStatus) {
-            if (Array.isArray(inputStatus)) {
-                whereClause.status = { [Op.in]: inputStatus };
-            } else if (typeof inputStatus === 'string' && inputStatus.includes(',')) {
-                whereClause.status = { [Op.in]: inputStatus.split(',') };
-            } else {
-                whereClause.status = inputStatus;
-            }
+    if (inputStatus) {
+        if (Array.isArray(inputStatus)) {
+            whereClause.status = { [Op.in]: inputStatus };
+        } else if (typeof inputStatus === 'string' && inputStatus.includes(',')) {
+            whereClause.status = { [Op.in]: inputStatus.split(',') };
+        } else {
+            whereClause.status = inputStatus;
         }
-
-        if (min !== undefined || max !== undefined) {
-            whereClause.total_amount = {};
-            if (min !== undefined) whereClause.total_amount[Op.gte] = min;
-            if (max !== undefined) whereClause.total_amount[Op.lte] = max;
-        }
-
-        let pageNum = 1;
-        let limitNum = 10;
-        if (page) pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
-        if (limit) limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
-        const offset = (pageNum - 1) * limitNum;
-
-        return await db.loan_applications.findAndCountAll({
-            where: whereClause,
-            include: [
-                { model: db.customers, as: 'customer', attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone'] },
-                { model: db.products, as: 'product', attributes: ['id', 'partner_id', 'productType_id', 'product_name'] },
-                { model: db.users, as: 'requester', attributes: ['id', 'username', 'full_name'] },
-                { model: db.users, as: 'approver', attributes: ['id', 'username', 'full_name'] },
-                { model: db.delivery_receipts, as: 'delivery_receipt', attributes: ['id', 'application_id', 'receipts_id', 'status'] },
-                { model: db.loan_contract, as: 'loan_contracts', attributes: ['id', 'loan_contract_number'] },
-                { model: db.document_signatures, as: 'document_signatures', attributes: ['id', 'document_type', 'status'], where: { document_type: 'delivery_note' }, required: false }
-            ],
-            order: [['created_at', 'DESC']],
-            limit: limitNum,
-            offset: offset,
-            distinct: true
-        });
     }
+
+    if (min !== undefined || max !== undefined) {
+        whereClause.total_amount = {};
+        if (min !== undefined) whereClause.total_amount[Op.gte] = min;
+        if (max !== undefined) whereClause.total_amount[Op.lte] = max;
+    }
+
+    let pageNum = 1;
+    let limitNum = 10;
+    if (page) pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
+    if (limit) limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
+    const offset = (pageNum - 1) * limitNum;
+
+    return await db.loan_applications.findAndCountAll({
+        where: whereClause,
+        include: [
+            { model: db.customers, as: 'customer', attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone'] },
+            { model: db.products, as: 'product', attributes: ['id', 'partner_id', 'productType_id', 'product_name'] },
+            { model: db.users, as: 'requester', attributes: ['id', 'username', 'full_name'] },
+            { model: db.users, as: 'approver', attributes: ['id', 'username', 'full_name'] },
+            { model: db.delivery_receipts, as: 'delivery_receipt', attributes: ['id', 'application_id', 'receipts_id', 'status'] },
+            { model: db.loan_contract, as: 'loan_contracts', attributes: ['id', 'loan_contract_number'] },
+            
+            // 🟢 ສ່ວນທີ່ແກ້ໄຂໃໝ່ (Multi-Approver Tracking & Delivery Note Support)
+            { 
+                model: db.document_signatures, 
+                as: 'document_signatures', 
+                // 1. ເພີ່ມ attributes ທີ່ຈຳເປັນໃຫ້ຄົບ
+                attributes: ['id', 'document_type', 'role_type', 'user_id', 'signer_name', 'status', 'signed_at'], 
+                // 2. ເອົາ where: { document_type: 'delivery_note' } ອອກ ເພື່ອໃຫ້ດຶງ contract ມານຳ
+                required: false,
+                where: {
+                    [Op.or]: [
+                        { document_type: 'delivery_note' }, // เงื่อนไขที่ 1: เอา delivery_note ทั้งหมด
+                        { 
+                            document_type: 'contract', 
+                            status: 'signed'                // เงื่อนไขที่ 2: เอา contract ที่เซ็นแล้วเท่านั้น
+                        }
+                    ]
+                },
+                // 3. ດຶງຂໍ້ມູນ User (ຜູ້ອະນຸມັດ) ມາພ້ອມ
+                include: [
+                    {
+                        model: db.users,
+                        as: 'user', // ⚠️ ໝາຍເຫດ: ກວດເບິ່ງໃນ Model ວ່າທ່ານຕັ້ງ alias (as) ເປັນ 'user' ຫຼືຊື່ອື່ນເດີ້
+                        attributes: ['id', 'username', 'full_name'],
+                        required: false
+                    }
+                ]
+            }
+        ],
+        order: [['created_at', 'DESC']],
+        limit: limitNum,
+        offset: offset,
+        distinct: true
+    });
+}
 
     // =========================================================================
     // 🌟 ຟັງຊັນສຳລັບອັບເດດຂໍ້ມູນສິນເຊື່ອ (ພ້ອມລະບົບ Guardrail ແລະ Invalidation)
