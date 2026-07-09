@@ -26,22 +26,23 @@ class CustomerRepository {
             // ==========================================
             // 🟢 2. ກວດສອບຄວາມຖືກຕ້ອງຂອງຂໍ້ມູນ (Validation)
             // ==========================================
-            if (!cleanCustomer.first_name || cleanCustomer.first_name.trim() === '') {
+            // ใช้ String(...) ครอบก่อน trim() เสมอ เพื่อป้องกัน Error กรณี Frontend ส่งค่ามาเป็น Number
+            if (!cleanCustomer.first_name || String(cleanCustomer.first_name).trim() === '') {
                 throw new Error('ກະລຸນາປ້ອນຊື່ແທ້ (First name is required)');
             }
-            if (!cleanCustomer.phone || cleanCustomer.phone.trim() === '') {
+            if (!cleanCustomer.phone || String(cleanCustomer.phone).trim() === '') {
                 throw new Error('ກະລຸນາປ້ອນເບີໂທລະສັບ (Phone number is required)');
             }
-            if (!cleanCustomer.province_id || cleanCustomer.province_id.trim() === '') {
+            if (!cleanCustomer.province_id || String(cleanCustomer.province_id).trim() === '') {
                 throw new Error('ກະລຸນາເລືອກແຂວງ (Province ID is required)');
             }
-            if (!cleanCustomer.district_id || cleanCustomer.district_id.trim() === '') {
+            if (!cleanCustomer.district_id || String(cleanCustomer.district_id).trim() === '') {
                 throw new Error('ກະລຸນາເລືອກເມືອງ (District ID is required)');
             }
-            if (!cleanCustomer.address || cleanCustomer.address.trim() === '') {
+            if (!cleanCustomer.address || String(cleanCustomer.address).trim() === '') {
                 throw new Error('ກະລຸນາປ້ອນທີ່ຢູ່ (Address is required)');
             }
-            if (!cleanCustomer.occupation || cleanCustomer.occupation.trim() === '') {
+            if (!cleanCustomer.occupation || String(cleanCustomer.occupation).trim() === '') {
                 throw new Error('ກະລຸນາປ້ອນອາຊີບ (Occupation is required)');
             }
             // 🟢 ແປງຄ່າລາຍຮັບເປັນຕົວເລກ ແລະ ກວດສອບວ່າຕ້ອງຫຼາຍກວ່າ 0

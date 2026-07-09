@@ -7,9 +7,11 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const users_1 = require("../models/users");
 const token_service_1 = __importDefault(require("./token.service")); // เรียกใช้ TokenService ที่คุณทำไว้
 const init_models_1 = require("../models/init-models");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 // 🟢 1. Import Helper ของเราเข้ามา
 const auditLogger_1 = require("../utils/auditLogger");
 const errors_1 = require("../utils/errors");
+const axios_1 = __importDefault(require("axios"));
 class AuthService {
     // 🟢 เพิ่มการรับ Transaction, staffLevel และ performedBy เข้ามา
     async createDefaultPermissions(userId, role, staffLevel, performedBy, t) {
@@ -254,38 +256,66 @@ class AuthService {
             throw error; // ส่ง error ตรงๆ เพื่อให้ controller จัดการและส่ง response ที่เหมาะสม
         }
     }
-    // 🟢 1. ฟังก์ชันจำลองการยิง API ไปเช็คกับ Super App (ปรับใช้ axios จริงตามเอกสารของ Super App)
-    async verifyWithSuperAppServer(tempToken) {
+    extractPhoneFromToken(tempToken) {
         try {
-            // 🚨 ตำแหน่งสำหรับใส่ axios ยิงไปหา Super App Server
-            // const response = await axios.post('SUPER_APP_URL/verify', { token: tempToken });
-            // return response.data;
-            // 🟢 MOCKUP สำหรับทดสอบ
-            if (tempToken === 'VALID_TEMP_TOKEN') {
-                return {
-                    isValid: true,
-                    phone: '02099998888',
-                    firstName: 'ລູກຄ້າ',
-                    lastName: 'SuperApp'
-                };
+            // ถ้า token เป็น JWT ให้ decode ดูเนื้อใน (ยังไม่ verify signature ตรงนี้)
+            const decoded = jsonwebtoken_1.default.decode(tempToken);
+            if (!decoded || decoded.iss != 'https://laolot.digital/') {
+                throw new errors_1.UnauthorizedError('Token ไม่ถูกต้อง');
             }
-            return { isValid: false };
+            if (!decoded || !decoded.roleid || !decoded.userid || !decoded.DisplayName || !decoded.accesstype) {
+                throw new errors_1.UnauthorizedError('Token ไม่ถูกต้อง');
+            }
+            if (!decoded || !decoded.DisplayName) {
+                throw new errors_1.UnauthorizedError('ไม่พบเบอร์โทรใน Token');
+            }
+            const phone = decoded.DisplayName;
+            return phone; // ⚠️ ค่านี้ยังไม่น่าเชื่อถือ 100% ต้องเอาไป verify กับ superapp อีกที
         }
         catch (error) {
-            console.error('[AUTH SERVICE] Error verifying with Super App:', error);
-            return { isValid: false };
+            console.error('[AUTH SERVICE] Error decoding token:', error);
+            throw new errors_1.UnauthorizedError('รูปแบบ Token ไม่ถูกต้อง');
+        }
+    }
+    // 🟢 1. ฟังก์ชันจำลองการยิง API ไปเช็คกับ Super App (ปรับใช้ axios จริงตามเอกสารของ Super App)
+    async verifyWithSuperAppServer(tempToken, phone) {
+        try {
+            // นำเบอร์โทรไปต่อท้าย URL โดยตรง แบบที่คุณเทสต์ใน Postman
+            const url = `${process.env.SUPERAPP_VERIFY_URL}/${phone}`;
+            const response = await axios_1.default.get(url, {
+                headers: {
+                    'Authorization': `Bearer ${tempToken}`, // ใน Postman มีแท็บ Authorization สีเขียว แปลว่าน่าจะใช้ตัวนี้
+                },
+                timeout: 10000,
+            });
+            return response.data;
+        }
+        catch (error) {
+            console.error('[AUTH SERVICE] Error verifying with Super App:', {
+                message: error.message,
+                status: error.response?.status,
+            });
+            return { status: error.response?.status || 500, error: true }; // คืนค่า error กลับไป
         }
     }
     // 🟢 2. ลอจิกหลัก: รับ Temp Token -> เช็ค -> ค้นหา/สร้าง Customer -> คืนค่า
     async processSuperAppLogin(tempToken) {
         const transaction = await init_models_1.db.sequelize.transaction();
         try {
-            // Step 1 & 2: ส่งไป verify และรับข้อมูลกลับมา
-            const superAppInfo = await this.verifyWithSuperAppServer(tempToken);
-            if (!superAppInfo || !superAppInfo.isValid) {
+            // Step 1: แกะเบอร์โทรออกจาก token ก่อน (decode เฉยๆ ยังไม่เชื่อ)
+            const phoneFromToken = this.extractPhoneFromToken(tempToken);
+            // Step 2: เอาทั้ง token + เบอร์โทร ไปให้ superapp ยืนยันจริง
+            const superAppInfo = await this.verifyWithSuperAppServer(tempToken, phoneFromToken);
+            console.log('[AUTH SERVICE] Super App verification result:', superAppInfo);
+            console.log('[AUTH SERVICE] Phone from token:', phoneFromToken);
+            // 🟢 แก้ไข 1: เปลี่ยนมาเช็ค status === 200 และ error === false ตาม Log ของ Super App
+            if (!superAppInfo || superAppInfo.status !== 200 || superAppInfo.error !== false) {
                 throw new errors_1.UnauthorizedError('Token ຊົ່ວຄາວຈາກ Super App ບໍ່ຖືກຕ້ອງ (Invalid Temp Token)');
             }
-            const phone = superAppInfo.phone;
+            // 🟢 แก้ไข 2: ดึงข้อมูลจากก้อน .data และใช้ชื่อฟิลด์ให้ตรงกับที่เขาส่งมา
+            const phone = superAppInfo.data.userPhone;
+            const firstName = superAppInfo.data.firstName;
+            const lastName = superAppInfo.data.lastName;
             // Step 3: เช็คเบอร์โทรกับตาราง customers
             let customer = await init_models_1.db.customers.findOne({
                 where: { phone: phone },
@@ -295,9 +325,9 @@ class AuthService {
             if (!customer) {
                 customer = await init_models_1.db.customers.create({
                     phone: phone,
-                    first_name: superAppInfo.firstName || '-',
-                    last_name: superAppInfo.lastName || '-',
-                    identity_number: `TEMP-${Date.now()}`, // จำเป็นต้องใส่เพราะตารางคุณบังคับ NOT NULL
+                    first_name: firstName || '-',
+                    last_name: lastName || '-',
+                    // identity_number: `TEMP-${Date.now()}`, 
                     kyc_status: 'unverified'
                 }, { transaction });
                 console.log(`[AUTH SERVICE] Created new customer from Super App: ID ${customer.id}`);

@@ -52,8 +52,29 @@ class DeliveryReceiptRepository {
             // ==========================================
             // 🌟 🟢 ເພີ່ມໃໝ່: ສ້າງຊ່ອງລາຍເຊັນລໍຖ້າໄວ້ ສຳລັບໃບມອບຮັບສິນຄ້າ
             // ==========================================
-            await (0, signatureGenerator_1.generateSignatureSlots)(cleanDeliveryReceipt.application_id, 'delivery_note', newDeliveryReceipt.id, // ໃຊ້ ID ຂອງໃບມອບຮັບທີ່ຫາກໍ່ສ້າງເປັນ Reference
-            transaction);
+            await (0, signatureGenerator_1.generateSignatureSlots)(cleanDeliveryReceipt.application_id, 'delivery_note', newDeliveryReceipt.id, transaction);
+            // ==========================================
+            // 🌟 🟢 ໃໝ່ລ່າສຸດ: ອັບເດດລາຍເຊັນພະນັກງານຜູ້ກະກຽມ (sales_staff) ອັດຕະໂນມັດ
+            // ==========================================
+            if (performedBy) {
+                // ດຶງຂໍ້ມູນ User ເພື່ອເອົາຊື່ມາໃສ່ໃນ signer_name
+                const staffUser = await init_models_1.db.users.findByPk(performedBy, { transaction });
+                const staffName = staffUser ? (staffUser.full_name || staffUser.username) : 'ພະນັກງານ';
+                await init_models_1.db.document_signatures.update({
+                    user_id: performedBy,
+                    signer_name: staffName,
+                    status: 'signed',
+                    signed_at: new Date()
+                }, {
+                    where: {
+                        application_id: cleanDeliveryReceipt.application_id,
+                        document_type: 'delivery_note',
+                        reference_id: newDeliveryReceipt.id,
+                        role_type: 'sales_staff' // ອັບເດດສະເພາະຊ່ອງຂອງ Sales Staff
+                    },
+                    transaction
+                });
+            }
             // ຖ້າບໍ່ມີການສົ່ງ transaction ມາຈາກຂ້າງນອກ ກໍ່ໃຫ້ commit ຢູ່ບ່ອນນີ້ເລີຍ
             if (!options.transaction) {
                 await transaction.commit();

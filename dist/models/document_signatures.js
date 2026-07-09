@@ -30,7 +30,7 @@ class document_signatures extends sequelize_1.Model {
                 comment: "ID ຂອງເອກະສານນັ້ນໆ (ເຊັ່ນ id ຂອງ loan_contract ຫຼື delivery_receipts)"
             },
             role_type: {
-                type: sequelize_1.DataTypes.ENUM('borrower', 'guarantor', 'sales_staff', 'credit_staff', 'credit_head', 'approver_1', 'approver_2', 'approver_3', 'partner_shop', 'village_chief'),
+                type: sequelize_1.DataTypes.ENUM('borrower', 'guarantor', 'sales_staff', 'credit_staff', 'credit_head', 'approver_1', 'approver_2', 'approver_3', 'partner_shop', 'village_chief', 'finance_staff'),
                 allowNull: false
             },
             user_id: {

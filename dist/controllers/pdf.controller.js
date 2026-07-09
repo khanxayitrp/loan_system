@@ -467,7 +467,7 @@ const generateLoanContractPDF = async (req, res) => {
         // =========================================================
         // 🟢 1. ปรับ getVal ให้กำจัดข้อความว่า 'undefined'
         // =========================================================
-        const getVal = (val, defaultStr = '________________') => {
+        const getVal = (val, defaultStr = '_________') => {
             // เช็คทั้งค่าว่าง null และ String คำว่า 'undefined'
             if (val === null ||
                 val === undefined ||
@@ -553,6 +553,7 @@ const generateLoanContractPDF = async (req, res) => {
             cusResStatus: (0, formatters_1.mapResidenceStatus)(formData.customer?.residenceStatus),
             workName: formData.work?.companyName || '________________',
             workType: formData.work?.businessType || '________________',
+            workBusinessDetail: formData.work?.businessDetail || '________________',
             workVillage: getVal(workAddr.village, '____________'),
             workDistrict: getVal(workAddr.district, '____________'),
             workProvince: getVal(workAddr.province, '____________'),
@@ -560,7 +561,9 @@ const generateLoanContractPDF = async (req, res) => {
             // workDistrict: formData.work?.address?.district || '________________',
             // workProvince: formData.work?.address?.province || '________________',
             workYears: formData.work?.workYears || '___',
+            workMonths: formData.work?.workMonths || '___',
             workPosition: formData.work?.position || '________________',
+            workDepartment: formData.work?.department || '________________',
             workSalary: (0, formatters_1.formatCurrency)(formData.work?.salary),
             workSalaryDay: formData.work?.salaryDay || '___',
             workTotalEmp: formData.work?.totalEmployees || '___',
@@ -976,6 +979,7 @@ const generateDeliveryReceiptPDF = async (req, res) => {
             workProvince: getVal(workAddr.province, '____________'),
             workDepartment: getVal(workInfo.department),
             workYears: getVal(workInfo.duration_years || workInfo.workYears, '___'),
+            workMonths: getVal(workInfo.duration_months || workInfo.workMonths, '___'),
             workPosition: getVal(workInfo.position || customer.occupation),
             workSalary: getVal((0, formatters_1.formatCurrency)(workInfo.salary || customer.income_per_month)),
             prodDesc: getVal(product.product_name),

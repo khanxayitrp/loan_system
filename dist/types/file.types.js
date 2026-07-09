@@ -16,13 +16,14 @@ exports.FILE_UPLOAD_CONFIG = {
     },
     // Signature
     SIGNATURE_IMAGES: {
-        maxFileSize: 2 * 1024 * 1024, // 2MB
+        maxFileSize: 5 * 1024 * 1024, // 5MB
         allowedMimeTypes: [
             'image/jpeg',
             'image/jpg',
             'image/png',
             'image/webp',
-            'image/gif'
+            'image/gif',
+            'application/pdf'
         ],
         uploadDir: 'uploads/signatures'
     },

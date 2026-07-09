@@ -344,7 +344,7 @@ router.patch('/:id/apply', verifyToken, loanCtrl.sentApplyDraft);
  *       404:
  *         description: Product or Customer not found
  */
-router.post('/create-with-customer', optionalVerifyToken , loanCtrl.createWithCustomer)
+router.post('/create-with-customer', optionalVerifyToken, loanCtrl.createWithCustomer)
 
 /**
  * @swagger
@@ -386,5 +386,6 @@ router.post('/repayment-schedule/:application_id', verifyToken, loanCtrl.createR
  */
 router.get('/repayment-schedule/:application_id/all', verifyToken, loanCtrl.getRepaymentSchedule);
 
+router.get('/document-signature/:application_id', verifyToken, loanCtrl.getSignatureByLoanID)
 
 export default router;

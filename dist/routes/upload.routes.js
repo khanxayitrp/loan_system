@@ -348,4 +348,7 @@ router.post('/payment/:transaction_id/proof', upload_middleware_1.uploadPaymentP
  *         description: Signature uploaded
  */
 router.post('/signature/:application_id', upload_middleware_1.uploadSignature.single('file'), upload_controller_1.default.uploadSignature);
+// ลบอันเก่าหรือเปลี่ยนให้ชี้มาที่ฟังก์ชันใหม่
+router.post('/signature/:application_id/batch', upload_middleware_1.uploadSignature.single('file'), upload_controller_1.default.uploadBatchSignatures // ชื่อฟังก์ชันที่เราเพิ่งสร้างใหม่
+);
 exports.default = router;

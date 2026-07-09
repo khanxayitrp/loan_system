@@ -10,6 +10,7 @@ const init_models_1 = require("../models/init-models");
 const token_service_1 = __importDefault(require("../services/token.service"));
 // 👉 1. Import Custom Errors
 const errors_1 = require("../utils/errors");
+const formatters_1 = require("../utils/formatters");
 const requestOtpForCustomer = async (req, res, next) => {
     try {
         const { phone } = req.body;
@@ -143,8 +144,9 @@ const verifyOtpAndGetToken = async (req, res, next) => {
             // หมายเหตุ: หากต้องการส่ง details (เช่น จำนวนครั้ง) แนะนำให้เพิ่ม details parameter ใน BadRequestError ของ utils/errors.ts ด้วย 
             // หรือใช้วิธีส่งผ่าน ValidationError ได้เช่นกัน
         }
+        const standardPhone = (0, formatters_1.formatStandardPhoneNumber)(phone);
         // 2. ຄົ້ນຫາລູກຄ້າໃນຖານຂໍ້ມູນ ດ້ວຍເບີໂທ
-        const customer = await init_models_1.db.customers.findOne({ where: { phone } });
+        const customer = await init_models_1.db.customers.findOne({ where: { phone: standardPhone } });
         if (!customer) {
             throw new errors_1.NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້ານີ້ໃນລະບົບ. ກະລຸນາສະໝັກ ຫຼື ສົ່ງຄຳຂໍສິນເຊື່ອກ່ອນ.');
         }

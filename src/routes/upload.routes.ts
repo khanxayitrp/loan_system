@@ -411,5 +411,12 @@ router.post(
   uploadController.uploadSignature
 );
 
+// ลบอันเก่าหรือเปลี่ยนให้ชี้มาที่ฟังก์ชันใหม่
+router.post(
+  '/signature/:application_id/batch',
+  uploadSignature.single('file'),
+  uploadController.uploadBatchSignatures // ชื่อฟังก์ชันที่เราเพิ่งสร้างใหม่
+);
+
 export default router;
 

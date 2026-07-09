@@ -97,7 +97,7 @@
         .contract-title { text-align: center; font-size: 13pt; font-weight: bold; margin: 5px 0; text-decoration: underline; text-transform: uppercase; }
         
         .section-title {
-            font-weight: bold; font-size: 11pt; margin-top: 8px; margin-bottom: 4px;
+            font-weight: bold; font-size: 11pt; margin-top: 6px; margin-bottom: 4px;
             text-decoration: underline; background-color: #e8e8e8; padding: 2px 5px;
         }
 
@@ -179,7 +179,7 @@
 
         <div class="contract-title">
             ສັນຍາກູ້ຢືມປະເພດສິນເຊື່ອຊົມໃຊ້
-            <div style="font-size: 11pt; margin-top: 5px; font-weight: normal; color: #000;">
+            <div style="font-size: 9pt; margin-top: 3px; font-weight: normal; color: #000;">
                 <span><input type="checkbox" {{checkGold}}> ສິນຄ້າຄຳ</span> &nbsp;&nbsp;&nbsp;
                 <span><input type="checkbox" {{checkGeneral}}> ສິນຄ້າທົ່ວໄປ</span> &nbsp;&nbsp;&nbsp;
                 <span><input type="checkbox" {{checkMotorcycle}}> ສິນຄ້າລົດຈັກ</span>
@@ -254,35 +254,51 @@
                 <td class="label"><b>ຊື່ອົງການ/ບໍລິສັດ:</b></td>
                 <td colspan="3"><span class="input-field">{{workName}}</span></td>
                 <td class="label"><b>ປະເພດຂອງທຸລະກິດ:</b></td>
-                <td><span class="input-field">{{workType}}</span></td>
+                <td colspan="3"><span class="input-field">{{workType}}</span></td>
+                
             </tr>
-            <tr>
+            <tr>        
+                <td class="label"><b>ລາຍລະອຽດທຸລະກິດ:</b></td>
+                <td colspan="2"><span class="input-field">{{workBusinessDetail}}</span></td>
                 <td class="label">ບ້ານ:</td>
                 <td><span class="input-field">{{workVillage}}</span></td>
                 <td class="label">ເມືອງ:</td>
-                <td><span class="input-field">{{workDistrict}}</span></td>
+                <td colspan="2"><span class="input-field">{{workDistrict}}</span></td>
+                
+            </tr>
+            <tr>
+               
+                
                 <td class="label">ແຂວງ:</td>
-                <td><span class="input-field">{{workProvince}}</span></td>
+                <td colspan="2"><span class="input-field">{{workProvince}}</span></td>
+                <td class="label">ຕຳແໜ່ງ:</td>
+                <td><span class="input-field">{{workPosition}}</span></td>
+                <td class="label">ພະແນກ:</td>
+                <td colspan="2"><span class="input-field">{{workDepartment}}</span></td>
             </tr>
             <tr>
                 <td class="label">ປີການເຮັດວຽກ:</td>
                 <td><span class="input-field">{{workYears}}</span></td>
-                <td class="label">ຕຳແໜ່ງ:</td>
-                <td><span class="input-field">{{workPosition}}</span></td>
-                <td class="label">ເງິນເດືອນ/ລາຍຮັບຕໍ່ເດືອນ:</td>
-                <td><span class="input-field">{{workSalary}}</span></td>
-            </tr>
-            <tr>
+                <!-- <td class="label">ປີ</td> -->
+                <td><span class="input-field">{{workMonths}}</span></td>
+                <td class="label">ເດືອນ</td>
+                <td class="label">ຈຳນວນພະນັກງານ:</td>
+                <td><span class="input-field">{{workTotalEmp}}</span></td>
                 <td class="label">ມື້ເງິນເດືອນອອກ:</td>
                 <td><span class="input-field">{{workSalaryDay}}</span></td>
-                <td class="label">ພະນັກງານທັງໝົດຈຳນວນ:</td>
-                <td><span class="input-field">{{workTotalEmp}}</span></td>
+                
+                <!-- <td class="label">ພະແນກ:</td>
+                <td><span class="input-field">{{workSalary}}</span></td> -->
+            </tr>
+            
+            <tr>
+                <td class="label">ເງິນເດືອນ/ລາຍຮັບຕໍ່ເດືອນ:</td>
+                <td colspan="2"><span class="input-field">{{workSalary}}</span></td>
+                
                 <td class="label">ລາຍໄດ້ອື່ນໆ (ຖ້າມີ):</td>
                 <td><span class="input-field">{{workOtherIncome}}</span></td>
-            </tr>
-            <tr>
-                <td class="label">ແຫຼ່ງທີ່ມາຂອງລາຍໄດ້ອື່ນໆ:</td>
-                <td colspan="5"><span class="input-field">{{workOtherSource}}</span></td>
+                <td class="label">ທີ່ມາລາຍໄດ້ອື່ນໆ:</td>
+                <td colspan="2"><span class="input-field">{{workOtherSource}}</span></td>
             </tr>
         </table>
 
@@ -325,10 +341,10 @@
                 <td><span class="input-field">{{prodMonthly}}</span></td>
             </tr>
             <tr>
-                <td class="label"><b>ຄ່າງວດເດືອນທຳອິດ (ບວກຄ່າທຳນຽມ):</b></td>
+                <td class="label"><b>ຄ່າງວດເດືອນທຳອິດ+ຄ່າທຳນຽມ:</b></td>
                 <td><span class="input-field">{{prodFirstInst}}</span></td>
                 <td class="label">ມື້ກຳນົດການຊຳລະຄ່າງວດ:</td>
-                <td>ຈ່າຍທຸກວັນທີ <span style="display:inline-block; border-bottom:1px solid #000; width: 30px; text-align:center; color:#1a56db;">{{prodPayDay}}</span> <b>ຂອງເດືອນ</b></td>
+                <td>ທຸກວັນທີ <span style="display:inline-block; border-bottom:1px solid #000; width: 30px; text-align:center; color:#1a56db;">{{prodPayDay}}</span> <b>ຂອງເດືອນ</b></td>
             </tr>
             {{#if isMotorcycle}}
             <tr>

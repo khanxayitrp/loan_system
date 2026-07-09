@@ -25,11 +25,11 @@ const getRedisStore = (prefixName) => {
 // =================================================================
 exports.globalLimiter = (0, express_rate_limit_1.default)({
     store: getRedisStore('rate-limit:global:'), // 👈 ใส่ Prefix สำหรับ Global
-    windowMs: 15 * 60 * 1000, // 15 ນາທີ
-    max: 200, // ອະນຸຍາດ 200 Request ຕໍ່ 1 IP
+    windowMs: 10 * 60 * 1000, // 10 ນາທີ
+    max: 500, // ອະນຸຍາດ 500 Request ຕໍ່ 1 IP
     message: {
         success: false,
-        message: "ມີການຮ້ອງຂໍຫຼາຍເກີນໄປ, ກະລຸນາລອງໃໝ່ຫຼັງຈາກ 15 ນາທີ"
+        message: "ມີການຮ້ອງຂໍຫຼາຍເກີນໄປ, ກະລຸນາລອງໃໝ່ຫຼັງຈາກ 10 ນາທີ"
     },
     standardHeaders: true,
     legacyHeaders: false,

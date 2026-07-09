@@ -256,7 +256,7 @@ class LoanApplicationRepository {
                 {
                     model: init_models_1.db.loan_contract,
                     as: 'loan_contracts',
-                    attributes: ['id', 'loan_contract_number']
+                    attributes: ['id', 'loan_contract_number', 'cus_income', 'cus_income_other']
                 }
             ],
         });
@@ -419,7 +419,33 @@ class LoanApplicationRepository {
                 { model: init_models_1.db.users, as: 'approver', attributes: ['id', 'username', 'full_name'] },
                 { model: init_models_1.db.delivery_receipts, as: 'delivery_receipt', attributes: ['id', 'application_id', 'receipts_id', 'status'] },
                 { model: init_models_1.db.loan_contract, as: 'loan_contracts', attributes: ['id', 'loan_contract_number'] },
-                { model: init_models_1.db.document_signatures, as: 'document_signatures', attributes: ['id', 'document_type', 'status'], where: { document_type: 'delivery_note' }, required: false }
+                // 🟢 ສ່ວນທີ່ແກ້ໄຂໃໝ່ (Multi-Approver Tracking & Delivery Note Support)
+                {
+                    model: init_models_1.db.document_signatures,
+                    as: 'document_signatures',
+                    // 1. ເພີ່ມ attributes ທີ່ຈຳເປັນໃຫ້ຄົບ
+                    attributes: ['id', 'document_type', 'role_type', 'user_id', 'signer_name', 'status', 'signed_at'],
+                    // 2. ເອົາ where: { document_type: 'delivery_note' } ອອກ ເພື່ອໃຫ້ດຶງ contract ມານຳ
+                    required: false,
+                    where: {
+                        [sequelize_1.Op.or]: [
+                            { document_type: 'delivery_note' }, // เงื่อนไขที่ 1: เอา delivery_note ทั้งหมด
+                            {
+                                document_type: 'contract',
+                                status: 'signed' // เงื่อนไขที่ 2: เอา contract ที่เซ็นแล้วเท่านั้น
+                            }
+                        ]
+                    },
+                    // 3. ດຶງຂໍ້ມູນ User (ຜູ້ອະນຸມັດ) ມາພ້ອມ
+                    include: [
+                        {
+                            model: init_models_1.db.users,
+                            as: 'user', // ⚠️ ໝາຍເຫດ: ກວດເບິ່ງໃນ Model ວ່າທ່ານຕັ້ງ alias (as) ເປັນ 'user' ຫຼືຊື່ອື່ນເດີ້
+                            attributes: ['id', 'username', 'full_name'],
+                            required: false
+                        }
+                    ]
+                }
             ],
             order: [['created_at', 'DESC']],
             limit: limitNum,
@@ -498,7 +524,7 @@ class LoanApplicationRepository {
                 await init_models_1.db.document_signatures.destroy({
                     where: {
                         application_id: loanApplicationId,
-                        document_type: { [sequelize_1.Op.in]: ['approval_summary', 'contract', 'delivery_note'] }
+                        document_type: { [sequelize_1.Op.in]: ['approval_summary', 'contract', 'delivery_note', 'repayment_schedule'] }
                     },
                     transaction
                 });
@@ -678,18 +704,21 @@ class LoanApplicationRepository {
             if (['disbursed', 'approved', 'verified', 'rejected'].includes(finalStatus) && updatePayload.approver_id && roleType) {
                 const signatureStatus = finalStatus === 'rejected' ? 'rejected' : 'signed';
                 // 4.1 ອັບເດດລາຍເຊັນໃນໃບ Approval Summary
-                const existingSummarySig = await init_models_1.db.document_signatures.findOne({
-                    where: { application_id: loanApplicationId, document_type: 'approval_summary', role_type: roleType },
-                    transaction: t
-                });
-                if (existingSummarySig) {
-                    await existingSummarySig.update({ user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date() }, { transaction: t });
-                }
-                else {
-                    await init_models_1.db.document_signatures.create({
-                        application_id: loanApplicationId, document_type: 'approval_summary', reference_id: loanApplicationId,
-                        role_type: roleType, user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date()
-                    }, { transaction: t });
+                // (ລັອກໃຫ້ສະເພາະ credit_head ແລະ approver_1 ເທົ່ານັ້ນ)
+                if (['credit_head', 'approver_1'].includes(roleType)) {
+                    const existingSummarySig = await init_models_1.db.document_signatures.findOne({
+                        where: { application_id: loanApplicationId, document_type: 'approval_summary', role_type: roleType },
+                        transaction: t
+                    });
+                    if (existingSummarySig) {
+                        await existingSummarySig.update({ user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date() }, { transaction: t });
+                    }
+                    else {
+                        await init_models_1.db.document_signatures.create({
+                            application_id: loanApplicationId, document_type: 'approval_summary', reference_id: loanApplicationId,
+                            role_type: roleType, user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date()
+                        }, { transaction: t });
+                    }
                 }
                 // 4.2 ອັບເດດລາຍເຊັນໃນ Contract
                 const contract = await init_models_1.db.loan_contract.findOne({
@@ -710,106 +739,155 @@ class LoanApplicationRepository {
                             role_type: roleType, user_id: updatePayload.approver_id, status: signatureStatus, signed_at: new Date()
                         }, { transaction: t });
                     }
-                    // ==========================================
-                    // 🎯 4.3 ຈັດການຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule) - ແຍກເປັນ 2 ຈັງຫວະ
-                    // ==========================================
-                    // ຈັງຫວະທີ 1: ຫົວໜ້າສິນເຊື່ອ (Credit Manager) ກວດຜ່ານ (Verify)
-                    // ໃຫ້ອັບເດດວັນທີຈ່າຍໃນຕາຕະລາງ (ແຕ່ຍັງເປັນ Draft ເພື່ອໃຫ້ພະນັກງານພິມອອກມາໄດ້)
-                    if (finalStatus === 'verified' && roleType === 'credit_head') {
-                        const verifyDate = new Date();
-                        // 🌟 🟢 ແກ້ໄຂ: ຕ້ອງດຶງ payment_day ຈາກ 'updatePayload' ເພາະເປັນຄ່າໃໝ່ທີ່ສົ່ງມາຈາກໜ້າບ້ານ
-                        const finalPaymentDay = Number(updatePayload.payment_day) || Number(loanApplication.payment_day) || 1;
-                        await repayment_repo_1.default.shiftDraftScheduleDates(loanApplicationId, finalPaymentDay, verifyDate, t);
+                    // 🎯 4.3 ອັບເດດລາຍເຊັນໃນໃບມອບຮັບສິນຄ້າ (Delivery Note)
+                    // (ລັອກໃຫ້ສະເພາະ credit_head ເທົ່ານັ້ນ ຜູ້ບໍລິຫານອື່ນໆບໍ່ຕ້ອງເຊັນ)
+                    if (roleType === 'credit_head') {
+                        const deliveryReceipt = await init_models_1.db.delivery_receipts.findOne({
+                            where: { application_id: loanApplicationId },
+                            transaction: t
+                        });
+                        if (deliveryReceipt) {
+                            const existingDeliverySig = await init_models_1.db.document_signatures.findOne({
+                                where: { application_id: loanApplicationId, document_type: 'delivery_note', role_type: roleType },
+                                transaction: t
+                            });
+                            if (existingDeliverySig) {
+                                await existingDeliverySig.update({
+                                    user_id: updatePayload.approver_id,
+                                    status: signatureStatus,
+                                    signed_at: new Date(),
+                                }, { transaction: t });
+                            }
+                            else {
+                                await init_models_1.db.document_signatures.create({
+                                    application_id: loanApplicationId,
+                                    document_type: 'delivery_note',
+                                    reference_id: deliveryReceipt.id,
+                                    role_type: roleType,
+                                    user_id: updatePayload.approver_id,
+                                    status: signatureStatus,
+                                    signed_at: new Date(),
+                                }, { transaction: t });
+                            }
+                        }
                     }
-                    // ຈັງຫວະທີ 2: ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນອະນຸມັດ (Disbursed)
-                    // ຄອນເຟີມສັນຍາ ແລະ ລັອກສະຖານະຕາຕະລາງເປັນ Approved (ຫ້າມແກ້ໄຂວັນທີແລ້ວ)
-                    if (finalStatus === 'disbursed') {
+                }
+                // 🎯 4.4 ອັບເດດລາຍເຊັນໃນຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule)
+                // (ອ້າງອີງຈາກ generateSignatureSlots ແມ່ນໃຫ້ approver_1 ເປັນຄົນເຊັນ)
+                if (roleType === 'approver_1') {
+                    const existingRepaymentSig = await init_models_1.db.document_signatures.findOne({
+                        where: { application_id: loanApplicationId, document_type: 'repayment_schedule', role_type: roleType },
+                        transaction: t
+                    });
+                    if (existingRepaymentSig) {
+                        await existingRepaymentSig.update({
+                            user_id: updatePayload.approver_id,
+                            status: signatureStatus,
+                            signed_at: new Date()
+                        }, { transaction: t });
+                    }
+                }
+                // ==========================================
+                // 🎯 4.5 ຈັດການຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule) - ແຍກເປັນ 2 ຈັງຫວະ
+                // ==========================================
+                // ຈັງຫວະທີ 1: ຫົວໜ້າສິນເຊື່ອ (Credit Manager) ກວດຜ່ານ (Verify)
+                // ໃຫ້ອັບເດດວັນທີຈ່າຍໃນຕາຕະລາງ (ແຕ່ຍັງເປັນ Draft ເພື່ອໃຫ້ພະນັກງານພິມອອກມາໄດ້)
+                if (finalStatus === 'verified' && roleType === 'credit_head') {
+                    const verifyDate = new Date();
+                    // 🌟 🟢 ແກ້ໄຂ: ຕ້ອງດຶງ payment_day ຈາກ 'updatePayload' ເພາະເປັນຄ່າໃໝ່ທີ່ສົ່ງມາຈາກໜ້າບ້ານ
+                    const finalPaymentDay = Number(updatePayload.payment_day) || Number(loanApplication.payment_day) || 1;
+                    await repayment_repo_1.default.shiftDraftScheduleDates(loanApplicationId, finalPaymentDay, verifyDate, t);
+                }
+                // ຈັງຫວະທີ 2: ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນອະນຸມັດ (Disbursed)
+                // ຄອນເຟີມສັນຍາ ແລະ ລັອກສະຖານະຕາຕະລາງເປັນ Approved (ຫ້າມແກ້ໄຂວັນທີແລ້ວ)
+                if (finalStatus === 'disbursed') {
+                    if (contract) {
                         const oldContractData = contract.toJSON();
                         await contract.update({ is_confirmed: 1, updated_by: updatePayload.approver_id }, { transaction: t });
                         await (0, auditLogger_1.logAudit)('loan_contract', contract.id, 'UPDATE', oldContractData, contract.toJSON(), performedBy, t);
-                        await repayment_repo_1.default.finalizeScheduleApproval(loanApplicationId, updatePayload.approver_id, new Date(), t);
-                        // ==========================================
-                        // 🌟 🟢 ເພີ່ມໃໝ່: Auto-Approve Delivery Receipt
-                        // ເມື່ອຜູ້ບໍລິຫານອະນຸມັດສິນເຊື່ອແລ້ວ ໃຫ້ປ່ຽນສະຖານະໃບມອບຮັບເປັນ approved ພ້ອມກັນເລີຍ
-                        // ==========================================
-                        const deliveryReceipt = await delivery_receipt_repo_1.default.findDeliveryReceiptsByApplicationId(loanApplicationId);
-                        if (deliveryReceipt && deliveryReceipt.status === 'pending') {
-                            await delivery_receipt_repo_1.default.updateDeliveryReceipt(deliveryReceipt.id, {
-                                status: 'approved',
-                                remark: 'ອະນຸມັດອັດຕະໂນມັດ ພ້ອມກັບການປ່ອຍສິນເຊື່ອ (Auto-approved with disbursement)'
-                            }, performedBy, // ໃຊ້ user_id ຂອງຄົນທີ່ກົດອະນຸມັດ
-                            { transaction: t } // 👈 ສົ່ງ transaction ເຂົ້າໄປເພື່ອກະທຳພ້ອມກັນ
-                            );
-                        }
-                        //  ປິດໄວ້ກ່ອນຊົ່ວຄາວ ຫລັງຈາກລະບົບແລ້ວ E-commerce ຈືງໃຊ້ ທີ່ຈະຕັດສະຕັອກເທື່ອນີ້ (ແຍກตาม Flow Type)
-                        // ==========================================
-                        // 🌟 🟢 ເພີ່ມໃໝ່: Logic ການຕັດສະຕັອກ (ແຍກຕາມ Flow Type)
-                        // ==========================================
-                        // if (loanApplication.loan_flow_type === 'single_item') {
-                        //     // ------------------------------------------
-                        //     // Flow 1: Single Item (ຕັດສະຕັອກທັນທີ)
-                        //     // ------------------------------------------
-                        //     const productId = loanApplication.product_id;
-                        //     const variantId = loanApplication.variant_id; // ຫຼືດຶງຈາກ contract ກໍໄດ້
-                        //     const qtyToDeduct = 1;
-                        //     if (variantId) {
-                        //         const variant = await db.product_variants.findByPk(variantId, { transaction: t, lock: t.LOCK.UPDATE });
-                        //         if (!variant || variant.stock_quantity < qtyToDeduct) { // ສົມມຸດວ່າ column ຊື່ stock
-                        //             throw new BadRequestError('ບໍ່ສາມາດປ່ອຍສິນເຊື່ອໄດ້: ສິນຄ້າໃນສະຕັອກ (ສີ/ຂະໜາດ) ບໍ່ພຽງພໍແລ້ວ!');
-                        //         }
-                        //         await variant.decrement('stock_quantity', { by: qtyToDeduct, transaction: t });
-                        //     } else if (productId) {
-                        //         const product = await db.products.findByPk(productId, { transaction: t, lock: t.LOCK.UPDATE });
-                        //         if (!product || product.stock_quantity < qtyToDeduct) { // ສົມມຸດວ່າ column ຊື່ stock
-                        //             throw new BadRequestError('ບໍ່ສາມາດປ່ອຍສິນເຊື່ອໄດ້: ສິນຄ້າໃນສະຕັອກບໍ່ພຽງພໍແລ້ວ!');
-                        //         }
-                        //         await product.decrement('stock_quantity', { by: qtyToDeduct, transaction: t });
-                        //     }
-                        // } else if (loanApplication.loan_flow_type === 'bnpl_cart') {
-                        // ------------------------------------------
-                        // Flow 2: BNPL Cart (ບໍ່ຕັດສະຕັອກ ແຕ່ຕື່ມ Point ແທນ)
-                        // ------------------------------------------
-                        /* ໝາຍເຫດ: ຢູ່ຈຸດນີ້ ເຮົາຈະ ບໍ່ຕັດສະຕັອກສິນຄ້າ ໃນ order_items ເດັດຂາດ!
-                           ເພາະມັນເປັນໜ້າທີ່ຂອງລະບົບ E-commerce (Checkout Process) ທີ່ຈະຕັດສະຕັອກ
-                           ຕອນທີ່ລູກຄ້າກົດຢືນຢັນການຊື້ຈິງໆ.
-                           
-                           ສິ່ງທີ່ເຮົາຄວນເຮັດຢູ່ຈຸດນີ້ຄື: "ການເຕີມວົງເງິນ (Points) ໃຫ້ລູກຄ້າ"
-                        */
-                        // const approvedAmount = loanApplication.total_amount; // ຫຼືຍອດທີ່ຫັກເງິນດາວແລ້ວ
-                        // // ຕົວຢ່າງການເຕີມ Point (ສົມມຸດທ່ານມີຕາຕະລາງ customer_points)
-                        // // 1 Point = 1 ກີບ (ແລ້ວແຕ່ທ່ານອອກແບບ)
-                        // const customerPoint = await db.customer_points.findOne({
-                        //     where: { customer_id: loanApplication.customer_id },
-                        //     transaction: t
-                        // });
-                        // if (customerPoint) {
-                        //     // ມີກະເປົາ Point ແລ້ວ, ເຕີມເພີ່ມເຂົ້າໄປ
-                        //     await customerPoint.increment('available_points', { by: approvedAmount, transaction: t });
-                        // } else {
-                        //     // ຍັງບໍ່ມີກະເປົາ Point, ສ້າງໃໝ່ເລີຍ
-                        //     await db.customer_points.create({
-                        //         customer_id: loanApplication.customer_id,
-                        //         available_points: approvedAmount,
-                        //         total_points_earned: approvedAmount,
-                        //         // ... ອື່ນໆ
-                        //     }, { transaction: t });
-                        // }
-                        // ບັນທຶກ Point Ledger (ປະຫວັດການເງິນ)
-                        // await db.point_ledgers.create({
-                        //     customer_id: loanApplication.customer_id,
-                        //     transaction_type: 'earned',
-                        //     points: approvedAmount,
-                        //     reference_type: 'loan_approval',
-                        //     reference_id: loanApplication.id,
-                        //     description: `ໄດ້ຮັບວົງເງິນສິນເຊື່ອ BNPL ເລກທີ ${loanApplication.loan_id}`,
-                        // }, { transaction: t });
-                        // 💡 ຫຼັງຈາກນີ້, ລູກຄ້າຈະມີ Point ໃນລະບົບ. 
-                        // ຕອນລູກຄ້າໄປໜ້າ Checkout ຂອງ E-commerce, ເຂົາຈະເລືອກຈ່າຍດ້ວຍ Point.
-                        // ໃນ API ຂອງ E-commerce Checkout ຈຶ່ງຄ່ອຍໄປເຮັດການ:
-                        // 1. ຕັດ Point ຂອງລູກຄ້າ
-                        // 2. ຕັດສະຕັອກສິນຄ້າໃນ order_items ຈິງໆ
-                        // }
                     }
+                    await repayment_repo_1.default.finalizeScheduleApproval(loanApplicationId, updatePayload.approver_id, new Date(), t);
+                    // ==========================================
+                    // 🌟 🟢 ເພີ່ມໃໝ່: Auto-Approve Delivery Receipt
+                    // ເມື່ອຜູ້ບໍລິຫານອະນຸມັດສິນເຊື່ອແລ້ວ ໃຫ້ປ່ຽນສະຖານະໃບມອບຮັບເປັນ approved ພ້ອມກັນເລີຍ
+                    // ==========================================
+                    const deliveryReceipt = await delivery_receipt_repo_1.default.findDeliveryReceiptsByApplicationId(loanApplicationId);
+                    if (deliveryReceipt && deliveryReceipt.status === 'pending') {
+                        await delivery_receipt_repo_1.default.updateDeliveryReceipt(deliveryReceipt.id, {
+                            status: 'approved',
+                            remark: 'ອະນຸມັດອັດຕະໂນມັດ ພ້ອມກັບການປ່ອຍສິນເຊື່ອ (Auto-approved with disbursement)'
+                        }, performedBy, // ໃຊ້ user_id ຂອງຄົນທີ່ກົດອະນຸມັດ
+                        { transaction: t } // 👈 ສົ່ງ transaction ເຂົ້າໄປເພື່ອກະທຳພ້ອມກັນ
+                        );
+                    }
+                    //  ປິດໄວ້ກ່ອນຊົ່ວຄາວ ຫລັງຈາກລະບົບແລ້ວ E-commerce ຈືງໃຊ້ ທີ່ຈະຕັດສະຕັອກເທື່ອນີ້ (ແຍກตาม Flow Type)
+                    // ==========================================
+                    // 🌟 🟢 ເພີ່ມໃໝ່: Logic ການຕັດສະຕັອກ (ແຍກຕາມ Flow Type)
+                    // ==========================================
+                    // if (loanApplication.loan_flow_type === 'single_item') {
+                    //     // ------------------------------------------
+                    //     // Flow 1: Single Item (ຕັດສະຕັອກທັນທີ)
+                    //     // ------------------------------------------
+                    //     const productId = loanApplication.product_id;
+                    //     const variantId = loanApplication.variant_id; // ຫຼືດຶງຈາກ contract ກໍໄດ້
+                    //     const qtyToDeduct = 1;
+                    //     if (variantId) {
+                    //         const variant = await db.product_variants.findByPk(variantId, { transaction: t, lock: t.LOCK.UPDATE });
+                    //         if (!variant || variant.stock_quantity < qtyToDeduct) { // ສົມມຸດວ່າ column ຊື່ stock
+                    //             throw new BadRequestError('ບໍ່ສາມາດປ່ອຍສິນເຊື່ອໄດ້: ສິນຄ້າໃນສະຕັອກ (ສີ/ຂະໜາດ) ບໍ່ພຽງພໍແລ້ວ!');
+                    //         }
+                    //         await variant.decrement('stock_quantity', { by: qtyToDeduct, transaction: t });
+                    //     } else if (productId) {
+                    //         const product = await db.products.findByPk(productId, { transaction: t, lock: t.LOCK.UPDATE });
+                    //         if (!product || product.stock_quantity < qtyToDeduct) { // ສົມມຸດວ່າ column ຊື່ stock
+                    //             throw new BadRequestError('ບໍ່ສາມາດປ່ອຍສິນເຊື່ອໄດ້: ສິນຄ້າໃນສະຕັອກບໍ່ພຽງພໍແລ້ວ!');
+                    //         }
+                    //         await product.decrement('stock_quantity', { by: qtyToDeduct, transaction: t });
+                    //     }
+                    // } else if (loanApplication.loan_flow_type === 'bnpl_cart') {
+                    // ------------------------------------------
+                    // Flow 2: BNPL Cart (ບໍ່ຕັດສະຕັອກ ແຕ່ຕື່ມ Point ແທນ)
+                    // ------------------------------------------
+                    /* ໝາຍເຫດ: ຢູ່ຈຸດນີ້ ເຮົາຈະ ບໍ່ຕັດສະຕັອກສິນຄ້າ ໃນ order_items ເດັດຂາດ!
+                       ເພາະມັນເປັນໜ້າທີ່ຂອງລະບົບ E-commerce (Checkout Process) ທີ່ຈະຕັດສະຕັອກ
+                       ຕອນທີ່ລູກຄ້າກົດຢືນຢັນການຊື້ຈິງໆ.
+                       
+                       ສິ່ງທີ່ເຮົາຄວນເຮັດຢູ່ຈຸດນີ້ຄື: "ການເຕີມວົງເງິນ (Points) ໃຫ້ລູກຄ້າ"
+                    */
+                    // const approvedAmount = loanApplication.total_amount; // ຫຼືຍອດທີ່ຫັກເງິນດາວແລ້ວ
+                    // // ຕົວຢ່າງການເຕີມ Point (ສົມມຸດທ່ານມີຕາຕະລາງ customer_points)
+                    // // 1 Point = 1 ກີບ (ແລ້ວແຕ່ທ່ານອອກແບບ)
+                    // const customerPoint = await db.customer_points.findOne({
+                    //     where: { customer_id: loanApplication.customer_id },
+                    //     transaction: t
+                    // });
+                    // if (customerPoint) {
+                    //     // ມີກະເປົາ Point ແລ້ວ, ເຕີມເພີ່ມເຂົ້າໄປ
+                    //     await customerPoint.increment('available_points', { by: approvedAmount, transaction: t });
+                    // } else {
+                    //     // ຍັງບໍ່ມີກະເປົາ Point, ສ້າງໃໝ່ເລີຍ
+                    //     await db.customer_points.create({
+                    //         customer_id: loanApplication.customer_id,
+                    //         available_points: approvedAmount,
+                    //         total_points_earned: approvedAmount,
+                    //         // ... ອື່ນໆ
+                    //     }, { transaction: t });
+                    // }
+                    // ບັນທຶກ Point Ledger (ປະຫວັດການເງິນ)
+                    // await db.point_ledgers.create({
+                    //     customer_id: loanApplication.customer_id,
+                    //     transaction_type: 'earned',
+                    //     points: approvedAmount,
+                    //     reference_type: 'loan_approval',
+                    //     reference_id: loanApplication.id,
+                    //     description: `ໄດ້ຮັບວົງເງິນສິນເຊື່ອ BNPL ເລກທີ ${loanApplication.loan_id}`,
+                    // }, { transaction: t });
+                    // 💡 ຫຼັງຈາກນີ້, ລູກຄ້າຈະມີ Point ໃນລະບົບ. 
+                    // ຕອນລູກຄ້າໄປໜ້າ Checkout ຂອງ E-commerce, ເຂົາຈະເລືອກຈ່າຍດ້ວຍ Point.
+                    // ໃນ API ຂອງ E-commerce Checkout ຈຶ່ງຄ່ອຍໄປເຮັດການ:
+                    // 1. ຕັດ Point ຂອງລູກຄ້າ
+                    // 2. ຕັດສະຕັອກສິນຄ້າໃນ order_items ຈິງໆ
+                    // }
                 }
             }
             // ==========================================

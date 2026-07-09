@@ -8,7 +8,7 @@ export interface document_signaturesAttributes {
   application_id: number;
   document_type: 'contract' | 'delivery_note' | 'repayment_schedule' | 'approval_summary';
   reference_id: number;
-  role_type: 'borrower' | 'guarantor' | 'sales_staff' | 'credit_staff' | 'credit_head' | 'approver_1' | 'approver_2' | 'approver_3' | 'partner_shop' | 'village_chief';
+  role_type: 'borrower' | 'guarantor' | 'sales_staff' | 'credit_staff' | 'credit_head' | 'approver_1' | 'approver_2' | 'approver_3' | 'partner_shop' | 'village_chief' | 'finance_staff';
   user_id?: number;
   signer_name?: string;
   status?: 'pending' | 'signed' | 'rejected';
@@ -27,7 +27,7 @@ export class document_signatures extends Model<document_signaturesAttributes, do
   application_id!: number;
   document_type!: 'contract' | 'delivery_note' | 'repayment_schedule' | 'approval_summary';
   reference_id!: number;
-  role_type!: 'borrower' | 'guarantor' | 'sales_staff' | 'credit_staff' | 'credit_head' | 'approver_1' | 'approver_2' | 'approver_3' | 'partner_shop' | 'village_chief';
+  role_type!: 'borrower' | 'guarantor' | 'sales_staff' | 'credit_staff' | 'credit_head' | 'approver_1' | 'approver_2' | 'approver_3' | 'partner_shop' | 'village_chief' | 'finance_staff';
   user_id?: number;
   signer_name?: string;
   status?: 'pending' | 'signed' | 'rejected';
@@ -73,7 +73,7 @@ export class document_signatures extends Model<document_signaturesAttributes, do
       comment: "ID ຂອງເອກະສານນັ້ນໆ (ເຊັ່ນ id ຂອງ loan_contract ຫຼື delivery_receipts)"
     },
     role_type: {
-      type: DataTypes.ENUM('borrower','guarantor','sales_staff','credit_staff','credit_head','approver_1','approver_2','approver_3','partner_shop','village_chief'),
+      type: DataTypes.ENUM('borrower','guarantor','sales_staff','credit_staff','credit_head','approver_1','approver_2','approver_3','partner_shop','village_chief','finance_staff'),
       allowNull: false
     },
     user_id: {

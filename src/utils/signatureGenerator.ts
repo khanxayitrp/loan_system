@@ -34,7 +34,7 @@ export const generateSignatureSlots = async (
             // ຕາຕະລາງຜ່ອນ: ລູກຄ້າ, ພະນັກງານສິນເຊື່ອ, ຜູ້ອະນຸມັດ
             requiredRoles = [
                 'borrower',
-                'credit_staff',
+                'finance_staff',
                 'approver_1'
             ];
             break;
@@ -44,7 +44,8 @@ export const generateSignatureSlots = async (
             requiredRoles = [
                 'borrower',
                 'sales_staff',
-                'partner_shop'
+                'partner_shop',
+                'credit_head',
             ];
             break;
 

@@ -186,6 +186,26 @@ class LoanContractService {
                 await (0, signatureGenerator_1.generateSignatureSlots)(data.loan_id, 'contract', loan_contract.id, // ໃຊ້ ID ຂອງສັນຍາທີ່ຫາກໍ່ສ້າງສຳເລັດເປັນ Reference
                 t);
             }
+            // ==========================================
+            // 🌟 🟢 Best Practice: Auto-Sign ສຳລັບພະນັກງານສິນເຊື່ອ (Maker)
+            // ເມື່ອພະນັກງານບັນທຶກສັນຍາ ຖືວ່າເປັນການລົງນາມກະກຽມເອກະສານສຳເລັດ
+            // ==========================================
+            const staffUser = await init_models_1.db.users.findByPk(performedBy, { transaction: t });
+            const staffName = staffUser ? (staffUser.full_name || staffUser.username) : 'ພະນັກງານສິນເຊື່ອ';
+            await init_models_1.db.document_signatures.update({
+                user_id: performedBy,
+                signer_name: staffName,
+                status: 'signed',
+                signed_at: new Date()
+            }, {
+                where: {
+                    application_id: data.loan_id,
+                    document_type: 'contract', // ອັບເດດສະເພາະລາຍເຊັນໃນສັນຍາ
+                    reference_id: loan_contract.id,
+                    role_type: 'credit_staff' // ໃຫ້ກົງກັບ role ທີ່ສ້າງໄວ້ໃນ generateSignatureSlots
+                },
+                transaction: t
+            });
             await t.commit();
             console.log('✅ Loan Contract created/updated successfully:', loan_contract.id);
             return {

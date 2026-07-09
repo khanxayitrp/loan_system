@@ -54,10 +54,10 @@ function formatDate(dateStr) {
 }
 function formatCurrency(amount) {
     if (amount === null || amount === undefined || amount === '')
-        return '________________';
+        return '___________';
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(num))
-        return '________________';
+        return '___________';
     // 🟢 ເພີ່ມ Options ເພື່ອບັງຄັບໃຫ້ມີທົດສະນິຍົມ 2 ຕຳແໜ່ງສະເໝີ
     return num.toLocaleString('en-US', {
         minimumFractionDigits: 0,
@@ -66,10 +66,10 @@ function formatCurrency(amount) {
 }
 function formatCurrencyV2(amount) {
     if (amount === null || amount === undefined || amount === '')
-        return '________________';
+        return '___________';
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(num))
-        return '________________';
+        return '___________';
     // 🟢 ເພີ່ມ Options ເພື່ອບັງຄັບໃຫ້ມີທົດສະນິຍົມ 2 ຕຳແໜ່ງສະເໝີ
     return num.toLocaleString('en-US', {
         minimumFractionDigits: 0,

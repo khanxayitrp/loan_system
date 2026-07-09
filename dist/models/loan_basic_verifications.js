@@ -108,6 +108,11 @@ class loan_basic_verifications extends sequelize_1.Model {
                 allowNull: true,
                 defaultValue: 0
             },
+            work_months: {
+                type: sequelize_1.DataTypes.INTEGER,
+                allowNull: true,
+                defaultValue: 0
+            },
             workplace_assessment: {
                 type: sequelize_1.DataTypes.ENUM('good', 'moderate', 'bad'),
                 allowNull: true

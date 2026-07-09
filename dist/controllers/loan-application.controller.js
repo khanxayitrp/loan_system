@@ -380,7 +380,7 @@ const createWithCustomer = async (req, res, next) => {
         // =======================================================
         let customer;
         const customerPayload = { phone, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
-        const customerUpdatePayload = { first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
+        const customerUpdatePayload = { identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
         if (isEmployeeRequest) {
             // STAFF FLOW: ຈັດການຂໍ້ມູນລູກຄ້າໂດຍພະນັກງານ
             if (existing_customer_id) {

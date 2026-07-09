@@ -15,6 +15,7 @@ import { logApprovalAction } from '../utils/approvalLogger';
 import { formatStandardPhoneNumber } from '../utils/formatters';
 
 import redisService from '../services/redis.service';
+import document_signatureService from '../services/document_signature.service';
 
 export const createLoanApplication = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -52,9 +53,9 @@ export const cancelLoanApplicationbyCustomer = async (req: Request, res: Respons
     }
 
     const updated = await loanAppRepo.updateLoanApplication(Number(loanId), loanData);
-    
+
     if (!updated) {
-        throw new NotFoundError('Application not found');
+      throw new NotFoundError('Application not found');
     }
 
     return res.status(200).json({
@@ -79,31 +80,31 @@ export const updateLoanApplication = async (req: Request, res: Response, next: N
       ...data,
       approver_id: userId, // บันทึกผู้อนุมัติ
     }
-    
+
     const updated = await loanAppRepo.updateLoanApplication(Number(id), loanData);
 
     if (!updated) {
-        throw new NotFoundError('Application not found');
+      throw new NotFoundError('Application not found');
     }
 
     // =========================================================
     // 🟢 ຈັດການລຶບ Cache ຫຼັງຈາກອັບເດດຂໍ້ມູນສຳເລັດ
     // =========================================================
     if (redisService) {
-        // 1. ລຶບ Cache ຂອງໂຕ Loan Application ເອງ
-        await redisService.del(`cache:loan_application:${id}`);
-        await redisService.delByPattern('cache:loan_applications:list:*');
+      // 1. ລຶບ Cache ຂອງໂຕ Loan Application ເອງ
+      await redisService.del(`cache:loan_application:${id}`);
+      await redisService.delByPattern('cache:loan_applications:list:*');
 
-        // 2. ຊອກຫາ ສັນຍາ (Contract) ທີ່ຜູກກັບ Loan ນີ້
-        const contract = await db.loan_contract.findOne({
-            where: { loan_id: Number(id) } // ໝາຍເຫດ: ກວດເບິ່ງວ່າຕາຕະລາງທ່ານໃຊ້ application_id ຫຼື loan_id
-        });
+      // 2. ຊອກຫາ ສັນຍາ (Contract) ທີ່ຜູກກັບ Loan ນີ້
+      const contract = await db.loan_contract.findOne({
+        where: { loan_id: Number(id) } // ໝາຍເຫດ: ກວດເບິ່ງວ່າຕາຕະລາງທ່ານໃຊ້ application_id ຫຼື loan_id
+      });
 
-        // 3. ຖ້າມີສັນຍາແລ້ວ ໃຫ້ລຶບ Cache PDF ສັນຍາຖິ້ມ
-        if (contract && contract.id) {
-            await redisService.del(`cache:pdf:contract:${contract.id}`);
-            console.log(`🗑️ ລຶບ Cache PDF ສັນຍາສຳເລັດ: ${contract.id}`);
-        }
+      // 3. ຖ້າມີສັນຍາແລ້ວ ໃຫ້ລຶບ Cache PDF ສັນຍາຖິ້ມ
+      if (contract && contract.id) {
+        await redisService.del(`cache:pdf:contract:${contract.id}`);
+        console.log(`🗑️ ລຶບ Cache PDF ສັນຍາສຳເລັດ: ${contract.id}`);
+      }
     }
     // =========================================================
 
@@ -127,37 +128,37 @@ export const updateDraftLoanApplication = async (req: Request, res: Response, ne
       ...req.body,
       performed_by: userId, // บันทึกผู้แก้ไข
     }
-    
+
     const updated = await loanAppRepo.updateDraftLoanApplication(Number(id), loanData);
 
     if (!updated) {
-        throw new NotFoundError('Application not found');
+      throw new NotFoundError('Application not found');
     }
 
     // =========================================================
     // 🟢 ຈັດການລຶບ Cache PDF ທັງໝົດເມື່ອຂໍ້ມູນລູກຄ້າ/ສິນເຊື່ອປ່ຽນແປງ
     // =========================================================
     if (redisService) {
-        // 1. ລຶບ Cache ຂໍ້ມູນ Loan ເພື່ອໃຫ້ດຶງໃໝ່
-        await redisService.del(`cache:loan_application:${id}`);
+      // 1. ລຶບ Cache ຂໍ້ມູນ Loan ເພື່ອໃຫ້ດຶງໃໝ່
+      await redisService.del(`cache:loan_application:${id}`);
 
-        // 2. ລຶບ Cache PDF ໃບຮັບເຄື່ອງ (Delivery Receipt) ໂດຍການຊອກຫາ receipts_id ຜ່ານ loanId
-        const receipt = await db.delivery_receipts.findOne({
-            where: { application_id: id } // ໃຫ້ກວດສອບວ່າມີ column application_id ໃນຕາຕະລາງນີ້ບໍ່
-        });
-        if (receipt && receipt.receipts_id) {
-            await redisService.del(`cache:pdf:receipt:${receipt.receipts_id}`);
-            console.log(`🗑️ ລຶບ Cache PDF ໃບຮັບເຄື່ອງແລ້ວ: ${receipt.receipts_id}`);
-        }
+      // 2. ລຶບ Cache PDF ໃບຮັບເຄື່ອງ (Delivery Receipt) ໂດຍການຊອກຫາ receipts_id ຜ່ານ loanId
+      const receipt = await db.delivery_receipts.findOne({
+        where: { application_id: id } // ໃຫ້ກວດສອບວ່າມີ column application_id ໃນຕາຕະລາງນີ້ບໍ່
+      });
+      if (receipt && receipt.receipts_id) {
+        await redisService.del(`cache:pdf:receipt:${receipt.receipts_id}`);
+        console.log(`🗑️ ລຶບ Cache PDF ໃບຮັບເຄື່ອງແລ້ວ: ${receipt.receipts_id}`);
+      }
 
-        // 3. ລຶບ Cache PDF ສັນຍາ (Contract)
-        const contract = await db.loan_contract.findOne({
-            where: { loan_id: id }
-        });
-        if (contract && contract.id) {
-            await redisService.del(`cache:pdf:contract:${contract.id}`);
-            console.log(`🗑️ ລຶບ Cache PDF ສັນຍາແລ້ວ: ${contract.id}`);
-        }
+      // 3. ລຶບ Cache PDF ສັນຍາ (Contract)
+      const contract = await db.loan_contract.findOne({
+        where: { loan_id: id }
+      });
+      if (contract && contract.id) {
+        await redisService.del(`cache:pdf:contract:${contract.id}`);
+        console.log(`🗑️ ລຶບ Cache PDF ສັນຍາແລ້ວ: ${contract.id}`);
+      }
     }
     // =========================================================
 
@@ -176,23 +177,23 @@ export const changeStatus = async (req: Request, res: Response, next: NextFuncti
     const { id } = req.params;
     const { status } = req.body;
     const userId = req.userPayload?.userId;
-    
+
     console.log('function changeStatus ', req.body)
-    
+
     if (!status) {
-        throw new BadRequestError('Status is required');
+      throw new BadRequestError('Status is required');
     }
 
     const updated = await loanAppRepo.updateLoanApplicationStatus(Number(id), status, Number(userId));
 
     if (!updated) {
-        throw new NotFoundError('Application not found');
+      throw new NotFoundError('Application not found');
     }
 
-    return res.status(200).json({ 
-        success: true, 
-        message: `Status changed to ${status}`, 
-        data: updated 
+    return res.status(200).json({
+      success: true,
+      message: `Status changed to ${status}`,
+      data: updated
     });
   } catch (error) {
     next(error);
@@ -202,17 +203,17 @@ export const changeStatus = async (req: Request, res: Response, next: NextFuncti
 export const getLoanByLoanID = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { LoanId } = req.body;
-    
-    if(!LoanId) throw new BadRequestError('LoanId is required');
+
+    if (!LoanId) throw new BadRequestError('LoanId is required');
 
     const data = await loanAppRepo.findLoanApplicationByLoanId(LoanId);
-    
-    if(!data) throw new NotFoundError('Application not found');
 
-    return res.status(200).json({ 
-        success: true, 
-        message: `get Loan Data by ${LoanId}`, 
-        data: data 
+    if (!data) throw new NotFoundError('Application not found');
+
+    return res.status(200).json({
+      success: true,
+      message: `get Loan Data by ${LoanId}`,
+      data: data
     });
   } catch (error) {
     next(error);
@@ -222,17 +223,17 @@ export const getLoanByLoanID = async (req: Request, res: Response, next: NextFun
 export const getLoanById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const Id = parseInt(req.params.id, 10);
-    
+
     if (isNaN(Id)) throw new BadRequestError('Invalid ID format');
 
     const data = await loanAppRepo.findLoanApplicationById(Id);
-    
-    if(!data) throw new NotFoundError('Application not found');
 
-    return res.status(200).json({ 
-        success: true, 
-        message: `get Loan Data by ${Id}`, 
-        data: data 
+    if (!data) throw new NotFoundError('Application not found');
+
+    return res.status(200).json({
+      success: true,
+      message: `get Loan Data by ${Id}`,
+      data: data
     });
   } catch (error) {
     next(error);
@@ -247,15 +248,15 @@ export const getLoanbyCusIDandLoanID = async (req: Request, res: Response, next:
     if (!CustomerId) throw new UnauthorizedError('Unauthorized');
 
     const data = await loanAppRepo.findLoanApplicationByCusIDandLoanId(Number(CustomerId), Number(loanId));
-    
+
     if (!data) {
-        throw new NotFoundError('Application not found');
+      throw new NotFoundError('Application not found');
     }
-    
-    return res.status(200).json({ 
-        success: true, 
-        message: `get Loan Data by ${CustomerId} and ${loanId}`, 
-        data: data 
+
+    return res.status(200).json({
+      success: true,
+      message: `get Loan Data by ${CustomerId} and ${loanId}`,
+      data: data
     });
 
   } catch (error) {
@@ -276,7 +277,7 @@ export const getAllLoanByCustomerId = async (req: Request, res: Response, next: 
 
     const result = await loanAppRepo.findLoanApplicationsByCustomerId({
       customerId: CustomerId ? Number(CustomerId) : undefined,
-      status: actualStatus, 
+      status: actualStatus,
       min: min ? Number(min) : undefined,
       max: max ? Number(max) : undefined,
       is_confirmed: is_confirmed !== undefined ? Number(is_confirmed) : undefined,
@@ -340,531 +341,544 @@ export const getAllLoan = async (req: Request, res: Response, next: NextFunction
 }
 
 export const sentApplyDraft = async (req: Request, res: Response, next: NextFunction) => {
-    const transaction = await db.sequelize.transaction();
-    try {
-        const { id } = req.params;
-        const { is_confirmed, otp, phone } = req.body; // otp, phone ไม่ได้ใช้แล้ว?
-        console.log('check before sent to Apply ', req.body);
-        
-        const performedBy = req.userPayload?.userId || 1;
+  const transaction = await db.sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { is_confirmed, otp, phone } = req.body; // otp, phone ไม่ได้ใช้แล้ว?
+    console.log('check before sent to Apply ', req.body);
 
-        // const loanApp = await loanAppRepo.findLoanApplicationById(Number(id));
-        const loanApp = await db.loan_applications.findByPk(Number(id), { 
-            transaction, 
-            lock: transaction.LOCK.UPDATE 
-        });
+    const performedBy = req.userPayload?.userId || 1;
 
-        if (!loanApp) {
-            throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຂໍສິນເຊຶ່ອຂອງລູກຄ້າ');
-        }
+    // const loanApp = await loanAppRepo.findLoanApplicationById(Number(id));
+    const loanApp = await db.loan_applications.findByPk(Number(id), {
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
 
-        const oldLoanData = loanApp.toJSON();
-        const updateData = { is_confirmed };
-
-        const updatedLoan = await loanApp.update(updateData, { transaction });
-        
-        // ถ้า update ไม่ผ่าน ปกติ Sequelize จะโยน Error เอง แต่เขียนดักไว้ก็ดีครับ
-        if (!updatedLoan) {
-             throw new NotFoundError('Loan Application not found or could not be updated');
-        }
-
-        await logAudit('loan_applications', loanApp.id, 'UPDATE', oldLoanData, updateData, performedBy, transaction);
-
-        await transaction.commit();
-        return res.status(200).json({ success: true, message: `Sent Draft to Apply Completed`, data: updatedLoan });
-
-    } catch (error) {
-        await transaction.rollback(); // คืนค่า Database ก่อน
-        next(error); // โยนเข้า Error Handler
+    if (!loanApp) {
+      throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຂໍສິນເຊຶ່ອຂອງລູກຄ້າ');
     }
+
+    const oldLoanData = loanApp.toJSON();
+    const updateData = { is_confirmed };
+
+    const updatedLoan = await loanApp.update(updateData, { transaction });
+
+    // ถ้า update ไม่ผ่าน ปกติ Sequelize จะโยน Error เอง แต่เขียนดักไว้ก็ดีครับ
+    if (!updatedLoan) {
+      throw new NotFoundError('Loan Application not found or could not be updated');
+    }
+
+    await logAudit('loan_applications', loanApp.id, 'UPDATE', oldLoanData, updateData, performedBy, transaction);
+
+    await transaction.commit();
+    return res.status(200).json({ success: true, message: `Sent Draft to Apply Completed`, data: updatedLoan });
+
+  } catch (error) {
+    await transaction.rollback(); // คืนค่า Database ก่อน
+    next(error); // โยนเข้า Error Handler
+  }
 };
 
 export const createWithCustomer = async (req: Request, res: Response, next: NextFunction) => {
-    const transaction = await db.sequelize.transaction();
-    try {
+  const transaction = await db.sequelize.transaction();
+  try {
 
-      // 🟢 1. ແຍກເອົາ phone ແລະ identity_number ມາເປັນ let ເພື່ອດັດແປງຄ່າໄດ້
-        let { phone, identity_number } = req.body;
-        const {
-             otp, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
-            product_id, variant_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
-            interest_type, interest_rate_type, 
-            existing_customer_id 
-        } = req.body;
+    // 🟢 1. ແຍກເອົາ phone ແລະ identity_number ມາເປັນ let ເພື່ອດັດແປງຄ່າໄດ້
+    let { phone, identity_number } = req.body;
+    const {
+      otp, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
+      product_id, variant_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
+      interest_type, interest_rate_type,
+      existing_customer_id
+    } = req.body;
 
-        // =======================================================
-        // 🟢 2. Data Standardization (ກັ່ນຕອງຂໍ້ມູນກ່ອນນຳໄປໃຊ້)
-        // =======================================================
-        
-        // ປ່ຽນຄ່າວ່າງ ຫຼື ຄຳວ່າ "ບໍ່ມີ" ໃຫ້ກາຍເປັນ null ແທ້ໆ ເພື່ອປ້ອງກັນ Duplicate Key Error
-        if (!identity_number || identity_number.trim() === '' || identity_number === 'ບໍ່ມີ') {
-            identity_number = null;
-        }
+    // =======================================================
+    // 🟢 2. Data Standardization (ກັ່ນຕອງຂໍ້ມູນກ່ອນນຳໄປໃຊ້)
+    // =======================================================
 
-        // ແປງເບີໂທໃຫ້ເປັນມາດຕະຖານ (020/030) ກັນໜຽວໄວ້ອີກຊັ້ນໜຶ່ງ
-        if (phone) {
-            phone = formatStandardPhoneNumber(phone);
-        }
-
-        // 🔍 ກວດສອບກ່ອນວ່າມັກຈາກພະນັກງານ (Staff ຫຼື Admin) ຫຼື ບໍ່
-        const isEmployeeRequest = !!req.userPayload && (req.userPayload.role === 'staff' || req.userPayload.role === 'admin'); 
-        const staffId = req.userPayload?.userId || null;
-        const performedBy = staffId || 1;
-
-        // =======================================================
-        // 1. Verify OTP (ຂ້າມຂັ້ນຕອນນີ້ຖ້າເປັນພະນັກງານສະໝັກໃຫ້ລູກຄ້າ)
-        // =======================================================
-        if (!isEmployeeRequest) {  // 👈 ປ່ຽນຊື່ຕົວແປຢູ່ບ່ອນນີ້
-            if (!phone || !otp) {
-                throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
-            }
-
-            const verificationResult = await otpService.verifyOTP({
-                phoneNumber: phone,
-                otp
-            });
-
-            if (!verificationResult.success) {
-                 throw new BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
-            }
-        }
-
-        // =======================================================
-        // 2. Get or Create Customer
-        // =======================================================
-        let customer;
-        const customerPayload = { phone, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
-        const customerUpdatePayload = { identity_number,  first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
-
-        if (isEmployeeRequest) {
-            // STAFF FLOW: ຈັດການຂໍ້ມູນລູກຄ້າໂດຍພະນັກງານ
-            if (existing_customer_id) {
-                customer = await db.customers.findByPk(existing_customer_id, { 
-                    transaction, 
-                    lock: transaction.LOCK.UPDATE 
-                });
-                if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
-                
-                const oldCustomerData = customer.toJSON();
-                await customer.update(customerUpdatePayload, { transaction });
-                await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
-            } else {
-                // 🟢 ຖ້າ Frontend ບໍ່ໄດ້ສົ່ງ ID ມາ (ພະນັກງານລືມກົດຄົ້ນຫາ), ໃຫ້ Backend ກວດເບີໂທເອງເລີຍ!
-                customer = await customerRepo.findCustomersByPhone(phone); // <- ເພີ່ມການກວດສອບເບີໂທຢູ່ນີ້
-                
-                if (customer) {
-                    // ເຈອລູກຄ້າເກົ່າຈາກເບີໂທ: ອັບເດດຂໍ້ມູນ
-                    const oldCustomerData = customer.toJSON();
-                    await customer.update(customerUpdatePayload, { transaction });
-                    await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
-                } else {
-                    // ບໍ່ເຄີຍມີເບີໂທນີ້ໃນລະບົບ: ສ້າງໃໝ່ເລີຍ
-                    customer = await customerRepo.createCustomer(customerPayload, { transaction });
-                    await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
-                }
-            }
-            
-        } else {
-            // CUSTOMER (PUBLIC) FLOW: ລູກຄ້າສະໝັກເອງ (ຜ່ານ OTP ແລ້ວ)
-            customer = await customerRepo.findCustomersByPhone(phone);  
-            if (!customer) {
-                customer = await customerRepo.createCustomer(customerPayload, { transaction });
-                await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
-            } else {
-                const oldCustomerData = customer.toJSON();
-                await customer.update(customerUpdatePayload, { transaction });
-                await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
-            }
-        }
-
-        // =======================================================
-        // 3. Validate product
-        // =======================================================
-        const product = await db.products.findByPk(product_id, { transaction, lock: transaction.LOCK.UPDATE });
-        if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
-
-        let variant = null;
-        let basePriceToUse = product.price; // ຕັ້ງຕົ້ນດ້ວຍລາຄາສິນຄ້າຫຼັກ
-
-        // ຖ້າມີການສົ່ງ variant_id ມາ ໃຫ້ກວດສອບກ່ອນ
-        if (variant_id) {
-            variant = await db.product_variants.findByPk(variant_id, { transaction });
-            if (!variant) throw new NotFoundError('ບໍ່ພົບຕົວເລືອກຍ່ອຍ (Variant) ທີ່ເລືອກ');
-            
-            // ກວດສອບຄວາມປອດໄພ: Variant ຕ້ອງຂຶ້ນກັບ Product ໂຕນີ້ແທ້
-            if (Number(variant.product_id) !== Number(product.id)) {
-                throw new BadRequestError('ຕົວເລືອກຍ່ອຍນີ້ ບໍ່ໄດ້ຂຶ້ນກັບສິນຄ້າທີ່ເລືອກ');
-            }
-
-            basePriceToUse = variant.price; // ປ່ຽນໄປໃຊ້ລາຄາຂອງ Variant ແທນ
-        }
-
-        const final_total = total_amount || (basePriceToUse * quantity);
-
-        // =======================================================
-        // 4. Create Loan Application
-        // =======================================================
-        const loanPayload = {
-            customer_id: customer.id,
-            product_id,
-            variant_id: variant_id || null,
-            total_amount: final_total,
-            loan_period: loan_period || 0,
-            interest_rate_at_apply: interest_rate_at_apply || 0,
-            interest_type: interest_type || 'flat_rate',       
-            interest_rate_type: interest_rate_type || 'monthly', 
-            down_payment: down_payment || 0,
-            monthly_pay: monthly_pay,
-            is_confirmed: 0,
-            status: 'pending',
-            requester_id: staffId || null
-        };
-
-        console.log('Loan application payload:', loanPayload);
-
-        const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
-
-        await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), performedBy, transaction);
-
-        let requesterData = null;
-        if (application.requester_id) {
-            const requester = await db.users.findByPk(application.requester_id, { transaction });
-            if (requester) {
-                requesterData = {
-                    id: requester.id,
-                    name: requester.full_name || requester.username || 'ບໍ່ລະບຸ'
-                };
-            }
-        }
-
-        await transaction.commit();
-
-        return res.status(201).json({
-            success: true,
-            message: isEmployeeRequest ? 'ພະນັກງານສ້າງຮ່າງຄຳຂໍໃຫ້ລູກຄ້າຮຽບຮ້ອຍ' : 'ສ້າງຮ່າງຄຳຂໍຜ່ອນຮຽບຮ້ອຍ',
-            data: {
-                application_id: application.id,
-                customer_id: customer.id,
-                product_id,
-                variant_id: application.variant_id || null,
-                loan_id: application.loan_id,
-                total_amount: final_total,
-                loan_period: loan_period,
-                interest_rate_at_apply: interest_rate_at_apply,
-                interest_type: application.interest_type,           
-                interest_rate_type: application.interest_rate_type, 
-                monthly_pay: monthly_pay,
-                is_confirmed: application.is_confirmed,
-                status: application.status,
-                requester_id: application.requester_id || null,
-                approver_id: application.approver_id || null,
-                applied_at: application.applied_at || null,
-                approved_at: application.approved_at || null,
-                credit_score: application.credit_score || null,
-                remarks: application.remarks || null,
-                created_at: application.created_at || null,
-                updated_at: application.updated_at || null,
-                customer: {
-                    id: customer.id,
-                    phone: phone,
-                    identity_number: identity_number,
-                    first_name: first_name,
-                    last_name: last_name,
-                    province_id: province_id,
-                    district_id: district_id,
-                    address: address,
-                    age: age,
-                    occupation: occupation,
-                    income_per_month: income_per_month,
-                    other_debt: other_debt
-                },
-                product: {
-                    id: product_id,
-                    partner_id: product.partner_id,
-                    productType_id: product.productType_id,
-                    product_name: product.product_name,
-                    price: product.price,
-                    interest_rate: interest_rate_at_apply,
-                    // 🟢 4. ແນບຂໍ້ມູນ Variant ກັບຄືນໄປພ້ອມ
-                    variant: variant ? {
-                        id: variant.id,
-                        color: variant.color,
-                        size: variant.size_or_capacity,
-                        merchant_sku: variant.merchant_sku
-                    } : null
-                },
-                requester: requesterData,
-                approver: null,
-                is_staff_mode: isEmployeeRequest
-            }
-        });
-    } catch (error) {
-        await transaction.rollback();
-        next(error); 
+    // ປ່ຽນຄ່າວ່າງ ຫຼື ຄຳວ່າ "ບໍ່ມີ" ໃຫ້ກາຍເປັນ null ແທ້ໆ ເພື່ອປ້ອງກັນ Duplicate Key Error
+    if (!identity_number || identity_number.trim() === '' || identity_number === 'ບໍ່ມີ') {
+      identity_number = null;
     }
+
+    // ແປງເບີໂທໃຫ້ເປັນມາດຕະຖານ (020/030) ກັນໜຽວໄວ້ອີກຊັ້ນໜຶ່ງ
+    if (phone) {
+      phone = formatStandardPhoneNumber(phone);
+    }
+
+    // 🔍 ກວດສອບກ່ອນວ່າມັກຈາກພະນັກງານ (Staff ຫຼື Admin) ຫຼື ບໍ່
+    const isEmployeeRequest = !!req.userPayload && (req.userPayload.role === 'staff' || req.userPayload.role === 'admin');
+    const staffId = req.userPayload?.userId || null;
+    const performedBy = staffId || 1;
+
+    // =======================================================
+    // 1. Verify OTP (ຂ້າມຂັ້ນຕອນນີ້ຖ້າເປັນພະນັກງານສະໝັກໃຫ້ລູກຄ້າ)
+    // =======================================================
+    if (!isEmployeeRequest) {  // 👈 ປ່ຽນຊື່ຕົວແປຢູ່ບ່ອນນີ້
+      if (!phone || !otp) {
+        throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
+      }
+
+      const verificationResult = await otpService.verifyOTP({
+        phoneNumber: phone,
+        otp
+      });
+
+      if (!verificationResult.success) {
+        throw new BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
+      }
+    }
+
+    // =======================================================
+    // 2. Get or Create Customer
+    // =======================================================
+    let customer;
+    const customerPayload = { phone, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
+    const customerUpdatePayload = { identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
+
+    if (isEmployeeRequest) {
+      // STAFF FLOW: ຈັດການຂໍ້ມູນລູກຄ້າໂດຍພະນັກງານ
+      if (existing_customer_id) {
+        customer = await db.customers.findByPk(existing_customer_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE
+        });
+        if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
+
+        const oldCustomerData = customer.toJSON();
+        await customer.update(customerUpdatePayload, { transaction });
+        await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
+      } else {
+        // 🟢 ຖ້າ Frontend ບໍ່ໄດ້ສົ່ງ ID ມາ (ພະນັກງານລືມກົດຄົ້ນຫາ), ໃຫ້ Backend ກວດເບີໂທເອງເລີຍ!
+        customer = await customerRepo.findCustomersByPhone(phone); // <- ເພີ່ມການກວດສອບເບີໂທຢູ່ນີ້
+
+        if (customer) {
+          // ເຈອລູກຄ້າເກົ່າຈາກເບີໂທ: ອັບເດດຂໍ້ມູນ
+          const oldCustomerData = customer.toJSON();
+          await customer.update(customerUpdatePayload, { transaction });
+          await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
+        } else {
+          // ບໍ່ເຄີຍມີເບີໂທນີ້ໃນລະບົບ: ສ້າງໃໝ່ເລີຍ
+          customer = await customerRepo.createCustomer(customerPayload, { transaction });
+          await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
+        }
+      }
+
+    } else {
+      // CUSTOMER (PUBLIC) FLOW: ລູກຄ້າສະໝັກເອງ (ຜ່ານ OTP ແລ້ວ)
+      customer = await customerRepo.findCustomersByPhone(phone);
+      if (!customer) {
+        customer = await customerRepo.createCustomer(customerPayload, { transaction });
+        await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
+      } else {
+        const oldCustomerData = customer.toJSON();
+        await customer.update(customerUpdatePayload, { transaction });
+        await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
+      }
+    }
+
+    // =======================================================
+    // 3. Validate product
+    // =======================================================
+    const product = await db.products.findByPk(product_id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
+
+    let variant = null;
+    let basePriceToUse = product.price; // ຕັ້ງຕົ້ນດ້ວຍລາຄາສິນຄ້າຫຼັກ
+
+    // ຖ້າມີການສົ່ງ variant_id ມາ ໃຫ້ກວດສອບກ່ອນ
+    if (variant_id) {
+      variant = await db.product_variants.findByPk(variant_id, { transaction });
+      if (!variant) throw new NotFoundError('ບໍ່ພົບຕົວເລືອກຍ່ອຍ (Variant) ທີ່ເລືອກ');
+
+      // ກວດສອບຄວາມປອດໄພ: Variant ຕ້ອງຂຶ້ນກັບ Product ໂຕນີ້ແທ້
+      if (Number(variant.product_id) !== Number(product.id)) {
+        throw new BadRequestError('ຕົວເລືອກຍ່ອຍນີ້ ບໍ່ໄດ້ຂຶ້ນກັບສິນຄ້າທີ່ເລືອກ');
+      }
+
+      basePriceToUse = variant.price; // ປ່ຽນໄປໃຊ້ລາຄາຂອງ Variant ແທນ
+    }
+
+    const final_total = total_amount || (basePriceToUse * quantity);
+
+    // =======================================================
+    // 4. Create Loan Application
+    // =======================================================
+    const loanPayload = {
+      customer_id: customer.id,
+      product_id,
+      variant_id: variant_id || null,
+      total_amount: final_total,
+      loan_period: loan_period || 0,
+      interest_rate_at_apply: interest_rate_at_apply || 0,
+      interest_type: interest_type || 'flat_rate',
+      interest_rate_type: interest_rate_type || 'monthly',
+      down_payment: down_payment || 0,
+      monthly_pay: monthly_pay,
+      is_confirmed: 0,
+      status: 'pending',
+      requester_id: staffId || null
+    };
+
+    console.log('Loan application payload:', loanPayload);
+
+    const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
+
+    await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), performedBy, transaction);
+
+    let requesterData = null;
+    if (application.requester_id) {
+      const requester = await db.users.findByPk(application.requester_id, { transaction });
+      if (requester) {
+        requesterData = {
+          id: requester.id,
+          name: requester.full_name || requester.username || 'ບໍ່ລະບຸ'
+        };
+      }
+    }
+
+    await transaction.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: isEmployeeRequest ? 'ພະນັກງານສ້າງຮ່າງຄຳຂໍໃຫ້ລູກຄ້າຮຽບຮ້ອຍ' : 'ສ້າງຮ່າງຄຳຂໍຜ່ອນຮຽບຮ້ອຍ',
+      data: {
+        application_id: application.id,
+        customer_id: customer.id,
+        product_id,
+        variant_id: application.variant_id || null,
+        loan_id: application.loan_id,
+        total_amount: final_total,
+        loan_period: loan_period,
+        interest_rate_at_apply: interest_rate_at_apply,
+        interest_type: application.interest_type,
+        interest_rate_type: application.interest_rate_type,
+        monthly_pay: monthly_pay,
+        is_confirmed: application.is_confirmed,
+        status: application.status,
+        requester_id: application.requester_id || null,
+        approver_id: application.approver_id || null,
+        applied_at: application.applied_at || null,
+        approved_at: application.approved_at || null,
+        credit_score: application.credit_score || null,
+        remarks: application.remarks || null,
+        created_at: application.created_at || null,
+        updated_at: application.updated_at || null,
+        customer: {
+          id: customer.id,
+          phone: phone,
+          identity_number: identity_number,
+          first_name: first_name,
+          last_name: last_name,
+          province_id: province_id,
+          district_id: district_id,
+          address: address,
+          age: age,
+          occupation: occupation,
+          income_per_month: income_per_month,
+          other_debt: other_debt
+        },
+        product: {
+          id: product_id,
+          partner_id: product.partner_id,
+          productType_id: product.productType_id,
+          product_name: product.product_name,
+          price: product.price,
+          interest_rate: interest_rate_at_apply,
+          // 🟢 4. ແນບຂໍ້ມູນ Variant ກັບຄືນໄປພ້ອມ
+          variant: variant ? {
+            id: variant.id,
+            color: variant.color,
+            size: variant.size_or_capacity,
+            merchant_sku: variant.merchant_sku
+          } : null
+        },
+        requester: requesterData,
+        approver: null,
+        is_staff_mode: isEmployeeRequest
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    next(error);
+  }
 };
 
 export const createRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
   const transaction = await db.sequelize.transaction();
-    try {
-        const { scheduleData } = req.body;
-        const application_id = parseInt(req.params.application_id);
-        const userId = req.userPayload?.userId;
-        
-        if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
-        if (!scheduleData) throw new BadRequestError('scheduleData is required');
+  try {
+    const { scheduleData } = req.body;
+    const application_id = parseInt(req.params.application_id);
+    const userId = req.userPayload?.userId;
 
-        console.log('Creating repayment schedule for application_id:', application_id);
+    if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
+    if (!scheduleData) throw new BadRequestError('scheduleData is required');
 
-        // =========================================================
-        // 🌟 🟢 ເພີ່ມໃໝ່: WIPE OLD DATA IN MYSQL (ລ້າງຂໍ້ມູນເກົ່າໃນ MySQL)
-        // ເພື່ອປ້ອງກັນຂໍ້ມູນເກົ່າ (schedule_id: 5) ມາປົນກັບຂໍ້ມູນໃໝ່
-        // =========================================================
-        // await db.repayments.destroy({ 
-        //     where: { application_id: application_id }, 
-        //     transaction: transaction 
-        // });
+    console.log('Creating repayment schedule for application_id:', application_id);
 
-        // // 💡 ໝາຍເຫດ: ຖ້າລະບົບຂອງທ່ານມີຕາຕະລາງຫົວຂໍ້ (repayment_schedules) ກໍໃຫ້ລຶບອອກນຳ
-        // await db.repayment_schedules.destroy({ 
-        //     where: { application_id: application_id }, 
-        //     transaction: transaction 
-        // });
-        // =========================================================
-        
-        const result = await repaymentRepo.saveRepaymentSchedule(application_id, scheduleData, Number(userId), transaction);
+    // =========================================================
+    // 🌟 🟢 ເພີ່ມໃໝ່: WIPE OLD DATA IN MYSQL (ລ້າງຂໍ້ມູນເກົ່າໃນ MySQL)
+    // ເພື່ອປ້ອງກັນຂໍ້ມູນເກົ່າ (schedule_id: 5) ມາປົນກັບຂໍ້ມູນໃໝ່
+    // =========================================================
+    // await db.repayments.destroy({ 
+    //     where: { application_id: application_id }, 
+    //     transaction: transaction 
+    // });
 
-        // 🟢 ดึงข้อมูล Loan Application เพื่อเอาเลข loan_id มาใช้ลบ Cache PDF
-        // (ปรับวิธี query ตามโครงสร้าง ORM ของคุณนะครับ)
-        const application = await db.loan_applications.findOne({ 
-            where: { id: application_id },
-            transaction: transaction
-        });
-        
-        await transaction.commit();
-        
-        // =========================================================
-        // 🟢 THE ULTIMATE CACHE INVALIDATION (ລ້າງແຄຊຖິ້ມຫຼັງຈາກສ້າງໃໝ່!)
-        // =========================================================
-        await redisService.del(`cache:repayment_schedule:${application_id}`);
-        // ลบ Cache PDF โดยใช้ loan_id (หรือ order_id) ให้ตรงกับตอนที่สร้าง PDF
-        if (application && application.loan_id) {
-             const loanId = application.loan_id; // เช่น LN-8-2026-000001
-             
-             // ⚠️ สำคัญ: ลองไปเช็กใน API Generate PDF ว่าตอน set cache ใช้ Key ชื่ออะไรเป๊ะๆ แล้วแก้ตรงนี้ให้ตรงกัน
-             await redisService.del(`cache:pdf:schedule:${loanId}`); 
-             // หรือถ้าชื่อ Key ไม่มี prefix ก็สั่งลบตามนั้น เช่น await redisService.del(loanId);
-        }
-        
-        return res.status(201).json({ 
-            success: true, 
-            message: 'Repayment schedule created', 
-            data: result 
-        });
-    } catch (error) {
-        await transaction.rollback();
-        next(error);
+    // // 💡 ໝາຍເຫດ: ຖ້າລະບົບຂອງທ່ານມີຕາຕະລາງຫົວຂໍ້ (repayment_schedules) ກໍໃຫ້ລຶບອອກນຳ
+    // await db.repayment_schedules.destroy({ 
+    //     where: { application_id: application_id }, 
+    //     transaction: transaction 
+    // });
+    // =========================================================
+
+    const result = await repaymentRepo.saveRepaymentSchedule(application_id, scheduleData, Number(userId), transaction);
+
+    // 🟢 ดึงข้อมูล Loan Application เพื่อเอาเลข loan_id มาใช้ลบ Cache PDF
+    // (ปรับวิธี query ตามโครงสร้าง ORM ของคุณนะครับ)
+    const application = await db.loan_applications.findOne({
+      where: { id: application_id },
+      transaction: transaction
+    });
+
+    await transaction.commit();
+
+    // =========================================================
+    // 🟢 THE ULTIMATE CACHE INVALIDATION (ລ້າງແຄຊຖິ້ມຫຼັງຈາກສ້າງໃໝ່!)
+    // =========================================================
+    await redisService.del(`cache:repayment_schedule:${application_id}`);
+    // ลบ Cache PDF โดยใช้ loan_id (หรือ order_id) ให้ตรงกับตอนที่สร้าง PDF
+    if (application && application.loan_id) {
+      const loanId = application.loan_id; // เช่น LN-8-2026-000001
+
+      // ⚠️ สำคัญ: ลองไปเช็กใน API Generate PDF ว่าตอน set cache ใช้ Key ชื่ออะไรเป๊ะๆ แล้วแก้ตรงนี้ให้ตรงกัน
+      await redisService.del(`cache:pdf:schedule:${loanId}`);
+      // หรือถ้าชื่อ Key ไม่มี prefix ก็สั่งลบตามนั้น เช่น await redisService.del(loanId);
     }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Repayment schedule created',
+      data: result
+    });
+  } catch (error) {
+    await transaction.rollback();
+    next(error);
+  }
 }
 
-  export const getRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const application_id = parseInt(req.params.application_id);
-        
-        if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
+export const getRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const application_id = parseInt(req.params.application_id);
 
-        // =========================================================
-        // 🟢 1. ກວດສອບຂໍ້ມູນໃນ Redis Cache ກ່ອນ
-        // =========================================================
-        const cacheKey = `cache:repayment_schedule:${application_id}`;
-        const cachedSchedule = await redisService.get(cacheKey);
+    if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
 
-        if (cachedSchedule) {
-            console.log(`[Cache Hit] Fetching Repayment Schedule ${application_id} from Redis.`);
-            return res.status(200).json({ 
-                success: true, 
-                message: 'Repayment schedule fetched (From Cache)', 
-                data: JSON.parse(cachedSchedule) 
-            });
-        }
+    // =========================================================
+    // 🟢 1. ກວດສອບຂໍ້ມູນໃນ Redis Cache ກ່ອນ
+    // =========================================================
+    const cacheKey = `cache:repayment_schedule:${application_id}`;
+    const cachedSchedule = await redisService.get(cacheKey);
 
-        // =========================================================
-        // 🔴 2. ຖ້າບໍ່ພົບໃນ Cache ໃຫ້ດຶງຈາກ Database
-        // =========================================================
-        console.log(`[Cache Miss] Fetching Repayment Schedule ${application_id} from MySQL.`);
-        const schedule = await repaymentRepo.findRepaymentsByApplicationId(application_id);
-        
-        if(!schedule) throw new NotFoundError('Schedule not found');
+    if (cachedSchedule) {
+      console.log(`[Cache Hit] Fetching Repayment Schedule ${application_id} from Redis.`);
+      return res.status(200).json({
+        success: true,
+        message: 'Repayment schedule fetched (From Cache)',
+        data: JSON.parse(cachedSchedule)
+      });
+    }
 
-        // =========================================================
-        // 🟢 3. ບັນທຶກຂໍ້ມູນທີ່ໄດ້ລົງໃນ Redis (ຕັ້ງອາຍຸໄວ້ 15 ນາທີ ຫຼື 900 ວິນາທີ)
-        // =========================================================
-        await redisService.set(cacheKey, JSON.stringify(schedule), 900); 
+    // =========================================================
+    // 🔴 2. ຖ້າບໍ່ພົບໃນ Cache ໃຫ້ດຶງຈາກ Database
+    // =========================================================
+    console.log(`[Cache Miss] Fetching Repayment Schedule ${application_id} from MySQL.`);
+    const schedule = await repaymentRepo.findRepaymentsByApplicationId(application_id);
 
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Repayment schedule fetched', 
-            data: schedule 
-        });
-    } catch (error) {
-        next(error);
-    } 
+    if (!schedule) throw new NotFoundError('Schedule not found');
+
+    // =========================================================
+    // 🟢 3. ບັນທຶກຂໍ້ມູນທີ່ໄດ້ລົງໃນ Redis (ຕັ້ງອາຍຸໄວ້ 15 ນາທີ ຫຼື 900 ວິນາທີ)
+    // =========================================================
+    await redisService.set(cacheKey, JSON.stringify(schedule), 900);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Repayment schedule fetched',
+      data: schedule
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
-  // =======================================================
+// =======================================================
 // 🟢 ຟັງຊັນໃໝ່: ບັນທຶກປະຫວັດການພິມໃບ Approval Summary
 // =======================================================
 export const markApprovalSummaryPrinted = async (req: Request, res: Response, next: NextFunction) => {
-    const t = await db.sequelize.transaction();
-    try {
-        const loanId = parseInt(req.params.id, 10);
-        const userId = (req as any).userPayload?.userId;
+  const t = await db.sequelize.transaction();
+  try {
+    const loanId = parseInt(req.params.id, 10);
+    const userId = (req as any).userPayload?.userId;
 
-        const loan = await db.loan_applications.findByPk(loanId, { transaction: t, lock: t.LOCK.UPDATE });
-        if (!loan) throw new Error('ບໍ່ພົບຂໍ້ມູນສິນເຊື່ອ');
+    const loan = await db.loan_applications.findByPk(loanId, { transaction: t, lock: t.LOCK.UPDATE });
+    if (!loan) throw new Error('ບໍ່ພົບຂໍ້ມູນສິນເຊື່ອ');
 
-        // 1. ບັນທຶກລົງ Audit Log ວ່າຜູ້ໃຊ້ຄົນນີ້ໄດ້ພິມເອກະສານ
-        await logApprovalAction(
-            loanId,
-            'printed_approval_summary',
-            loan.status,
-            loan.status,
-            'ພິມໃບສະຫຼຸບການປະເມີນສິນເຊື່ອ (Hard Copy Generated)',
-            userId,
-            t
-        );
+    // 1. ບັນທຶກລົງ Audit Log ວ່າຜູ້ໃຊ້ຄົນນີ້ໄດ້ພິມເອກະສານ
+    await logApprovalAction(
+      loanId,
+      'printed_approval_summary',
+      loan.status,
+      loan.status,
+      'ພິມໃບສະຫຼຸບການປະເມີນສິນເຊື່ອ (Hard Copy Generated)',
+      userId,
+      t
+    );
 
-        // 2. 🌟 ເອີ້ນໃຊ້ Utility ເພື່ອສ້າງຊ່ອງລາຍເຊັນ (ມັນຈະສ້າງໃຫ້ຄົບທັງ 5 ຄົນອັດຕະໂນມັດ)
-        await generateSignatureSlots(
-            loanId,
-            'approval_summary',
-            loanId, // ໃຊ້ loanId ເປັນ reference_id ເພາະ approval_summary ບໍ່ມີຕາຕະລາງແຍກ
-            t
-        );
+    // 2. 🌟 ເອີ້ນໃຊ້ Utility ເພື່ອສ້າງຊ່ອງລາຍເຊັນ (ມັນຈະສ້າງໃຫ້ຄົບທັງ 5 ຄົນອັດຕະໂນມັດ)
+    await generateSignatureSlots(
+      loanId,
+      'approval_summary',
+      loanId, // ໃຊ້ loanId ເປັນ reference_id ເພາະ approval_summary ບໍ່ມີຕາຕະລາງແຍກ
+      t
+    );
 
-        // 3. 🟢 ອັບເດດລາຍເຊັນຂອງ "ພະນັກງານສິນເຊື່ອ (Credit Staff)" ໃຫ້ເປັນ signed ທັນທີ 
-        // ເພາະຄົນທີ່ກົດພິມ ແມ່ນຄົນທີ່ປະເມີນເອງ
-        await db.document_signatures.update(
-            { status: 'signed', user_id: userId, signed_at: new Date() },
-            { 
-                where: { application_id: loanId, document_type: 'approval_summary', role_type: 'credit_staff' },
-                transaction: t
-            }
-        );
+    // 3. 🟢 ອັບເດດລາຍເຊັນຂອງ "ພະນັກງານສິນເຊື່ອ (Credit Staff)" ໃຫ້ເປັນ signed ທັນທີ 
+    // ເພາະຄົນທີ່ກົດພິມ ແມ່ນຄົນທີ່ປະເມີນເອງ
+    await db.document_signatures.update(
+      { status: 'signed', user_id: userId, signed_at: new Date() },
+      {
+        where: { application_id: loanId, document_type: 'approval_summary', role_type: 'credit_staff' },
+        transaction: t
+      }
+    );
 
-        await t.commit();
-        res.status(200).json({ success: true, message: 'ບັນທຶກປະຫວັດການພິມສຳເລັດ' });
+    await t.commit();
+    res.status(200).json({ success: true, message: 'ບັນທຶກປະຫວັດການພິມສຳເລັດ' });
 
-    } catch (error) {
-        await t.rollback();
-        next(error);
-    }
+  } catch (error) {
+    await t.rollback();
+    next(error);
+  }
 }
 
 export const createFromSuperAppWebview = async (req: Request, res: Response, next: NextFunction) => {
-    const transaction = await db.sequelize.transaction();
-    try {
-        // 1. ດຶງຂໍ້ມູນລູກຄ້າອອກມາຈາກ Token 
-        const customerId = req.customerPayload!.userId; 
-        const phone = req.customerPayload!.phone;
+  const transaction = await db.sequelize.transaction();
+  try {
+    // 1. ດຶງຂໍ້ມູນລູກຄ້າອອກມາຈາກ Token 
+    const customerId = req.customerPayload!.userId;
+    const phone = req.customerPayload!.phone;
 
-        const {
-            otp, // 👈 ຮັບຄ່າ OTP ຈາກໜ້າບ້ານ
-            first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
-            product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
-            interest_type, interest_rate_type
-        } = req.body;
+    const {
+      otp, // 👈 ຮັບຄ່າ OTP ຈາກໜ້າບ້ານ
+      first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
+      product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
+      interest_type, interest_rate_type
+    } = req.body;
 
-        // =======================================================
-        // 2. ກວດສອບ OTP ໂດຍໃຊ້ເບີໂທຈາກ Token ເພື່ອຄວາມປອດໄພ
-        // =======================================================
-        if (!phone || !otp) {
-                throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
-            }
-
-            const verificationResult = await otpService.verifyOTP({
-                phoneNumber: phone,
-                otp
-            });
-
-            if (!verificationResult.success) {
-                 throw new BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
-            }
-
-        // =======================================================
-        // 3. ກວດສອບ ແລະ ອັບເດດຂໍ້ມູນລູກຄ້າ (Customer)
-        // =======================================================
-        const customer = await db.customers.findByPk(customerId, { 
-            transaction, 
-            lock: transaction.LOCK.UPDATE 
-        });
-
-        if (!customer) {
-            throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້າໃນລະບົບ ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່');
-        }
-
-        const customerUpdatePayload = { 
-            first_name: first_name || customer.first_name, 
-            last_name: last_name || customer.last_name, 
-            province_id, district_id, address, age, occupation, income_per_month, other_debt 
-        };
-        const oldCustomerData = customer.toJSON();
-        
-        await customer.update(customerUpdatePayload, { transaction });
-        
-        await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, customer.id, transaction);
-
-        // =======================================================
-        // 4. ກວດສອບສິນຄ້າ (Validate Product)
-        // =======================================================
-        const product = await db.products.findByPk(product_id, { transaction });
-        if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
-
-        const final_total = total_amount || (product.price * quantity);
-
-        // =======================================================
-        // 5. ສ້າງຄຳຂໍສິນເຊື່ອ (Create Loan Application)
-        // =======================================================
-        const loanPayload = {
-            customer_id: customer.id,
-            product_id,
-            total_amount: final_total,
-            loan_period: loan_period || 0,
-            interest_rate_at_apply: interest_rate_at_apply || 0,
-            interest_type: interest_type || 'flat_rate',       
-            interest_rate_type: interest_rate_type || 'monthly', 
-            down_payment: down_payment || 0,
-            monthly_pay: monthly_pay,
-            is_confirmed: 0, 
-            status: 'pending',
-            requester_id: null 
-        };
-
-        const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
-
-        await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), customer.id, transaction);
-
-        await transaction.commit();
-
-        return res.status(201).json({
-            success: true,
-            message: 'ຍື່ນຄຳຂໍສິນເຊື່ອຜ່ານ Super App ສຳເລັດແລ້ວ',
-            data: {
-                application_id: application.id,
-                loan_id: application.loan_id,
-                status: application.status,
-                customer_id: customer.id,
-                total_amount: application.total_amount,
-                product: {
-                    product_id: product.id,
-                    product_name: product.product_name
-                }
-            }
-        });
-
-    } catch (error) {
-        await transaction.rollback();
-        next(error); 
+    // =======================================================
+    // 2. ກວດສອບ OTP ໂດຍໃຊ້ເບີໂທຈາກ Token ເພື່ອຄວາມປອດໄພ
+    // =======================================================
+    if (!phone || !otp) {
+      throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
     }
+
+    const verificationResult = await otpService.verifyOTP({
+      phoneNumber: phone,
+      otp
+    });
+
+    if (!verificationResult.success) {
+      throw new BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
+    }
+
+    // =======================================================
+    // 3. ກວດສອບ ແລະ ອັບເດດຂໍ້ມູນລູກຄ້າ (Customer)
+    // =======================================================
+    const customer = await db.customers.findByPk(customerId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+
+    if (!customer) {
+      throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້າໃນລະບົບ ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່');
+    }
+
+    const customerUpdatePayload = {
+      first_name: first_name || customer.first_name,
+      last_name: last_name || customer.last_name,
+      province_id, district_id, address, age, occupation, income_per_month, other_debt
+    };
+    const oldCustomerData = customer.toJSON();
+
+    await customer.update(customerUpdatePayload, { transaction });
+
+    await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, customer.id, transaction);
+
+    // =======================================================
+    // 4. ກວດສອບສິນຄ້າ (Validate Product)
+    // =======================================================
+    const product = await db.products.findByPk(product_id, { transaction });
+    if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
+
+    const final_total = total_amount || (product.price * quantity);
+
+    // =======================================================
+    // 5. ສ້າງຄຳຂໍສິນເຊື່ອ (Create Loan Application)
+    // =======================================================
+    const loanPayload = {
+      customer_id: customer.id,
+      product_id,
+      total_amount: final_total,
+      loan_period: loan_period || 0,
+      interest_rate_at_apply: interest_rate_at_apply || 0,
+      interest_type: interest_type || 'flat_rate',
+      interest_rate_type: interest_rate_type || 'monthly',
+      down_payment: down_payment || 0,
+      monthly_pay: monthly_pay,
+      is_confirmed: 0,
+      status: 'pending',
+      requester_id: null
+    };
+
+    const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
+
+    await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), customer.id, transaction);
+
+    await transaction.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: 'ຍື່ນຄຳຂໍສິນເຊື່ອຜ່ານ Super App ສຳເລັດແລ້ວ',
+      data: {
+        application_id: application.id,
+        loan_id: application.loan_id,
+        status: application.status,
+        customer_id: customer.id,
+        total_amount: application.total_amount,
+        product: {
+          product_id: product.id,
+          product_name: product.product_name
+        }
+      }
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    next(error);
+  }
 };
-  
+
+export const getSignatureByLoanID = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const loan_id = parseInt(req.params.application_id, 10);
+    const signature = await document_signatureService.getSignatureByLoanID(loan_id);
+    return res.status(200).json({
+      success: true,
+      message: 'ດຶງລາຍເຊັນສຳເລັດແລ້ວ',
+      data: signature
+    });
+  } catch (error) {
+    next(error);
+  }
+}

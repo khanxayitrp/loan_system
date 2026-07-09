@@ -559,7 +559,7 @@ class UploadController {
 
       const { customerId } = req.params;
       const files = req.files as Express.Multer.File[];
-      
+
       const userId = req.userPayload?.userId!;
 
       if (!files?.length) throw new ValidationError('No files uploaded');
@@ -567,7 +567,7 @@ class UploadController {
       // 🟢 1. ดึง doc_types มา แล้วบังคับให้เป็น Array เสมอ
       let { doc_types } = req.body;
       let docTypesArray: string[] = [];
-      
+
       if (doc_types) {
         // ถ้าส่งมา 1 ตัวมันจะเป็น String, ถ้าหลายตัวจะเป็น Array
         docTypesArray = Array.isArray(doc_types) ? doc_types : [doc_types];
@@ -1036,6 +1036,124 @@ class UploadController {
     }
   }
 
+  // ── 7. Upload Batch Signatures (Updated for Multiple Roles + 1 File) ──────────────
+
+  async uploadBatchSignatures(req: Request, res: Response): Promise<void> {
+    // 🟢 สร้าง Transaction เพื่อป้องกันข้อมูลบันทึกไม่ครบ (ถ้า DB รองรับ)
+    const transaction = await db.sequelize.transaction();
+
+    try {
+      const { application_id } = req.params;
+      const {
+        document_type,
+        reference_id,
+        signers // 🟢 รับ signers ที่หน้าบ้านส่งมาเป็น JSON String
+      } = req.body;
+
+      // 1. Validate ข้อมูลพื้นฐาน
+      if (!application_id) throw new ValidationError('Application ID is required');
+      if (!req.file) throw new ValidationError('No document/signature file uploaded');
+      if (!document_type || !reference_id || !signers) {
+        throw new ValidationError('Missing required data (document_type, reference_id, signers)');
+      }
+
+      // 2. แปลง JSON String กลับเป็น Array
+      let parsedSigners: Array<{ role: string, name: string }>;
+      try {
+        parsedSigners = JSON.parse(signers);
+      } catch (e) {
+        throw new ValidationError('Invalid signers format. Must be a valid JSON array string.');
+      }
+
+      if (!Array.isArray(parsedSigners) || parsedSigners.length === 0) {
+        throw new ValidationError('At least one signer must be provided');
+      }
+
+      const application = await db.loan_applications.findByPk(application_id);
+      if (!application) throw new ValidationError('Application not found');
+
+      // 3. ตั้งชื่อไฟล์ใหม่ (ใช้ชื่อง่ายๆ เพราะไฟล์นี้มีหลาย role รวมกัน)
+      const customFileName = `doc_app${application_id}_${document_type}_${Date.now()}`;
+
+      // 4. อัปโหลดไฟล์ 1 ครั้งลง Storage (MinIO/S3)
+      const result = await fileUploadService.uploadSingleFile(
+        req.file as UploadedFile,
+        FILE_UPLOAD_CONFIG.SIGNATURE_IMAGES,
+        customFileName
+      );
+
+      if (!result.success || !result.fileUrl) {
+        throw new ValidationError(result.error || 'Failed to upload document file');
+      }
+
+      const savedRecords = [];
+
+      // 5. วน Loop ผู้เซ็นแต่ละคนเพื่อบันทึกลง Database
+      for (const signer of parsedSigners) {
+        const { role, name } = signer;
+
+        // ค้นหา record เดิมของ role นี้
+        const existingSignature = await db.document_signatures.findOne({
+          where: { document_type, reference_id, role_type: role },
+          transaction
+        });
+
+        // ⚠️ หมายเหตุ: เราไม่ลบไฟล์เก่าทิ้งแบบ Auto แล้วในกรณีนี้ 
+        // เพราะไฟล์เก่าอาจถูกแชร์ URL ไว้ในบทบาท (Role) อื่นๆ 
+        // เพื่อความปลอดภัยจึงเก็บไฟล์เก่าไว้ หรือคุณสามารถทำระบบ Cronjob ลบไฟล์กำพร้า (Orphan files) ภายหลังได้
+
+        let savedRecord;
+        if (existingSignature) {
+          // Update (ใช้ URL ใหม่ที่เพิ่งอัปโหลด)
+          savedRecord = await existingSignature.update({
+            signature_image_url: result.fileUrl,
+            signer_name: name || existingSignature.signer_name,
+            status: 'signed',
+            signed_at: new Date()
+          }, { transaction });
+        } else {
+          // Insert ใหม่
+          savedRecord = await db.document_signatures.create({
+            application_id: Number(application_id),
+            document_type,
+            reference_id,
+            // 1. ทำ Type Casting ให้ตรงกับ Union Type ที่กำหนดไว้ใน Model
+            role_type: role as "borrower" | "guarantor" | "sales_staff" | "credit_staff" | "credit_head" | "approver_1" | "approver_2" | "approver_3" | "partner_shop" | "village_chief" | "finance_staff",
+            // 2. เปลี่ยนจาก null เป็น undefined
+            signer_name: name || undefined,
+            status: 'signed',
+            signed_at: new Date(),
+            signature_image_url: result.fileUrl
+          }, { transaction });
+        }
+
+        savedRecords.push(savedRecord);
+      }
+
+      // 6. บันทึกข้อมูลสำเร็จทั้งหมด ให้ Commit Transaction
+      await transaction.commit();
+
+      // ส่ง Response
+      res.status(201).json({
+        success: true,
+        message: 'Signatures and document uploaded successfully',
+        data: {
+          file_url: result.fileUrl,
+          file_name: result.fileName,
+          signatures: savedRecords
+        }
+      });
+
+    } catch (error: any) {
+      // 🚨 ถ้ามี Error หรือบัค ให้ Rollback ข้อมูลที่เพิ่มเข้าไปใน DB รอบนี้ทิ้งทั้งหมด
+      if (transaction) await transaction.rollback();
+
+      // (Option) ถ้า DB พัง แต่อัปโหลดไฟล์ไปที่ MinIO สำเร็จแล้ว อาจจะสั่งลบไฟล์ทิ้งด้วยก็ได้เพื่อประหยัดพื้นที่
+
+      const errResp = handleErrorResponse(error);
+      res.status(errResp.status).json(errResp);
+    }
+  }
 }
 
 export default new UploadController();
