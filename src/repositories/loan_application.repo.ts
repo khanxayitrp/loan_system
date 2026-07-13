@@ -1112,6 +1112,17 @@ class LoanApplicationRepository {
             throw error;
         }
     }
+    async getApprovalLogs(applicationId: number) {
+        return await db.loan_approval_logs.findAll({
+            where: { application_id: applicationId, action: ['verified', 'returned_for_edit', 'approved', 'rejected'] },
+            include: [{
+                model: db.users,
+                as: 'performed_by_user', // ⚠️ ກວດເບິ່ງໃນ init-models ວ່າທ່ານຕັ້ງ alias ເປັນ 'user' ຫຼືຊື່ອື່ນເດີ້
+                attributes: ['id', 'full_name', 'staff_level']
+            }],
+            order: [['performed_at', 'ASC']] // ລຽງຈາກເກົ່າໄປໃໝ່
+        });
+    }
 }
 
 export default new LoanApplicationRepository();

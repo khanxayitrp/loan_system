@@ -882,3 +882,19 @@ export const getSignatureByLoanID = async (req: Request, res: Response, next: Ne
     next(error);
   }
 }
+
+export const getApprovalLogs = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const application_id = parseInt(req.params.id, 10);
+    const logs = await loanAppRepo.getApprovalLogs(application_id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'ດຶງປະຫວັດການອະນຸມັດສຳເລັດແລ້ວ',
+      data: logs
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+

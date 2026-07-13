@@ -386,6 +386,8 @@ router.post('/repayment-schedule/:application_id', verifyToken, loanCtrl.createR
  */
 router.get('/repayment-schedule/:application_id/all', verifyToken, loanCtrl.getRepaymentSchedule);
 
-router.get('/document-signature/:application_id', verifyToken, loanCtrl.getSignatureByLoanID)
+router.get('/document-signature/:application_id', verifyToken, loanCtrl.getSignatureByLoanID);
+
+router.get('/:id/approval-logs', loanCtrl.getApprovalLogs);
 
 export default router;
