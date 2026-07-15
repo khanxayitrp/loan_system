@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 
 // 🟢 1. Import Helper ของเราเข้ามา
 import { logAudit } from '../utils/auditLogger';
+import { formatStandardPhoneNumber } from '../utils/formatters'
 import { BadRequestError, NotFoundError, ConflictError, UnauthorizedError } from '../utils/errors';
 import axios from 'axios';
 
@@ -35,13 +36,13 @@ class AuthService {
         permissionCodes = ['cust_profile_view', 'loan_request', 'view_own_loans', 'payment_proof_upload', 'user_changepass'];
       } else if (role === 'staff') {
         const level = staffLevel || '';
-        
+
         if (['sales', 'credit_officer'].includes(level)) {
           // 🟢 กลุ่มเจ้าหน้าที่ทั่วไป: ทำรายการสินเชื่อ, อัปโหลดเอกสาร, และบันทึกชำระเงิน
           permissionCodes = [
-            'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_edit', 
-            'doc_upload', 'doc_view', 
-            'payment_view', 'payment_create', 
+            'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_edit',
+            'doc_upload', 'doc_view',
+            'payment_view', 'payment_create',
             'user_changepass'
           ];
         } else if (['credit_manager', 'deputy_director', 'director'].includes(level)) {
@@ -301,36 +302,36 @@ class AuthService {
   }
 
   private extractPhoneFromToken(tempToken: string): string {
-  try {
-    // ถ้า token เป็น JWT ให้ decode ดูเนื้อใน (ยังไม่ verify signature ตรงนี้)
-    const decoded: any = jwt.decode(tempToken);
+    try {
+      // ถ้า token เป็น JWT ให้ decode ดูเนื้อใน (ยังไม่ verify signature ตรงนี้)
+      const decoded: any = jwt.decode(tempToken);
 
-    if (!decoded || decoded.iss != 'https://laolot.digital/') {
-      throw new UnauthorizedError('Token ไม่ถูกต้อง');
+      if (!decoded || decoded.iss != 'https://laolot.digital/') {
+        throw new UnauthorizedError('Token ไม่ถูกต้อง');
+      }
+
+      if (!decoded || !decoded.roleid || !decoded.userid || !decoded.DisplayName || !decoded.accesstype) {
+        throw new UnauthorizedError('Token ไม่ถูกต้อง');
+      }
+
+      if (!decoded || !decoded.DisplayName) {
+        throw new UnauthorizedError('ไม่พบเบอร์โทรใน Token');
+      }
+
+      const phone = decoded.DisplayName;
+      return phone; // ⚠️ ค่านี้ยังไม่น่าเชื่อถือ 100% ต้องเอาไป verify กับ superapp อีกที
+    } catch (error) {
+      console.error('[AUTH SERVICE] Error decoding token:', error);
+      throw new UnauthorizedError('รูปแบบ Token ไม่ถูกต้อง');
     }
-
-    if (!decoded || !decoded.roleid || !decoded.userid || !decoded.DisplayName || !decoded.accesstype) {
-      throw new UnauthorizedError('Token ไม่ถูกต้อง');
-    }
-
-    if (!decoded || !decoded.DisplayName) {
-      throw new UnauthorizedError('ไม่พบเบอร์โทรใน Token');
-    }
-
-    const phone = decoded.DisplayName;
-    return phone; // ⚠️ ค่านี้ยังไม่น่าเชื่อถือ 100% ต้องเอาไป verify กับ superapp อีกที
-  } catch (error) {
-    console.error('[AUTH SERVICE] Error decoding token:', error);
-    throw new UnauthorizedError('รูปแบบ Token ไม่ถูกต้อง');
   }
-}
 
   // 🟢 1. ฟังก์ชันจำลองการยิง API ไปเช็คกับ Super App (ปรับใช้ axios จริงตามเอกสารของ Super App)
   private async verifyWithSuperAppServer(tempToken: string, phone: string): Promise<any> {
     try {
       // นำเบอร์โทรไปต่อท้าย URL โดยตรง แบบที่คุณเทสต์ใน Postman
       const url = `${process.env.SUPERAPP_VERIFY_URL}/${phone}`;
-      
+
       const response = await axios.get(
         url,
         {
@@ -353,7 +354,7 @@ class AuthService {
   // 🟢 2. ลอจิกหลัก: รับ Temp Token -> เช็ค -> ค้นหา/สร้าง Customer -> คืนค่า
   public async processSuperAppLogin(tempToken: string) {
     const transaction = await db.sequelize.transaction();
-    
+
     try {
       // Step 1: แกะเบอร์โทรออกจาก token ก่อน (decode เฉยๆ ยังไม่เชื่อ)
       const phoneFromToken = this.extractPhoneFromToken(tempToken);
@@ -370,14 +371,14 @@ class AuthService {
       }
 
       // 🟢 แก้ไข 2: ดึงข้อมูลจากก้อน .data และใช้ชื่อฟิลด์ให้ตรงกับที่เขาส่งมา
-      const phone = superAppInfo.data.userPhone;
+      const phone = formatStandardPhoneNumber(superAppInfo.data.userPhone);
       const firstName = superAppInfo.data.firstName;
       const lastName = superAppInfo.data.lastName;
 
       // Step 3: เช็คเบอร์โทรกับตาราง customers
-      let customer = await db.customers.findOne({ 
+      let customer = await db.customers.findOne({
         where: { phone: phone },
-        transaction 
+        transaction
       });
 
       // Step 4 & 5: ถ้าไม่เจอให้สร้างข้อมูลใหม่ในตาราง customers
@@ -389,7 +390,7 @@ class AuthService {
           // identity_number: `TEMP-${Date.now()}`, 
           kyc_status: 'unverified'
         }, { transaction });
-        
+
         console.log(`[AUTH SERVICE] Created new customer from Super App: ID ${customer.id}`);
       }
 

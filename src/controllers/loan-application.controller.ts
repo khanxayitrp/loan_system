@@ -303,7 +303,7 @@ export const getAllLoanByCustomerId = async (req: Request, res: Response, next: 
 
 export const getAllLoan = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { CustomerId, requesterId, productId, status, min, max, is_confirmed, page, limit } = req.query
+    const { CustomerId, requesterId, productId, status, min, max, is_confirmed, page, limit, minScore, maxScore } = req.query
     console.log('Request query:', req.query);
 
     const actualStatus = status || req.query['status[]'];
@@ -318,6 +318,9 @@ export const getAllLoan = async (req: Request, res: Response, next: NextFunction
       min: min ? Number(min) : undefined,
       max: max ? Number(max) : undefined,
       is_confirmed: is_confirmed ? Number(is_confirmed as string) : undefined,
+      // 🟢 Pass the parsed scores to the repository
+      minScore: minScore ? Number(minScore) : undefined,
+      maxScore: maxScore ? Number(maxScore) : undefined,
       page: pageNum,
       limit: limitNum
     });
@@ -773,7 +776,7 @@ export const createFromSuperAppWebview = async (req: Request, res: Response, nex
       otp, // 👈 ຮັບຄ່າ OTP ຈາກໜ້າບ້ານ
       first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
       product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
-      interest_type, interest_rate_type
+      interest_type, interest_rate_type, identity_number
     } = req.body;
 
     // =======================================================
@@ -807,6 +810,7 @@ export const createFromSuperAppWebview = async (req: Request, res: Response, nex
     const customerUpdatePayload = {
       first_name: first_name || customer.first_name,
       last_name: last_name || customer.last_name,
+      identity_number: identity_number || customer.identity_number,
       province_id, district_id, address, age, occupation, income_per_month, other_debt
     };
     const oldCustomerData = customer.toJSON();

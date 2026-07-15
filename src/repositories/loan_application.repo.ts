@@ -143,23 +143,45 @@ class LoanApplicationRepository {
     }
 
     async findLoanApplicationByCusIDandLoanId(customerId: number, loanId: number): Promise<loan_applications | null> {
+        // ກວດສອບກ່ອນວ່າເຄີຍສ້າງໄປແລ້ວຫຼືຍັງ ເພື່ອປ້ອງກັນ Memory Leak ແລະ Error ຊ້ຳຊ້ອນ
+        if (!db.customers.associations.province_info) {
+            db.customers.belongsTo(db.provinces, { foreignKey: 'province_id', as: 'province_info' });
+        }
+        if (!db.customers.associations.district_info) {
+            db.customers.belongsTo(db.districts, { foreignKey: 'district_id', as: 'district_info' });
+        }
+
         return await db.loan_applications.findOne({
             where: { customer_id: customerId, id: loanId },
             include: [
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'province_id', 'district_id', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
                     include: [
                         {
                             model: db.customer_work_info,
                             as: 'customer_work_infos',
-                            attributes: ['id', 'company_name', 'address', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at']
+                            attributes: ['id', 'company_name', 'address', 'phone', 'business_type', 'business_detail', 'duration_years', 'duration_months', 'department', 'position', 'salary', 'created_at'],
+                            required: false
                         },
                         {
                             model: db.customer_locations,
                             as: 'customer_locations',
-                            attributes: ['id', 'customer_id', 'address_detail', 'latitude', 'longitude', 'is_primary', 'location_type']
+                            attributes: ['id', 'customer_id', 'address_detail', 'latitude', 'longitude', 'is_primary', 'location_type'],
+                            required: false
+                        },
+                        {
+                            model: db.provinces,
+                            as: 'province_info',
+                            attributes: ['id', 'province_id', 'province_name'],
+                            required: false
+                        },
+                        {
+                            model: db.districts,
+                            as: 'district_info',
+                            attributes: ['id', 'district_id', 'district_name'],
+                            required: false
                         }
                     ]
                 },
@@ -408,7 +430,7 @@ class LoanApplicationRepository {
     }
 
     async findLoanApplications(filters: any): Promise<{ rows: loan_applications[]; count: number }> {
-        const { customerId, requesterId, productId, status, min, max, is_confirmed, page, limit } = filters;
+        const { customerId, requesterId, productId, status, min, max, is_confirmed, page, limit, minScore, maxScore } = filters;
         const whereClause: any = {};
 
         if (customerId) whereClause.customer_id = customerId;
@@ -416,6 +438,13 @@ class LoanApplicationRepository {
         if (productId) whereClause.product_id = productId;
         if (status) whereClause.status = status;
         if (is_confirmed !== undefined) whereClause.is_confirmed = is_confirmed;
+
+        // 🟢 Add filter for credit score
+        if (minScore !== undefined || maxScore !== undefined) {
+            whereClause.credit_score = {};
+            if (minScore !== undefined) whereClause.credit_score[Op.gte] = minScore;
+            if (maxScore !== undefined) whereClause.credit_score[Op.lte] = maxScore;
+        }
 
         let inputStatus = filters.status || filters['status[]'];
 
@@ -681,7 +710,7 @@ class LoanApplicationRepository {
             // ==========================================
             // 🌟 STEP 2: ກວດສອບສິດ ແລະ ບັງຄັບລຳດັບການອະນຸມັດ (Sequential Guard)
             // ==========================================
-            if (data.approver_id && ['disbursed', 'approved', 'verified', 'rejected'].includes(actionIntent)) {
+            if (data.approver_id && ['disbursed', 'approved', 'verified', 'rejected', 'pending'].includes(actionIntent)) {
                 const approverUser = await db.users.findByPk(data.approver_id, { transaction: t });
                 const staffLevel = approverUser?.staff_level ?? '';
 
@@ -690,22 +719,25 @@ class LoanApplicationRepository {
                 }
 
                 // 🟢 2.1 ກວດສອບວ່າ ຢູສເຊີນີ້ເຄີຍເຊັນເອກະສານນີ້ໄປແລ້ວຫຼືຍັງ?
-                const mySignature = await db.document_signatures.findOne({
-                    where: {
-                        application_id: loanApplicationId,
-                        user_id: data.approver_id,
-                        document_type: 'approval_summary',
-                        status: ['signed', 'rejected']
-                    },
-                    transaction: t
-                });
+                // (ຍົກເວັ້ນກໍລະນີທີ່ກຳລັງຈະຕີກັບ 'pending' ໃຫ້ສາມາດເຮັດໄດ້)
+                if (actionIntent !== 'pending') {
+                    const mySignature = await db.document_signatures.findOne({
+                        where: {
+                            application_id: loanApplicationId,
+                            user_id: data.approver_id,
+                            document_type: 'approval_summary',
+                            status: ['signed', 'rejected']
+                        },
+                        transaction: t
+                    });
 
-                if (mySignature) {
-                    throw new BadRequestError('ທ່ານໄດ້ກວດກາ ແລະ ຢືນຢັນເອກະສານນີ້ໄປແລ້ວ! ບໍ່ສາມາດເຮັດລາຍການຊ້ຳໄດ້.');
+                    if (mySignature) {
+                        throw new BadRequestError('ທ່ານໄດ້ກວດກາ ແລະ ຢືນຢັນເອກະສານນີ້ໄປແລ້ວ! ບໍ່ສາມາດເຮັດລາຍການຊ້ຳໄດ້.');
+                    }
                 }
 
                 // 🟢 2.2 ຈັດການ Role ແລະ ລຳດັບການອະນຸມັດ
-                if (actionIntent === 'rejected') {
+                if (actionIntent === 'rejected' || actionIntent === 'pending') {
                     roleType = staffLevel === 'credit_manager' ? 'credit_head' : 'approver_1';
                 } else {
                     if (staffLevel === 'credit_manager') {
@@ -1020,6 +1052,7 @@ class LoanApplicationRepository {
                 if (finalStatus === 'disbursed' || finalStatus === 'approved') actionLogType = 'approved';
                 else if (actionIntent === 'verified') actionLogType = 'verified';
                 else if (finalStatus === 'rejected') actionLogType = 'rejected';
+                else if (finalStatus === 'pending') actionLogType = 'returned_for_edit';
 
                 if (actionLogType) {
                     await this.logApprovalAction(
