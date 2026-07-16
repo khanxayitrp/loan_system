@@ -49,7 +49,7 @@ class RepaymentService {
 
                 // logger.info(`App ${applicationId} PAID OFF by user ${receivedBy}`);
 
-                
+
                 // 1. ดึงตารางที่ยังค้างชำระทั้งหมดมาเรียงลำดับ
                 const unpaidSchedules = await db.repayments.findAll({
                     where: {
@@ -81,14 +81,21 @@ class RepaymentService {
                 let totalExpectedPenalty = 0;
 
                 for (let i = 0; i < unpaidSchedules.length; i++) {
+                    // const sch = unpaidSchedules[i];
+
+                    // // ต้นทุนเก็บทุกงวด
+                    // totalExpectedPrincipal += Number(sch.principal_amount) - Number(sch.paid_principal || 0);
+                    // // ค่าปรับเก็บเฉพาะงวดที่มี (โดยปกติมักจะอยู่ในงวดแรกๆ ที่ค้าง)
+                    // totalExpectedPenalty += Number(sch.penalty || 0);
+
+                    // // ดอกเบี้ยเก็บเฉพาะจำนวนเดือนที่กำหนดไว้
+                    // if (i < interestMonthsToCharge) {
+                    //     totalExpectedInterest += Number(sch.interest_amount) - Number(sch.paid_interest || 0);
+                    // }
                     const sch = unpaidSchedules[i];
-
-                    // ต้นทุนเก็บทุกงวด
                     totalExpectedPrincipal += Number(sch.principal_amount) - Number(sch.paid_principal || 0);
-                    // ค่าปรับเก็บเฉพาะงวดที่มี (โดยปกติมักจะอยู่ในงวดแรกๆ ที่ค้าง)
-                    totalExpectedPenalty += Number(sch.penalty || 0);
-
-                    // ดอกเบี้ยเก็บเฉพาะจำนวนเดือนที่กำหนดไว้
+                    // 🌟 ຕ້ອງລົບ penalty ທີ່ເຄີຍຈ່າຍໄປແລ້ວ (ຖ້າມີ) ອອກນຳ
+                    totalExpectedPenalty += Number(sch.penalty || 0) - Number(sch.paid_penalty || 0);
                     if (i < interestMonthsToCharge) {
                         totalExpectedInterest += Number(sch.interest_amount) - Number(sch.paid_interest || 0);
                     }
@@ -106,6 +113,7 @@ class RepaymentService {
                     const sch = unpaidSchedules[i];
 
                     let pay_principal = Number(sch.principal_amount) - Number(sch.paid_principal || 0);
+                    let pay_penalty = Number(sch.penalty || 0) - Number(sch.paid_penalty || 0); // 🌟 ເກັບ penalty ທີ່ຍັງເຫຼືອ
                     let pay_interest = 0;
 
                     // หากยังอยู่ในโควตาเดือนที่ต้องเก็บดอกเบี้ย ให้คิดดอกเบี้ยเต็ม
@@ -117,6 +125,7 @@ class RepaymentService {
                     await repaymentRepo.updateRepayment(sch.id, {
                         paid_principal: Number(sch.paid_principal || 0) + pay_principal,
                         paid_interest: Number(sch.paid_interest || 0) + pay_interest,
+                        paid_penalty: Number(sch.paid_penalty || 0) + pay_penalty, // 🌟 ບັນທຶກວ່າຈ່າຍ penalty ໝົດແລ້ວ
                         payment_status: 'paid',
                         paid_at: new Date()
                     }, transaction);
@@ -155,7 +164,7 @@ class RepaymentService {
 
                     // ດຶງຍອດໜີ້ທີ່ຄ້າງຂອງງວດນີ້ (Unpaid Balances)
                     // (ໝາຍເຫດ: ຖ້າ DB ບໍ່ມີຊ່ອງ paid_penalty, ເຮົາຈະສົມມຸດວ່າ penalty ຖືກຫັກກ່ອນໝູ່)
-                    let unpaid_penalty = Number(schedule.penalty || 0);
+                    let unpaid_penalty = Number(schedule.penalty || 0) - Number(schedule.paid_penalty || 0);
                     let unpaid_interest = Number(schedule.interest_amount) - Number(schedule.paid_interest || 0);
                     let unpaid_principal = Number(schedule.principal_amount) - Number(schedule.paid_principal || 0);
 
@@ -164,20 +173,34 @@ class RepaymentService {
                         const discountToPenalty = Math.min(remaining_discount, unpaid_penalty);
                         unpaid_penalty -= discountToPenalty;
                         remaining_discount -= discountToPenalty;
+
+                        // ຖ້າຢາກໃຫ້ສ່ວນຫຼຸດທີ່ເຫຼືອໄປຕັດດອກເບ້ຍນຳ ກໍສາມາດເພີ່ມ Logic ໄດ້:
+                        const discountToInterest = Math.min(remaining_discount, unpaid_interest);
+                        unpaid_interest -= discountToInterest;
+                        remaining_discount -= discountToInterest;
                     }
 
                     // --- STEP B: ຕັດເງິນສົດໃສ່ຄ່າປັບໃໝ (Penalty) ---
-                    const pay_penalty = Math.min(remaining_cash, unpaid_penalty);
+                    // const pay_penalty = Math.min(remaining_cash, unpaid_penalty);
+                    // remaining_cash -= pay_penalty;
+                    // unpaid_penalty -= pay_penalty;
+                    const pay_penalty = Math.min(remaining_cash, Math.max(0, unpaid_penalty));
                     remaining_cash -= pay_penalty;
-                    unpaid_penalty -= pay_penalty;
+                    const new_paid_penalty = Number(schedule.paid_penalty || 0) + pay_penalty;
 
                     // --- STEP C: ຕັດເງິນສົດໃສ່ດອກເບ້ຍ (Interest) ---
-                    const pay_interest = Math.min(remaining_cash, unpaid_interest);
+                    // const pay_interest = Math.min(remaining_cash, unpaid_interest);
+                    // remaining_cash -= pay_interest;
+                    // const new_paid_interest = Number(schedule.paid_interest || 0) + pay_interest;
+                    const pay_interest = Math.min(remaining_cash, Math.max(0, unpaid_interest));
                     remaining_cash -= pay_interest;
                     const new_paid_interest = Number(schedule.paid_interest || 0) + pay_interest;
 
                     // --- STEP D: ຕັດເງິນສົດໃສ່ຕົ້ນທຶນ (Principal) ---
-                    const pay_principal = Math.min(remaining_cash, unpaid_principal);
+                    // const pay_principal = Math.min(remaining_cash, unpaid_principal);
+                    // remaining_cash -= pay_principal;
+                    // const new_paid_principal = Number(schedule.paid_principal || 0) + pay_principal;
+                    const pay_principal = Math.min(remaining_cash, Math.max(0, unpaid_principal));
                     remaining_cash -= pay_principal;
                     const new_paid_principal = Number(schedule.paid_principal || 0) + pay_principal;
 
@@ -185,10 +208,21 @@ class RepaymentService {
                     let newStatus: 'unpaid' | 'partial' | 'paid' | 'overdue' = schedule.payment_status as any;
 
                     // ຖ້າຈ່າຍຕົ້ນທຶນ ແລະ ດອກເບ້ຍຄົບແລ້ວ ຖືວ່າປິດງວດນີ້
-                    if (new_paid_principal >= Number(schedule.principal_amount) &&
-                        new_paid_interest >= Number(schedule.interest_amount)) {
+                    // if (new_paid_principal >= Number(schedule.principal_amount) &&
+                    //     new_paid_interest >= Number(schedule.interest_amount)) {
+                    //     newStatus = 'paid';
+                    // } else if (new_paid_principal > 0 || new_paid_interest > 0) {
+                    //     newStatus = 'partial';
+                    // }
+
+                    // 🌟 Best Practice: ຈະຖືວ່າ Paid ໄດ້ ກໍຕໍ່ເມື່ອຈ່າຍຄົບທັງ ຕົ້ນທຶນ, ດອກເບ້ຍ ແລະ ຄ່າປັບໃໝ
+                    const isPrincipalPaid = new_paid_principal >= Number(schedule.principal_amount);
+                    const isInterestPaid = new_paid_interest >= Number(schedule.interest_amount);
+                    const isPenaltyPaid = new_paid_penalty >= Number(schedule.penalty || 0);
+
+                    if (isPrincipalPaid && isInterestPaid && isPenaltyPaid) {
                         newStatus = 'paid';
-                    } else if (new_paid_principal > 0 || new_paid_interest > 0) {
+                    } else if (new_paid_principal > 0 || new_paid_interest > 0 || new_paid_penalty > 0) {
                         newStatus = 'partial';
                     }
 
@@ -197,6 +231,7 @@ class RepaymentService {
                         paid_principal: new_paid_principal,
                         paid_interest: new_paid_interest,
                         // ຖ້າຢາກເກັບ paid_penalty ຕ້ອງເພີ່ມ column ໃນ DB, ແຕ່ຕອນນີ້ເຮົາຂ້າມໄປກ່ອນ
+                        paid_penalty: new_paid_penalty, // 👈 ບັນທຶກຄ່າປັບໃໝທີ່ຈ່າຍແລ້ວລົງໄປ
                         payment_status: newStatus as any,
                         paid_at: newStatus === 'paid' ? new Date() : schedule.paid_at
                     }, transaction);
