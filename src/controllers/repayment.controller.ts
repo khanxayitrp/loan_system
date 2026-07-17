@@ -8,7 +8,7 @@ export const processPayment = async (req: Request, res: Response, next: NextFunc
     try {
         const payload = req.body;
         // ດຶງ ID ພະນັກງານທີ່ກຳລັງກົດຮັບເງິນ
-        const receivedBy = (req as any).userPayload?.userId || 1; 
+        const receivedBy = (req as any).userPayload?.userId || 1;
 
         // ສົ່ງໃຫ້ Service ຈັດການ
         const result = await repaymentService.processPayment(payload, receivedBy);
@@ -27,33 +27,33 @@ export const processPayment = async (req: Request, res: Response, next: NextFunc
 export const getEarlyPayoffSummary = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const application_id = parseInt(req.params.application_id);
-        
+
         if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
 
         // 🔴 ສຳຄັນ: ການປິດບັນຊີກ່ອນກຳນົດ "ບໍ່ຄວນດຶງຈາກ Cache" ເພາະຕ້ອງຄຳນວນໃໝ່ແບບ Real-time ມື້ຕໍ່ມື້!
-        
+
         // ເອີ້ນໃຊ້ Repository/Service ເພື່ອຄຳນວນຍອດປິດບັນຊີ
         const payoffSummary = await repaymentRepo.calculateEarlyPayoff(application_id);
-        
+
         if (!payoffSummary) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນການຜ່ອນຊຳລະ ຫຼື ບັນຊີນີ້ປິດໄປແລ້ວ');
 
-        return res.status(200).json({ 
-            success: true, 
-            message: 'ຄຳນວນຍອດປິດບັນຊີສຳເລັດ', 
-            data: payoffSummary 
+        return res.status(200).json({
+            success: true,
+            message: 'ຄຳນວນຍອດປິດບັນຊີສຳເລັດ',
+            data: payoffSummary
         });
     } catch (error) {
         next(error);
-    } 
+    }
 }
 
 export const getRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const application_id = parseInt(req.params.application_id); 
+        const application_id = parseInt(req.params.application_id);
         if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
 
         const schedule = await repaymentRepo.findRepaymentById(application_id);
-        if (!schedule) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຕາຕະລາງຜ່ອນຊຳລະ');  
+        if (!schedule) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຕາຕະລາງຜ່ອນຊຳລະ');
 
         return res.status(200).json({
             success: true,
@@ -62,5 +62,29 @@ export const getRepaymentSchedule = async (req: Request, res: Response, next: Ne
         });
     } catch (error) {
         next(error);
-    }   
+    }
 }
+
+// 🌟 ເພີ່ມ Controller ໃໝ່ສຳລັບດຶງປະຫວັດໃບບິນ
+export const getTransactionsBySchedule = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { application_id } = req.params;
+
+        if (!application_id) {
+            return res.status(400).json({ success: false, message: 'ກະລຸນາລະບຸລະຫັດສັນຍາ (Application ID)' });
+        }
+
+        // 🌟 ເອີ້ນໃຊ້ Repository ໃໝ່
+        const transactions = await repaymentRepo.getTransactionsByApplicationId(Number(application_id));
+
+        return res.status(200).json({
+            success: true,
+            message: 'ດຶງຂໍ້ມູນປະຫວັດການຊຳລະສຳເລັດ',
+            data: transactions
+        });
+
+    } catch (error) {
+        console.error('Error fetching transactions by schedule:', error);
+        next(error);
+    }
+};

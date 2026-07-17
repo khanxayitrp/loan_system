@@ -135,4 +135,44 @@ router.get('/schedule/:application_id', verifyToken, repaymentController.getRepa
  */
 router.post('/pay', verifyToken, repaymentController.processPayment);
 
+/**
+ * @swagger
+ * /repayment/transactions/application/{application_id}:
+ *   get:
+ *     summary: Get payment transactions for a specific application
+ *     tags: [Repayment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the application
+ *     responses:
+ *       200:
+ *         description: Payment transactions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: Invalid application_id format
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Application not found
+ */
+router.get('/transactions/application/:application_id', verifyToken, repaymentController.getTransactionsBySchedule);
+
 export default router;

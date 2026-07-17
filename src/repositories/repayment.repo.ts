@@ -334,10 +334,10 @@ class RepaymentRepository {
         );
     }
 
-   /**
-     * 🟢 ຟັງຊັນທີ 1: ອັບເດດວັນທີຈ່າຍເງິນ ແຕ່ຍັງຄົງສະຖານະເປັນ Draft 
-     * (ໃຊ້ສຳລັບຕອນຫົວໜ້າສິນເຊື່ອກວດຜ່ານ ເພື່ອໃຫ້ຕາຕະລາງພ້ອມພິມ)
-     */
+    /**
+      * 🟢 ຟັງຊັນທີ 1: ອັບເດດວັນທີຈ່າຍເງິນ ແຕ່ຍັງຄົງສະຖານະເປັນ Draft 
+      * (ໃຊ້ສຳລັບຕອນຫົວໜ້າສິນເຊື່ອກວດຜ່ານ ເພື່ອໃຫ້ຕາຕະລາງພ້ອມພິມ)
+      */
     async shiftDraftScheduleDates(applicationId: number, paymentDay: number, baseDate: Date, transaction: any): Promise<void> {
         try {
             const schedule = await db.repayment_schedules.findOne({
@@ -438,6 +438,34 @@ class RepaymentRepository {
             logger.error(`Error in finalizeScheduleApproval: ${(error as Error).message}`);
             throw error;
         }
+    }
+    // ເພີ່ມຟັງຊັນນີ້ເຂົ້າໄປໃນ Class RepaymentRepo
+    async getTransactionsByApplicationId(applicationId: number) {
+        return await db.payment_transactions.findAll({
+            where: { application_id: applicationId },
+
+            // ❌ ເອົາ subQuery ແລະ group ອອກໄປເລີຍ ບໍ່ຈຳເປັນຕ້ອງໃຊ້ແລ້ວ
+
+            include: [
+                {
+                    model: db.users,
+                    as: 'recorded_by_user',
+                    attributes: ['id', 'username', 'full_name']
+                },
+                // 🟢 Join ຕົງໄປຫາຕາຕະລາງ repayments ຜ່ານ schedule_id ໂລດ!
+                {
+                    model: db.repayments,
+                    as: 'schedule', // ໃຊ້ alias ທີ່ເຊື່ອມໄວ້ໃນ initModels
+                    attributes: [
+                        'installment_no', 'due_date', 'payment_status',
+                        'principal_amount', 'interest_amount', 'discounts',
+                        'penalty', 'paid_principal', 'paid_interest', 'paid_penalty'
+                    ],
+                    required: false // ໃຊ້ LEFT JOIN ເພື່ອບໍ່ໃຫ້ Error ຖ້າໃບບິນນັ້ນບໍ່ມີ schedule_id
+                }
+            ],
+            order: [['paid_at', 'DESC']]
+        });
     }
 }
 
