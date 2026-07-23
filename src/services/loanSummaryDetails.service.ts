@@ -28,7 +28,7 @@ export const getCustomerLoanSummary = async (customerId: number) => {
                 as: 'repayments', // 🟢 ดึงตารางงวดชำระโดยตรง
                 required: false,
                 attributes: [
-                    'id', 'installment_no', 'due_date', 'total_due', 
+                    'id', 'installment_no', 'due_date', 'total_due',
                     'payment_status', 'paid_principal', 'paid_interest', 'paid_penalty'
                 ]
             }
@@ -45,7 +45,7 @@ export const getCustomerLoanSummary = async (customerId: number) => {
     // 2. ลูปคำนวณข้อมูลทีละรายการ
     for (const loan of loans) {
         // แปลงเป็น JSON เพื่อให้อ่านง่าย
-        const loanData = loan.toJSON() as any; 
+        const loanData = loan.toJSON() as any;
         const repayments = loanData.repayments || [];
 
         // เรียงงวดจากน้อยไปมาก (งวดที่ 1, 2, 3...)
@@ -136,28 +136,39 @@ export const getLoanInstallmentDetails = async (loanId: number) => {
 
     const loanData = loan.toJSON() as any;
     const repayments = loanData.repayments || [];
-    
+
     // เรียงลำดับงวดจากน้อยไปมาก (1, 2, 3...)
     repayments.sort((a: any, b: any) => a.installment_no - b.installment_no);
 
-    let totalAmount = 0; // ยอดรวมทั้งหมดของตารางผ่อน
-    let totalPaid = 0;   // จ่ายไปแล้วทั้งหมด
+    let totalAmount = 0; // ยอดรวมทั้งหมดของตารางผ่อนตามสัญญาเดิม
+    let totalPaid = 0;   // จ่ายไปแล้วทั้งหมด (เงินจริง)
+    let totalWaived = 0; // 🌟 ดอกเบี้ยที่ถูกยกเว้น (กรณีปิดก่อนกำหนด)
+    let totalRemaining = 0; // 🌟 ยอดหนี้คงเหลือที่ต้องจ่ายจริง
     let paidInstallmentsCount = 0; // จำนวนงวดที่จ่ายแล้ว
 
     // 2. คำนวณยอดรวมต่างๆ
     repayments.forEach((rep: any) => {
-        totalAmount += Number(rep.total_due);
-        
+        const expectedTotalDue = Number(rep.total_due);
         // ยอดที่จ่ายไปแล้วในงวดนี้ (ต้น + ดอก + ปรับ)
         const paidForThisInstallment = Number(rep.paid_principal) + Number(rep.paid_interest) + Number(rep.paid_penalty);
+
+        totalAmount += expectedTotalDue;
         totalPaid += paidForThisInstallment;
 
         if (rep.payment_status === 'paid') {
             paidInstallmentsCount++;
+
+            // 🌟 หาดอกเบี้ยที่ถูกยกเว้น (Waived Interest)
+            // ถ้างวดนี้ paid แล้ว แต่จ่ายจริงน้อยกว่ายอดเต็ม แสดงว่าส่วนต่างนั้นคือดอกเบี้ยที่ไม่ได้เก็บ
+            const difference = expectedTotalDue - paidForThisInstallment;
+            if (difference > 0) {
+                totalWaived += difference;
+            }
+        } else {
+            // 🌟 ถ้างวดยังไม่ paid ให้นำยอดที่ต้องจ่าย หักลบกับที่จ่ายมาแล้วบางส่วน เป็นยอดคงเหลือ
+            totalRemaining += Math.max(0, expectedTotalDue - paidForThisInstallment);
         }
     });
-
-    const totalRemaining = totalAmount - totalPaid;
 
     // 3. จัดเตรียมข้อมูลตารางผ่อนรายงวด
     let isCurrentFound = false; // ตัวแปรเช็คว่าเจองวดปัจจุบันหรือยัง
@@ -198,9 +209,10 @@ export const getLoanInstallmentDetails = async (loanId: number) => {
                 total: loanData.loan_period
             },
             summary_amounts: {
-                total_amount: totalAmount,       // ยอดลวม
-                total_paid: totalPaid,           // จ่ายแล้ว
-                total_remaining: totalRemaining  // ยอดคงเหลือ
+                total_amount: totalAmount,       // ยอดลวมตามสัญญาเดิม
+                total_paid: totalPaid,           // จ่ายแล้วจริง
+                total_waived: totalWaived,       // 🌟 ส่วนลด/ดอกเบี้ยที่ได้รับการยกเว้น
+                total_remaining: totalRemaining  // 🌟 ยอดคงเหลือจริง (ถ้าปิดบัญชีแล้วจะเป็น 0 ทันที)
             }
         },
         installments: installmentsList // ตารางจำระค่างวด

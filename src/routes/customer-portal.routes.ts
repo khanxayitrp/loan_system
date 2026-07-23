@@ -654,8 +654,8 @@ router.get('/contract/:application_id/pdf/:contractId', checkLoanOwnership, getC
  *         description: Server error
  */
 router.get(
-  '/application/:application_id/documents',
-  checkLoanOwnership, // เช็คว่าเป็นบิลของตัวเองไหม
+  '/application/:customer_id/documents',
+  // checkLoanOwnership, // เช็คว่าเป็นบิลของตัวเองไหม
   uploadController.getApplicationDocuments
 );
 

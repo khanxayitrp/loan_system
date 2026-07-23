@@ -560,7 +560,7 @@ class UploadController {
       const { customerId } = req.params;
       const files = req.files as Express.Multer.File[];
 
-      const userId = req.userPayload?.userId!;
+      // const userId = req.customerPayload?.userId!;
 
       if (!files?.length) throw new ValidationError('No files uploaded');
 
@@ -587,7 +587,7 @@ class UploadController {
         doc_type: docTypesArray[index] as DocumentType
       }));
 
-      const results = await documentService.uploadMultipleDocuments(parseInt(customerId), userId, documents);
+      const results = await documentService.uploadMultipleDocuments(parseInt(customerId), documents);
 
       res.status(201).json({
         success: true,
@@ -603,8 +603,10 @@ class UploadController {
 
   async getApplicationDocuments(req: Request, res: Response): Promise<void> {
     try {
-      const { customerId } = req.params;
-      const documents = await documentService.getApplicationDocuments(parseInt(customerId));
+      const { customer_id } = req.params;
+      console.log("customer id to getDocument : ", customer_id)
+      const documents = await documentService.getApplicationDocuments(parseInt(customer_id));
+      console.log("documents : ", documents)
       res.status(200).json({ success: true, data: documents });
     } catch (error) {
       const errResp = handleErrorResponse(error);
