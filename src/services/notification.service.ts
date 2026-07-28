@@ -5,6 +5,8 @@ import { db } from '../models/init-models'; // ถ้าต้องการเ
 import redisService from './redis.service';
 import { Op, Transaction } from 'sequelize';
 import { CreateNotificationInput, RecipientType } from '../types/notification';
+import axios from 'axios';
+import crypto from 'crypto';
 
 // export interface SendNotificationDTO {
 //     recipient_type: 'CUSTOMER' | 'STAFF';
@@ -17,7 +19,7 @@ import { CreateNotificationInput, RecipientType } from '../types/notification';
 //     data?: any; // JSON object
 // }
 class NotificationService {
-    
+
     /**
      * ส่ง SMS แจ้งเตือน (Reminder / General Notification)
      * @param phoneNumber เบอร์โทรศัพท์ลูกค้า (เช่น '020xxxx', '20xxxx')
@@ -58,28 +60,28 @@ class NotificationService {
     // อนาคตถ้ามี Push Notification (Firebase) สามารถสร้างฟังก์ชันเผื่อไว้ตรงนี้ได้
     // public async sendPushNotification(fcmToken: string, title: string, body: string) { ... }
     // 🌟 1. ฟังก์ชันส่งการแจ้งเตือน (สร้างใหม่)
-    public async sendNotification(payload: CreateNotificationInput, transaction?: Transaction){
+    public async sendNotification(payload: CreateNotificationInput, transaction?: Transaction) {
         try {
             // 1.1 บันทึกลง Database
-        const notification = await db.notifications.create({
-            ...payload,
-            data: payload.data ? payload.data : undefined,
-            created_at: new Date()
-        } as any, { transaction });
+            const notification = await db.notifications.create({
+                ...payload,
+                data: payload.data ? payload.data : undefined,
+                created_at: new Date()
+            } as any, { transaction });
 
-        // 1.2 เพิ่มยอด Unread Count ใน Redis (เพื่อให้แอปดึงตัวเลขไปโชว์ได้ไวๆ)
-        const redisKey = `unread_count:${payload.recipient_type}:${payload.recipient_id}`;
-        await redisService.incr(redisKey); // บวก 1 อัตโนมัติ
+            // 1.2 เพิ่มยอด Unread Count ใน Redis (เพื่อให้แอปดึงตัวเลขไปโชว์ได้ไวๆ)
+            const redisKey = `unread_count:${payload.recipient_type}:${payload.recipient_id}`;
+            await redisService.incr(redisKey); // บวก 1 อัตโนมัติ
 
-        // 1.3 (Option) โยนเข้า Message Queue (เช่น BullMQ) เพื่อให้ Worker ไปยิง Firebase (FCM) ต่อ
-        // await pushNotificationQueue.add('send_push', { notificationId: notification.id, payload });
+            // 1.3 (Option) โยนเข้า Message Queue (เช่น BullMQ) เพื่อให้ Worker ไปยิง Firebase (FCM) ต่อ
+            // await pushNotificationQueue.add('send_push', { notificationId: notification.id, payload });
 
-        return notification;
+            return notification;
         } catch (error) {
             logger.error(`[NotificationService] Failed to send notification: ${(error as Error).message}`);
             throw error;
         }
-        
+
     }
 
     // 🌟 2. ดึงรายการแจ้งเตือน (พร้อม Pagination)
@@ -108,11 +110,11 @@ class NotificationService {
     // 🌟 3. อัปเดตสถานะ "อ่านแล้ว"
     public async markAsRead(notification_id: number, recipient_type: RecipientType, recipient_id: number) {
         const notification = await db.notifications.findOne({
-            where: { 
-                id: notification_id, 
-                recipient_type: recipient_type, 
-                recipient_id: recipient_id, 
-                read_at: null 
+            where: {
+                id: notification_id,
+                recipient_type: recipient_type,
+                recipient_id: recipient_id,
+                read_at: null
             } as any
         });
 
@@ -141,11 +143,11 @@ class NotificationService {
         if (count === null) {
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-            
+
             const dbCount = await db.notifications.count({
-                where: { 
-                    recipient_type: recipient_type, 
-                    recipient_id: recipient_id, 
+                where: {
+                    recipient_type: recipient_type,
+                    recipient_id: recipient_id,
                     read_at: null,
                     created_at: { [Op.gte]: ninetyDaysAgo }
                 } as any
@@ -156,6 +158,65 @@ class NotificationService {
 
         return Number(count);
     }
+
+
+    /**
+     * 🌟 ສົ່ງ Push Notification ຜ່ານ API ຂອງ SuperApp
+     * @param phones Array ຂອງເບີໂທ (ເຊັ່ນ ['203333355', '20xxxxxxxx'])
+     * @param title ຫົວຂໍ້ການແຈ້ງເຕືອນ
+     * @param message ລາຍລະອຽດແຈ້ງເຕືອນ
+     */
+    public async sendSuperAppNotification(phones: string[], title: string, message: string): Promise<boolean> {
+        try {
+            // ດຶງ URL ແລະ Signature ຈາກ Environment Variables (.env) 
+            // ຖ້າບໍ່ມີໃນ .env ຈະໃຊ້ຄ່າ Default ທີ່ທ່ານໃຫ້ມາ
+            const url = process.env.SUPERAPP_NOTIFICATION_URL || 'https://notification.inseemicrofinance.com/api/v1/notification/sendnotification-finance';
+            // 🌟 1. ດຶງ Secret Key ດິບ (Raw Secret) ອອກມາ
+            // (ແນະນຳໃຫ້ເອົາ Secret Key ໄປໃສ່ໃນໄຟລ໌ .env ໂຕດຽວກັບທີ່ໃຊ້ໃນ Postman)
+            const secretKey = process.env.SUPERAPP_SECRET_KEY || '7b27909a12c2b9ef48d911624e6041d860b0d3a06bff2825646968c75ceb674f';
+
+            // 🌟 2. ເຂົ້າລະຫັດ (Hash) ດ້ວຍ SHA256 ແລ້ວແປງເປັນ Hex String
+            const signature = crypto.createHash('sha256').update(secretKey).digest('hex');
+            // ຈັດການ Format ເບີໂທໃຫ້ເປັນ 20xxxxxxx ຕາມທີ່ API ຕ້ອງການ
+            const formattedPhones = phones.map(p => {
+                let clean = p.replace(/\D/g, ''); // ລົບຕົວອັກສອນທີ່ບໍ່ແມ່ນຕົວເລກອອກ
+                if (clean.startsWith('856')) clean = clean.substring(3); // ຕັດ 856 ອອກ
+                if (clean.startsWith('0')) clean = clean.substring(1);   // ຕັດ 0 ອອກ (ເຊັ່ນ 020 ຈະເຫຼືອແຄ່ 20)
+                return clean;
+            }).filter(p => p.length >= 8); // ກັ່ນຕອງເອົາສະເພາະເບີທີ່ຖືກຕ້ອງ
+
+            if (formattedPhones.length === 0) {
+                logger.warn(`[SuperApp Notif] No valid phone numbers provided.`);
+                return false;
+            }
+
+            const payload = {
+                phones: formattedPhones,
+                title: title,
+                message: message
+            };
+
+            logger.info(`[SuperApp Notif] Sending to ${formattedPhones.join(', ')}...`);
+
+            // ຍິງ API ໄປຫາ SuperApp
+            const response = await axios.post(url, payload, {
+                headers: {
+                    'signature': signature,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000 // ຕັ້ງ Timeout 10 ວິນາທີ ປ້ອງກັນ API ທາງນັ້ນຊ້າແລ້ວດຶງ Server ເຮົາຄ້າງ
+            });
+
+            logger.info(`[SuperApp Notif] Success! Response: ${JSON.stringify(response.data)}`);
+            return true;
+
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.message || error.message;
+            logger.error(`[SuperApp Notif] Failed to send: ${errorMsg}`);
+            return false;
+        }
+    }
+
 }
 
 export default new NotificationService();

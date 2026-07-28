@@ -105,7 +105,7 @@ class RepaymentService {
             await redisService.del(`cache:repayment_schedule:${applicationId}`);
 
             // ==========================================
-            // 🌟 6. ສົ່ງ Notification ຫຼັງຈາກ Commit ສຳເລັດ
+            // 🌟 6. ສົ່ງ Notification (In-App, SMS, SuperApp)
             // ==========================================
             try {
                 if (loan && loan.customer) {
@@ -114,44 +114,60 @@ class RepaymentService {
                     const formattedAmount = new Intl.NumberFormat('lo-LA').format(data.amount_paid);
                     const loanNumber = loan.loan_id || applicationId;
 
+                    let notifTitle = '';
+                    let notifBody = '';
+                    let eventType: NotificationEventType;
+                    let refType = '';
+                    let refId = 0;
+                    let notifData: any = undefined;
+
+                    // A. ກຽມຂໍ້ຄວາມຕາມ Case (ປິດບັນຊີ vs ຈ່າຍປົກກະຕິ)
                     if (isCompleted) {
-                        // --- CASE 4: ຜ່ອນຊຳລະຄົບແລ້ວ (ປິດບັນຊີ) ---
                         const productName = loan.product?.product_name || 'ສິນຄ້າ';
                         const totalInstallments = loan.loan_period;
-
-                        await NotificationService.sendNotification({
-                            recipient_type: RecipientType.CUSTOMER,
-                            recipient_id: customerId,
-                            event_type: NotificationEventType.PAYMENT_COMPLETED,
-                            title: 'ຜ່ອນຊຳລະຄົບແລ້ວ 🎉',
-                            body: `ທ່ານໄດ້ຊຳລະ ${productName} ຄົບ ${totalInstallments} ງວດແລ້ວ ສິນຄ້າເປັນຂອງທ່ານສົມບູນ`,
-                            reference_type: 'loan_applications',
-                            reference_id: applicationId,
-                        });
+                        notifTitle = 'ຜ່ອນຊຳລະຄົບແລ້ວ 🎉';
+                        notifBody = `ທ່ານໄດ້ຊຳລະ ${productName} ຄົບ ${totalInstallments} ງວດແລ້ວ ສິນຄ້າເປັນຂອງທ່ານສົມບູນ`;
+                        eventType = NotificationEventType.PAYMENT_COMPLETED;
+                        refType = 'loan_applications';
+                        refId = applicationId;
                     } else {
-                        // --- ປົກກະຕິ: ຊຳລະເງິນສຳເລັດ ---
-                        await NotificationService.sendNotification({
-                            recipient_type: RecipientType.CUSTOMER,
-                            recipient_id: customerId,
-                            event_type: NotificationEventType.PAYMENT_SUCCESS,
-                            title: 'ຊຳລະເງິນສຳເລັດ',
-                            body: `ລະບົບໄດ້ຮັບຍອດຊຳລະຈຳນວນ ${formattedAmount} ກີບ ສຳລັບສິນເຊື່ອເລກທີ ${loanNumber} ຮຽບຮ້ອຍແລ້ວ. ຂອບໃຈທີ່ໃຊ້ບໍລິການ.`,
-                            reference_type: 'payment_transactions',
-                            reference_id: newReceipt.id,
-                            data: {
-                                paid_amount: formattedAmount,
-                                month_payment: data.month_payment,
-                                paid_at: transactionData.paid_at,
-                                payment_channel: channel,
-                            }
-                        });
+                        notifTitle = 'ຊຳລະເງິນສຳເລັດ';
+                        notifBody = `ລະບົບໄດ້ຮັບຍອດຊຳລະຈຳນວນ ${formattedAmount} ກີບ ສຳລັບສິນເຊື່ອເລກທີ ${loanNumber} ຮຽບຮ້ອຍແລ້ວ. ຂອບໃຈທີ່ໃຊ້ບໍລິການ.`;
+                        eventType = NotificationEventType.PAYMENT_SUCCESS;
+                        refType = 'payment_transactions';
+                        refId = newReceipt.id;
+                        notifData = {
+                            paid_amount: formattedAmount,
+                            month_payment: data.month_payment,
+                            paid_at: transactionData.paid_at,
+                            payment_channel: channel,
+                        };
                     }
 
-                    // ສົ່ງ SMS (Fire and Forget)
+                    // B. ສົ່ງ In-App Notification (ລົງ Database)
+                    await NotificationService.sendNotification({
+                        recipient_type: RecipientType.CUSTOMER,
+                        recipient_id: customerId,
+                        event_type: eventType,
+                        title: notifTitle,
+                        body: notifBody,
+                        reference_type: refType,
+                        reference_id: refId,
+                        data: notifData
+                    });
+
+                    // C. ສົ່ງ SMS ແລະ SuperApp Push Notification (Background)
                     if (customerPhone) {
+                        // SMS Format ອາດຈະສັ້ນກວ່າ ຫຼື ເປັນມາດຕະຖານ
                         const smsMessage = `INSEE: ໄດ້ຮັບຍອດຊຳລະ ${formattedAmount} ₭ ສຳລັບສັນຍາ ${loanNumber} ສຳເລັດແລ້ວ.`;
+
                         NotificationService.sendSMS(customerPhone, smsMessage).catch(err => {
                             logger.error(`[Repayment] SMS send failed for Tx ${newReceipt.id}: ${err.message}`);
+                        });
+
+                        // 🌟 SuperApp Push Notification
+                        NotificationService.sendSuperAppNotification([customerPhone], notifTitle, notifBody).catch(err => {
+                            logger.error(`[Repayment] SuperApp Notif failed for Tx ${newReceipt.id}: ${err.message}`);
                         });
                     }
                 }

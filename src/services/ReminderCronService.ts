@@ -163,7 +163,10 @@ class ReminderCronService {
                         }
 
                         const isSent = await notificationService.sendSMS(customer.phone, smsMsg);
-                        if (isSent) {
+                        // B. ສົ່ງ Push Notification ໄປຫາ SuperApp 
+                        // (ໃຊ້ຂໍ້ຄວາມ messageBody ເຕັມ ເພາະ Push ບໍ່ຈຳກັດຕົວອັກສອນຄື SMS)
+                        const isPushSent = await notificationService.sendSuperAppNotification([customer.phone], title, messageBody);
+                        if (isSent || isPushSent) {
                             if (isOverdue) overdueSuccessCount++;
                             else reminderSuccessCount++;
                         }

@@ -289,7 +289,7 @@
                 <span class="info-label">ເບີໂທ:</span>
                 <span class="info-value">{{customer.phone}}</span>
             </p>
-            
+
             <p class="info-line">
                 <span class="info-label">ທີ່ຢູ່ປັດຈຸບັນ: &nbsp; ບ້ານ:</span>
                 <span class="info-value">{{customer.address.village}}</span>
@@ -298,7 +298,7 @@
                 <span class="info-label">ແຂວງ:</span>
                 <span class="info-value">{{customer.address.province}}</span>
             </p>
-            
+
             <p class="info-line">
                 <span class="info-label">ເລກບັດປະຈຳຕົວ:</span>
                 <span class="info-value long">{{customer.idCard}}</span>
@@ -323,7 +323,7 @@
                 <span class="info-label">ຊື່ບໍລິສັດ/ຮ້ານ:</span>
                 <span class="info-value full">{{work.companyName}}</span>
             </p>
-            
+
             <p class="info-line">
                 <span class="info-label">ທີ່ຢູ່ຫ້ອງການ: &nbsp; ບ້ານ:</span>
                 <span class="info-value">{{work.address.village}}</span>
@@ -392,21 +392,22 @@
                 <tr>
                     <td class="label">4. ຄ່າທຳນຽມ (CIB):</td>
                     <td class="value">{{product.fee}}</td>
-                    <td class="label" colspan="3">10. ຄ່າງວດເດືອນທຳອິດ:</td>
-                    <td class="value">{{product.firstInstallment}}</td>
+                    <td class="label" colspan="2">10. ຄ່າງວດເດືອນທຳອິດ:</td>
+                    <td class="value" colspan="2">{{product.firstInstallment}}</td>
                 </tr>
                 <tr>
                     <td class="label">5. ຄ່າງວດລາຍເດືອນ:</td>
                     <td class="value">{{product.monthlyPayment}}</td>
-                    <td class="label" colspan="3">11. ການຊຳລະຄ່າງວດທຸກໆວັນທີ່:</td>
-                    <td class="value">{{product.paymentDay}} ຂອງແຕ່ລະເດືອນ</td>
+                    <td colspan="2" class="label">11. ການຊຳລະຄ່າງວດທຸກໆວັນທີ່:</td>
+                    <td colspan="2" class="value">{{product.paymentDay}} ຂອງແຕ່ລະເດືອນ</td>
                 </tr>
                 <tr>
-                    <td class="label" colspan="6">6. ຮ້ານຄ້າທີ່ເລືອກ:</td>
+                    <td class="label" colspan="2">6. ຮ້ານຄ້າທີ່ເລືອກ:</td>
+                    <td class="value" colspan="4">{{product.store}}</td>
                 </tr>
-                <tr>
+                <!-- <tr>
                     <td class="value full-width" colspan="6">{{product.store}}</td>
-                </tr>
+                </tr> -->
             </tbody>
         </table>
     </section>
@@ -435,7 +436,7 @@
                 <span class="info-label">ເບີໂທ:</span>
                 <span class="info-value">{{guarantor.phone}}</span>
             </p>
-            
+
             <p class="info-line">
                 <span class="info-label">ທີ່ຢູ່ປະຈຸບັນ: &nbsp; ບ້ານ:</span>
                 <span class="info-value">{{guarantor.address.village}}</span>

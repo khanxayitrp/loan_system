@@ -6,6 +6,8 @@ import { NotFoundError, ValidationError, handleErrorResponse, BadRequestError, F
 import { logAudit } from "../utils/auditLogger";
 import RepaymentRepository from './repayment.repo';
 import delivery_receiptRepo from "./delivery_receipt.repo";
+import notificationService from '../services/notification.service';
+import { NotificationEventType, RecipientType } from '../types/notification';
 
 export type action = "submitted" | "verified_basic" | "verified_call" | "verified_cib" | "verified_field" | "assessed_income" | "verified_delivery_receipt" | "approved" | "rejected" | "returned_for_edit" | "cancelled";
 
@@ -739,6 +741,26 @@ class LoanApplicationRepository {
                 // 🟢 2.2 ຈັດການ Role ແລະ ລຳດັບການອະນຸມັດ
                 if (actionIntent === 'rejected' || actionIntent === 'pending') {
                     roleType = staffLevel === 'credit_manager' ? 'credit_head' : 'approver_1';
+
+                    // 🌟 [ເພີ່ມໃໝ່] Use Case: ສົ່ງກັບໄປແກ້ໄຂ (Return for Edit)
+                    if (actionIntent === 'pending') {
+                        // ລຶບລາຍເຊັນສະເພາະ "ຜູ້ອະນຸມັດພາຍໃນ" (ເພື່ອໃຫ້ກັບມາເຊັນໃໝ່ຕາມລຳດັບ)
+                        // ຈະບໍ່ລຶບລາຍເຊັນຂອງ ລູກຄ້າ (borrower), ຜູ້ຄ້ຳ (guarantor) ເພາະພວກເຂົາບໍ່ກ່ຽວຂ້ອງກັບການແກ້ໄຂຂໍ້ມູນພາຍໃນ
+                        await db.document_signatures.destroy({
+                            where: {
+                                application_id: loanApplicationId,
+                                document_type: { [Op.in]: ['approval_summary', 'contract', 'delivery_note', 'repayment_schedule'] },
+                                role_type: { [Op.in]: ['credit_head', 'approver_1', 'approver_2', 'approver_3'] } // 👈 ເນັ້ນລຶບແຕ່ຝ່າຍອະນຸມັດ
+                            },
+                            transaction: t
+                        });
+
+                        // ຖ້າຢາກໃຫ້ຍົກເລີກການອະນຸມັດໃນ Delivery Receipt ນຳ ກໍປັບ status ມັນກັບມາເປັນ pending
+                        const deliveryReceipt = await db.delivery_receipts.findOne({ where: { application_id: loanApplicationId }, transaction: t });
+                        if (deliveryReceipt && deliveryReceipt.status === 'approved') {
+                            await deliveryReceipt.update({ status: 'pending' }, { transaction: t });
+                        }
+                    }
                 } else {
                     if (staffLevel === 'credit_manager') {
                         // ຫົວໜ້າສິນເຊື່ອ ກົດໄດ້ແຄ່ Verify
@@ -811,7 +833,7 @@ class LoanApplicationRepository {
             // ==========================================
             // 🌟 STEP 4: ປະທັບຕາລາຍເຊັນ ແລະ ຈັດການຕາຕະລາງຜ່ອນຊຳລະ
             // ==========================================
-            if (['disbursed', 'approved', 'verified', 'rejected'].includes(finalStatus) && updatePayload.approver_id && roleType) {
+            if (['disbursed', 'approved', 'verified', 'rejected'].includes(finalStatus) && updatePayload.approver_id && roleType && finalStatus !== 'pending') {
 
                 const signatureStatus = finalStatus === 'rejected' ? 'rejected' : 'signed';
 
@@ -1066,8 +1088,63 @@ class LoanApplicationRepository {
                     );
                 }
             }
-
+            // 🎯 Commit Transaction ໃຫ້ສຳເລັດກ່ອນສົ່ງແຈ້ງເຕືອນ
             await t.commit();
+
+            // ==========================================
+            // 🌟 STEP 6: ສົ່ງແຈ້ງເຕືອນ (ສະເພາະ Case ປ່ອຍສິນເຊື່ອສຳເລັດ)
+            // ==========================================
+            if (finalStatus === 'disbursed' && loanApplication.status !== 'disbursed') {
+                try {
+                    // ດຶງຂໍ້ມູນລູກຄ້າ ແລະ ສິນຄ້າເພີ່ມເຕີມ ເພື່ອເອົາເບີໂທ ແລະ ຊື່ສິນຄ້າ (ເພາະໃນ Query ຫຼັກເຮົາບໍ່ໄດ້ Include ມາ)
+                    const loanDetails = await db.loan_applications.findByPk(loanApplicationId, {
+                        include: [
+                            { model: db.customers, as: 'customer' },
+                            { model: db.products, as: 'product' }
+                        ]
+                    });
+
+                    if (loanDetails && loanDetails.customer) {
+                        const customerId = loanDetails.customer.id;
+                        const customerPhone = loanDetails.customer.phone;
+                        const productName = loanDetails.product?.product_name || 'ສິນຄ້າຂອງທ່ານ';
+                        const loanNumber = loanDetails.loan_id || loanApplicationId;
+
+                        const notifTitle = 'ສິນເຊື່ອໄດ້ຮັບການອະນຸມັດແລ້ວ 🎉';
+                        const notifBody = `ຊົມເຊີຍ! ໃບຄຳຂໍສິນເຊື່ອເລກທີ ${loanNumber} ສຳລັບ ${productName} ໄດ້ຮັບການອະນຸມັດ ແລະ ປ່ອຍກູ້ສຳເລັດແລ້ວ. ທ່ານສາມາດເຂົ້າເບິ່ງຕາຕະລາງຜ່ອນຊຳລະໄດ້ໃນແອັບ.`;
+
+                        // 1. ສົ່ງ In-App Notification (ເກັບລົງ Database)
+                        // ຢ່າລືມ Import notificationService ແລະ NotificationEventType ໄວ້ເທິງສຸດຂອງໄຟລ໌
+                        await notificationService.sendNotification({
+                            recipient_type: RecipientType.CUSTOMER,
+                            recipient_id: customerId,
+                            event_type: NotificationEventType.LOAN_APPROVED, // ໃຊ້ Enum ຖ້າມີ
+                            title: notifTitle,
+                            body: notifBody,
+                            reference_type: 'loan_applications',
+                            reference_id: loanApplicationId,
+                        });
+
+                        // 2. ສົ່ງ SMS (Fire and Forget)
+                        if (customerPhone) {
+                            const smsMessage = `INSEE: ຍິນດີດ້ວຍ! ສິນເຊື່ອເລກທີ ${loanNumber} ໄດ້ຮັບການອະນຸມັດສຳເລັດແລ້ວ. ກະລຸນາກວດສອບລາຍລະອຽດໃນແອັບ.`;
+
+                            notificationService.sendSMS(customerPhone, smsMessage).catch(err => {
+                                logger.error(`[Loan Update] SMS send failed for Loan ${loanApplicationId}: ${err.message}`);
+                            });
+
+                            // 3. ສົ່ງ SuperApp Push Notification (Fire and Forget)
+                            notificationService.sendSuperAppNotification([customerPhone], notifTitle, notifBody).catch(err => {
+                                logger.error(`[Loan Update] SuperApp Notif failed for Loan ${loanApplicationId}: ${err.message}`);
+                            });
+                        }
+                    }
+                } catch (notifError) {
+                    // ຖ້າແຈ້ງເຕືອນພັງ ກໍບໍ່ໃຫ້ກະທົບກັບການອະນຸມັດທີ່ສຳເລັດໄປແລ້ວ
+                    logger.error(`[Loan Update] Failed to send approval notification for Loan ${loanApplicationId}: ${(notifError as Error).message}`);
+                }
+            }
+            // ==========================================
             return updatedLoanApplication;
 
         } catch (error) {

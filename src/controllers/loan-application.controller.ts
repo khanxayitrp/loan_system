@@ -9,13 +9,15 @@ import { generateSignatureSlots } from '../utils/signatureGenerator';
 import { NotFoundError, ValidationError, BadRequestError, UnauthorizedError } from '../utils/errors';
 import { db } from '../models/init-models';
 import { otpService } from '../services/otp.service';
-import { Transaction } from 'sequelize';
+import { Transaction, Op } from 'sequelize';
 import { logAudit } from '../utils/auditLogger';
 import { logApprovalAction } from '../utils/approvalLogger';
 import { formatStandardPhoneNumber } from '../utils/formatters';
 
+import notificationService from '../services/notification.service';
 import redisService from '../services/redis.service';
 import document_signatureService from '../services/document_signature.service';
+import { CreateNotificationInput, RecipientType, NotificationEventType } from '../types/notification';
 
 export const createLoanApplication = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -773,54 +775,60 @@ export const createFromSuperAppWebview = async (req: Request, res: Response, nex
     const phone = req.customerPayload!.phone;
 
     const {
-      otp, // 👈 ຮັບຄ່າ OTP ຈາກໜ້າບ້ານ
+      otp,
       first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
       product_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
       interest_type, interest_rate_type, identity_number
     } = req.body;
 
     // =======================================================
-    // 2. ກວດສອບ OTP ໂດຍໃຊ້ເບີໂທຈາກ Token ເພື່ອຄວາມປອດໄພ
+    // 2. ກວດສອບ OTP ແລະ ຄວາມປອດໄພ
     // =======================================================
     if (!phone || !otp) {
       throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
     }
 
-    const verificationResult = await otpService.verifyOTP({
-      phoneNumber: phone,
-      otp
-    });
-
+    const verificationResult = await otpService.verifyOTP({ phoneNumber: phone, otp });
     if (!verificationResult.success) {
       throw new BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
     }
 
-    // =======================================================
-    // 3. ກວດສອບ ແລະ ອັບເດດຂໍ້ມູນລູກຄ້າ (Customer)
-    // =======================================================
-    const customer = await db.customers.findByPk(customerId, {
-      transaction,
-      lock: transaction.LOCK.UPDATE
+    // 🌟 [ເພີ່ມໃໝ່] ກວດສອບການຍື່ນຊ້ຳຊ້ອນ (ກັນລູກຄ້າກົດປຸ່ມເບິ້ນ)
+    // ຖ້າມີຄຳຂໍສິນເຊື່ອທີ່ເປັນ pending ສຳລັບສິນຄ້ານີ້ພາຍໃນ 1 ມື້ ໃຫ້ປະຕິເສດ
+    const recentApplication = await db.loan_applications.findOne({
+      where: {
+        customer_id: customerId,
+        product_id: product_id,
+        status: 'pending',
+        created_at: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) } // ພາຍໃນ 24 ຊົ່ວໂມງ
+      }
     });
 
+    if (recentApplication) {
+      throw new BadRequestError('ທ່ານມີຄຳຂໍສິນເຊື່ອສຳລັບສິນຄ້ານີ້ທີ່ກຳລັງລໍຖ້າການພິຈາລະນາຢູ່ແລ້ວ');
+    }
+
+    // =======================================================
+    // 3. ກວດສອບ ແລະ ອັບເດດຂໍ້ມູນລູກຄ້າ
+    // =======================================================
+    const customer = await db.customers.findByPk(customerId, { transaction, lock: transaction.LOCK.UPDATE });
     if (!customer) {
       throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້າໃນລະບົບ ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່');
     }
 
     const customerUpdatePayload = {
-      first_name: first_name || customer.first_name,
-      last_name: last_name || customer.last_name,
-      identity_number: identity_number || customer.identity_number,
+      first_name: first_name ?? customer.first_name, // ໃຊ້ ?? ແທນ || ເພື່ອຮອງຮັບຄ່າ 0 ຫຼື string ວ່າງ
+      last_name: last_name ?? customer.last_name,
+      identity_number: identity_number ?? customer.identity_number,
       province_id, district_id, address, age, occupation, income_per_month, other_debt
     };
     const oldCustomerData = customer.toJSON();
 
     await customer.update(customerUpdatePayload, { transaction });
-
     await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, customer.id, transaction);
 
     // =======================================================
-    // 4. ກວດສອບສິນຄ້າ (Validate Product)
+    // 4. ກວດສອບສິນຄ້າ 
     // =======================================================
     const product = await db.products.findByPk(product_id, { transaction });
     if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
@@ -828,7 +836,7 @@ export const createFromSuperAppWebview = async (req: Request, res: Response, nex
     const final_total = total_amount || (product.price * quantity);
 
     // =======================================================
-    // 5. ສ້າງຄຳຂໍສິນເຊື່ອ (Create Loan Application)
+    // 5. ສ້າງຄຳຂໍສິນເຊື່ອ
     // =======================================================
     const loanPayload = {
       customer_id: customer.id,
@@ -845,11 +853,34 @@ export const createFromSuperAppWebview = async (req: Request, res: Response, nex
       requester_id: null
     };
 
-    const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
-
+    const application = await db.loan_applications.create(loanPayload as any, { transaction });
     await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), customer.id, transaction);
 
+    // ✅ ທຸກຢ່າງສົມບູນ, ສັ່ງ Commit
     await transaction.commit();
+
+    // =======================================================
+    // 6. 🌟 ສົ່ງການແຈ້ງເຕືອນ (ຫຼັງຈາກ Commit ສຳເລັດ)
+    // =======================================================
+    const title = 'ໄດ້ຮັບຄຳຂໍສິນເຊື່ອໃໝ່ 📝';
+    const message = `ຄຳຂໍສິນເຊື່ອສຳລັບ ${product.product_name} ມູນຄ່າ ${new Intl.NumberFormat('lo-LA').format(final_total)} ກີບ ໄດ້ຖືກສົ່ງເຂົ້າລະບົບແລ້ວ. ທາງເຮົາຈະຕິດຕໍ່ກັບພາຍໃນ 24 ຊົ່ວໂມງ.`;
+
+    // ສົ່ງ In-App Notification
+    notificationService.sendNotification({
+      recipient_type: RecipientType.CUSTOMER,
+      recipient_id: customer.id,
+      event_type: NotificationEventType.LOAN_CREATED,
+      title: title,
+      body: message,
+      reference_type: 'loan_applications',
+      reference_id: application.id
+    }).catch(e => console.error('In-App Notif Error:', e));
+
+    // ສົ່ງ Push Notification ໄປ SuperApp (Fire and Forget)
+    notificationService.sendSuperAppNotification([phone], title, message)
+      .catch(e => console.error('SuperApp Notif Error:', e));
+
+    // =======================================================
 
     return res.status(201).json({
       success: true,

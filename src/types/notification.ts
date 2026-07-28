@@ -4,7 +4,13 @@ export enum NotificationEventType {
   PAYMENT_SUCCESS = 'payment_success',
   PAYMENT_COMPLETED = 'payment_completed',
   OVERDUE = 'overdue',
-  
+
+  //-- หมวดคำขอสินเชื่อ
+  LOAN_CREATED = 'loan_created',
+  LOAN_APPROVED = 'loan_approved',
+  LOAN_REJECTED = 'loan_rejected',
+  LOAN_UPDATED = 'loan_updated',
+
   //-- 📋 หมวดคำขอสินเชื่อ และสัญญา
   APPLICATION_PENDING = 'application_pending',
   APPLICATION_APPROVED = 'application_approved',
