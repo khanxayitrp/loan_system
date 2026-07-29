@@ -942,14 +942,21 @@ class LoanApplicationRepository {
                 // ໃຫ້ອັບເດດວັນທີຈ່າຍໃນຕາຕະລາງ (ແຕ່ຍັງເປັນ Draft ເພື່ອໃຫ້ພະນັກງານພິມອອກມາໄດ້)
                 if (finalStatus === 'verified' && roleType === 'credit_head') {
                     const verifyDate = new Date();
-
-                    // 🌟 🟢 ແກ້ໄຂ: ຕ້ອງດຶງ payment_day ຈາກ 'updatePayload' ເພາະເປັນຄ່າໃໝ່ທີ່ສົ່ງມາຈາກໜ້າບ້ານ
                     const finalPaymentDay = Number(updatePayload.payment_day) || Number(loanApplication.payment_day) || 1;
+
+                    // 🌟 ດຶງຄ່າ '2026-09-10' ທີ່ສົ່ງມານີ້ ແປງເປັນ Date Object
+                    let exactFirstDueDate = undefined;
+                    if (updatePayload.first_due_date) {
+                        exactFirstDueDate = new Date(updatePayload.first_due_date);
+                    }
+
                     await RepaymentRepository.shiftDraftScheduleDates(
                         loanApplicationId,
                         finalPaymentDay,
                         verifyDate,
-                        t
+                        t,
+                        exactFirstDueDate, // 👈 ຢ່າລືມສົ່ງຕົວແປນີ້ເຂົ້າໄປເປັນ Parameter ທີ 5
+                        performedBy
                     );
                 }
 

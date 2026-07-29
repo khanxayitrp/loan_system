@@ -334,11 +334,21 @@ class RepaymentRepository {
         );
     }
 
-    /**
-      * 🟢 ຟັງຊັນທີ 1: ອັບເດດວັນທີຈ່າຍເງິນ ແຕ່ຍັງຄົງສະຖານະເປັນ Draft 
-      * (ໃຊ້ສຳລັບຕອນຫົວໜ້າສິນເຊື່ອກວດຜ່ານ ເພື່ອໃຫ້ຕາຕະລາງພ້ອມພິມ)
-      */
-    async shiftDraftScheduleDates(applicationId: number, paymentDay: number, baseDate: Date, transaction: any): Promise<void> {
+    // =========================================================================
+    // 🌟 ฟังก์ชันเลื่อนวันชำระในตารางร่าง (Draft Schedule) ก่อนอนุมัติจริง
+    // รองรับ: 
+    // 1. ระบุวันงวดแรกตรงๆ (exactFirstDueDate)
+    // 2. คงวันงวดแรกเดิมจาก Draft ใน DB (ถ้าไม่ได้ส่งค่าใหม่มา)
+    // 3. คำนวณใหม่อัตโนมัติจาก baseDate (Fallback)
+    // =========================================================================
+    public async shiftDraftScheduleDates(
+        applicationId: number,
+        paymentDay: number,
+        baseDate: Date,
+        transaction: any,
+        exactFirstDueDate?: Date,
+        performedBy?: number // 👈 ຮັບ user_id ຂອງຄົນທີ່ກົດອະນຸມັດເຂົ້າມານຳ (ສຳລັບ Audit)
+    ): Promise<void> {
         try {
             const schedule = await db.repayment_schedules.findOne({
                 where: { application_id: applicationId, status: 'draft' },
@@ -346,7 +356,10 @@ class RepaymentRepository {
                 lock: transaction.LOCK.UPDATE
             });
 
-            if (!schedule) return; // ຖ້າບໍ່ມີຕາຕະລາງຮ່າງ ກໍຂ້າມໄປ (ອາດຈະເກີດຈາກຍັງບໍ່ໄດ້ສ້າງ)
+            if (!schedule) {
+                logger.warn(`[shiftDraftScheduleDates] ບໍ່ພົບຕາຕະລາງຮ່າງ (draft) ສຳລັບ Application ID: ${applicationId}`);
+                return;
+            }
 
             const repayments = await db.repayments.findAll({
                 where: { schedule_id: schedule.id },
@@ -355,49 +368,94 @@ class RepaymentRepository {
                 lock: transaction.LOCK.UPDATE
             });
 
-            const currentDay = baseDate.getDate(); // ວັນທີປັດຈຸບັນທີ່ Verify
-            let startMonthOffset = 0;
+            if (repayments.length === 0) return;
 
-            // ຖ້າ payment_day ໃຫຍ່ກວ່າຫຼຶເທົ່າກັບວັນທີປັດຈຸບັນ -> ໃຫ້ເລີ່ມເດືອນນີ້ (offset = 0)
-            // ຖ້າ payment_day ນ້ອຍກວ່າວັນທີປັດຈຸບັນ -> ໃຫ້ເລີ່ມເດືອນໜ້າ (offset = 1) ເພາະກາຍມື້ຈ່າຍໄປແລ້ວ
-            if (paymentDay <= currentDay) {
-                startMonthOffset = 1;
+            // ==========================================
+            // 🌟 ກຽມຂໍ້ມູນເກົ່າ ສຳລັບ Audit Log (ເອົາສະເພາະ ID ກັບ due_date)
+            // ==========================================
+            const oldData = repayments.map(r => ({
+                id: r.id,
+                installment_no: r.installment_no,
+                due_date: r.due_date
+            }));
+
+            // ==========================================
+            // ກຳນົດເດືອນ ແລະ ປີ ເລີ່ມຕົ້ນຂອງງວດທີ 1
+            // ==========================================
+            let startYear: number;
+            let startMonth: number;
+
+            const existingFirstDueDateStr = repayments[0]?.due_date;
+            const existingFirstDueDate = existingFirstDueDateStr ? new Date(existingFirstDueDateStr) : null;
+
+            if (exactFirstDueDate && !isNaN(exactFirstDueDate.getTime())) {
+                startYear = exactFirstDueDate.getFullYear();
+                startMonth = exactFirstDueDate.getMonth();
+            }
+            else if (existingFirstDueDate && !isNaN(existingFirstDueDate.getTime())) {
+                startYear = existingFirstDueDate.getFullYear();
+                startMonth = existingFirstDueDate.getMonth();
+            }
+            else {
+                startYear = baseDate.getFullYear();
+                startMonth = baseDate.getMonth();
+                const currentDay = baseDate.getDate();
+
+                if (paymentDay <= currentDay) {
+                    startMonth += 1;
+                }
             }
 
-            const baseYear = baseDate.getFullYear();
-            const baseMonth = baseDate.getMonth(); // 0 = ມັງກອນ, 11 = ທັນວາ
+            // ==========================================
+            // ອັບເດດວັນທີຈ່າຍຂອງແຕ່ລະງວດ
+            // ==========================================
+            const newData = []; // ໄວ້ເກັບຂໍ້ມູນໃໝ່ສຳລັບ Audit
 
-            // ອັບເດດວັນທີຈ່າຍຂອງແຕ່ລະງວດ
-            // ອັບເດດວັນທີຈ່າຍຂອງແຕ່ລະງວດ
             for (let i = 0; i < repayments.length; i++) {
-                const targetMonth = baseMonth + startMonthOffset + i;
-                let targetDueDate = new Date(baseYear, targetMonth, paymentDay);
+                const targetMonth = startMonth + i;
+                let targetDueDate = new Date(startYear, targetMonth, paymentDay);
 
-                // ⚠️ ປ້ອງກັນ Edge Case ເຊັ່ນ payment_day = 31 ແຕ່ເດືອນນັ້ນມີແຄ່ 28 ຫຼຶ 30 ມື້
                 if (targetDueDate.getMonth() !== (targetMonth % 12)) {
-                    // ຖອຍກາຍມາເປັນມື້ສຸດທ້າຍຂອງເດືອນທີ່ຄວນຈະເປັນ
-                    targetDueDate = new Date(baseYear, targetMonth + 1, 0);
+                    targetDueDate = new Date(startYear, targetMonth + 1, 0);
                 }
 
-                // ==========================================
-                // 🌟 🟢 ແກ້ໄຂ: ແປງວັນທີແບບ Manual ເພື່ອປ້ອງກັນບັກ Timezone GMT+7 
-                // ==========================================
                 const y = targetDueDate.getFullYear();
                 const m = String(targetDueDate.getMonth() + 1).padStart(2, '0');
                 const d = String(targetDueDate.getDate()).padStart(2, '0');
-                const localDateString = `${y}-${m}-${d}`; // ຈະໄດ້ YYYY-MM-DD ທີ່ຖືກຕ້ອງສະເໝີ
+                const localDateString = `${y}-${m}-${d}`;
 
-                // ອັບເດດແຄ່ວັນທີ ແລະ ໃຫ້ສະຖານະຍັງເປັນ unpaid
                 await repayments[i].update({
-                    due_date: localDateString, // 👈 ໃຊ້ຕົວແປທີ່ເຮົາປະກອບເອງ
+                    due_date: localDateString,
                     payment_status: 'unpaid'
                 }, { transaction });
+
+                // ເກັບຂໍ້ມູນຫຼັງແກ້ໄຂ
+                newData.push({
+                    id: repayments[i].id,
+                    installment_no: repayments[i].installment_no,
+                    due_date: localDateString
+                });
             }
 
-            logger.info(`Shifted Draft Schedule dates for Application ID: ${applicationId}`);
+            // ==========================================
+            // 🌟 ບັນທຶກ Audit Log ຫຼັງຈາກອັບເດດສຳເລັດ
+            // ==========================================
+            if (performedBy) {
+                await logAudit(
+                    'repayments', // ຊື່ຕາຕະລາງ
+                    schedule.id,  // ອ້າງອີງໃສ່ schedule ID
+                    'UPDATE', // Action
+                    { dates: oldData }, // Before
+                    { dates: newData, payment_day: paymentDay, exactFirstDueDate: exactFirstDueDate }, // After
+                    performedBy,
+                    transaction
+                );
+            }
+
+            logger.info(`[RepaymentRepository] Shifted Draft Schedule dates for Application ID: ${applicationId}`);
 
         } catch (error) {
-            logger.error(`Error in shiftDraftScheduleDates: ${(error as Error).message}`);
+            logger.error(`[RepaymentRepository] Error in shiftDraftScheduleDates: ${(error as Error).message}`);
             throw error;
         }
     }
