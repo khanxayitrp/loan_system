@@ -107,6 +107,17 @@ export const updateLoanApplication = async (req: Request, res: Response, next: N
         await redisService.del(`cache:pdf:contract:${contract.id}`);
         console.log(`🗑️ ລຶບ Cache PDF ສັນຍາສຳເລັດ: ${contract.id}`);
       }
+
+      // =========================================================
+      // 🌟 [ເພີ່ມໃໝ່] 4. ລຶບ Cache ຂອງຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule)
+      // ເນື່ອງຈາກການອະນຸມັດອາດຈະໄປອັບເດດ (shiftDraftScheduleDates) ວັນທີຈ່າຍ
+      // =========================================================
+      await redisService.del(`cache:repayment_schedule:${id}`);
+
+      // ຖ້າທ່ານມີ Cache ທີ່ໃຊ້ເກັບ PDF ຂອງຕາຕະລາງຜ່ອນ ກໍໃຫ້ລຶບນຳ
+      await redisService.del(`cache:pdf:repayment_schedule:${id}`);
+
+      console.log(`🗑️ ລຶບ Cache Repayment Schedule ສຳເລັດ ສຳລັບ Loan: ${id}`);
     }
     // =========================================================
 
@@ -853,7 +864,7 @@ export const createFromSuperAppWebview = async (req: Request, res: Response, nex
       requester_id: null
     };
 
-    const application = await db.loan_applications.create(loanPayload as any, { transaction });
+    const application = await loanAppRepo.createLoanApplication(loanPayload as any, { transaction });
     await logAudit('loan_applications', application.id, 'CREATE', null, application.toJSON(), customer.id, transaction);
 
     // ✅ ທຸກຢ່າງສົມບູນ, ສັ່ງ Commit

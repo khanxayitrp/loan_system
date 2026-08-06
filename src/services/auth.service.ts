@@ -356,7 +356,7 @@ class AuthService {
     const transaction = await db.sequelize.transaction();
 
     try {
-      // Step 1: แกะเบอร์โทรออกจาก token ก่อน (decode เฉยๆ ยังไม่เชื่อ)
+      // Step 1: แกะเบอร์โทรออกจาก token ก่อน
       const phoneFromToken = this.extractPhoneFromToken(tempToken);
 
       // Step 2: เอาทั้ง token + เบอร์โทร ไปให้ superapp ยืนยันจริง
@@ -365,13 +365,33 @@ class AuthService {
       console.log('[AUTH SERVICE] Super App verification result:', superAppInfo);
       console.log('[AUTH SERVICE] Phone from token:', phoneFromToken);
 
-      // 🟢 แก้ไข 1: เปลี่ยนมาเช็ค status === 200 และ error === false ตาม Log ของ Super App
       if (!superAppInfo || superAppInfo.status !== 200 || superAppInfo.error !== false) {
         throw new UnauthorizedError('Token ຊົ່ວຄາວຈາກ Super App ບໍ່ຖືກຕ້ອງ (Invalid Temp Token)');
       }
 
-      // 🟢 แก้ไข 2: ดึงข้อมูลจากก้อน .data และใช้ชื่อฟิลด์ให้ตรงกับที่เขาส่งมา
-      const phone = formatStandardPhoneNumber(superAppInfo.data.userPhone);
+      // ==========================================
+      // 🌟 BEST PRACTICE: Data Validation & Fallback
+      // ==========================================
+
+      // 1. Fallback Strategy: ถ้า userPhone เป็น null ให้ลองใช้ userName แทน
+      const rawPhone = superAppInfo.data.userPhone || superAppInfo.data.userName;
+
+      // 2. Null/Empty Check: ถ้าหาเบอร์ไม่ได้เลยจากทั้ง 2 ฟิลด์ ให้ปฏิเสธการ Login ทันที
+      if (!rawPhone) {
+        throw new BadRequestError('ບໍ່ສາມາດເຂົ້າສູ່ລະບົບໄດ້: ບໍ່ພົບຂໍ້ມູນເບີໂທລະສັບຈາກ Super App');
+      }
+
+      // 3. Format เบอร์โทรตามมาตรฐานของระบบคุณ
+      const phone = formatStandardPhoneNumber(rawPhone);
+
+      // 4. Strict Type Check: ตรวจสอบว่าเป็นตัวเลขล้วนๆ และมีความยาวที่สมเหตุสมผล (เช่น 8-15 ตัวอักษร)
+      const phoneRegex = /^[0-9]{8,15}$/;
+      if (!phone || !phoneRegex.test(phone)) {
+        throw new BadRequestError(`ຮູບແບບເບີໂທລະສັບບໍ່ຖືກຕ້ອງ (Invalid format): ${rawPhone}`);
+      }
+
+      // ==========================================
+
       const firstName = superAppInfo.data.firstName;
       const lastName = superAppInfo.data.lastName;
 
@@ -381,25 +401,23 @@ class AuthService {
         transaction
       });
 
-      // Step 4 & 5: ถ้าไม่เจอให้สร้างข้อมูลใหม่ในตาราง customers
+      // Step 4 & 5: ถ้าไม่เจอให้สร้างข้อมูลใหม่
       if (!customer) {
         customer = await db.customers.create({
           phone: phone,
           first_name: firstName || '-',
           last_name: lastName || '-',
-          // identity_number: `TEMP-${Date.now()}`, 
           kyc_status: 'unverified'
         }, { transaction });
 
         console.log(`[AUTH SERVICE] Created new customer from Super App: ID ${customer.id}`);
       }
 
-      // Step 6: เรียกใช้ TokenService ตัวเดิมของคุณ เพื่อสร้าง Token สำหรับ Webview
+      // Step 6: สร้าง Token สำหรับ Webview
       const webviewToken = tokenService.generateCustomerToken(customer.id, customer.phone);
 
       await transaction.commit();
 
-      // ส่งกลับไปให้ Controller
       return { customer, token: webviewToken };
 
     } catch (error) {
