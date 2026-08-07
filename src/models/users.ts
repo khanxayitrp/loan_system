@@ -27,8 +27,8 @@ export interface usersAttributes {
   username: string;
   password: string;
   full_name: string;
-  role: 'admin' | 'staff' | 'partner' | 'customer';
-  staff_level?: 'approver' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'none';
+  role: 'admin' | 'staff' | 'partner' | 'customer' | 'auditor';
+  staff_level?: 'approver' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'auditor' | 'none';
   is_active?: number;
   created_at?: Date;
   updated_at?: Date;
@@ -45,8 +45,8 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   username!: string;
   password!: string;
   full_name!: string;
-  role!: 'admin' | 'staff' | 'partner' | 'customer';
-  staff_level?: 'approver' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'none';
+  role!: 'admin' | 'staff' | 'partner' | 'customer' | 'auditor';
+  staff_level?: 'approver' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'auditor' | 'none';
   is_active?: number;
   created_at?: Date;
   updated_at?: Date;
@@ -355,71 +355,71 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
 
   static initModel(sequelize: Sequelize.Sequelize): typeof users {
     return users.init({
-    id: {
-      autoIncrement: true,
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      primaryKey: true
-    },
-    username: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      unique: "username"
-    },
-    password: {
-      type: DataTypes.STRING(255),
-      allowNull: false
-    },
-    full_name: {
-      type: DataTypes.STRING(100),
-      allowNull: false
-    },
-    role: {
-      type: DataTypes.ENUM('admin','staff','partner','customer'),
-      allowNull: false
-    },
-    staff_level: {
-      type: DataTypes.ENUM('approver','sales','credit_officer','credit_manager','deputy_director','director','none'),
-      allowNull: true,
-      defaultValue: "none"
-    },
-    is_active: {
-      type: DataTypes.BOOLEAN,
-      allowNull: true,
-      defaultValue: 1
-    },
-    // 🟢 เพิ่มฟิลด์ deleted_at ตรงนี้
-    deleted_at: {
-      type: DataTypes.DATE,
-      allowNull: true
-    }
-  }, {
-    sequelize,
-    tableName: 'users',
-    timestamps: true,
-    // 🟢 เพิ่ม 4 บรรทัดนี้ เพื่อเปิดโหมด Soft Delete และ Map ชื่อคอลัมน์
-    paranoid: true, 
-    deletedAt: 'deleted_at',
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
-    indexes: [
-      {
-        name: "PRIMARY",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "id" },
-        ]
+      id: {
+        autoIncrement: true,
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        primaryKey: true
       },
-      {
-        name: "username",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "username" },
-        ]
+      username: {
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        unique: "username"
       },
-    ]
-  });
+      password: {
+        type: DataTypes.STRING(255),
+        allowNull: false
+      },
+      full_name: {
+        type: DataTypes.STRING(100),
+        allowNull: false
+      },
+      role: {
+        type: DataTypes.ENUM('admin', 'staff', 'partner', 'customer', 'auditor'),
+        allowNull: false
+      },
+      staff_level: {
+        type: DataTypes.ENUM('approver', 'sales', 'credit_officer', 'credit_manager', 'deputy_director', 'director', 'auditor', 'none'),
+        allowNull: true,
+        defaultValue: "none"
+      },
+      is_active: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: 1
+      },
+      // 🟢 เพิ่มฟิลด์ deleted_at ตรงนี้
+      deleted_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+      }
+    }, {
+      sequelize,
+      tableName: 'users',
+      timestamps: true,
+      // 🟢 เพิ่ม 4 บรรทัดนี้ เพื่อเปิดโหมด Soft Delete และ Map ชื่อคอลัมน์
+      paranoid: true,
+      deletedAt: 'deleted_at',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      indexes: [
+        {
+          name: "PRIMARY",
+          unique: true,
+          using: "BTREE",
+          fields: [
+            { name: "id" },
+          ]
+        },
+        {
+          name: "username",
+          unique: true,
+          using: "BTREE",
+          fields: [
+            { name: "username" },
+          ]
+        },
+      ]
+    });
   }
 }

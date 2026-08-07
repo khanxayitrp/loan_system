@@ -33,11 +33,26 @@ class AuthService {
       } else if (role === 'partner') {
         permissionCodes = ['partner_manage', 'shop_view_report', 'user_changepass', 'view_partner_dashboard'];
       } else if (role === 'customer') {
-        permissionCodes = ['cust_profile_view', 'loan_request', 'view_own_loans', 'payment_proof_upload', 'user_changepass'];
+        // 🟢 ປ່ຽນໃຫ້ກົງກັບ Database: ໃຊ້ cust_loan_history ແທນ
+        permissionCodes = ['cust_profile_view', 'cust_loan_history', 'payment_proof_upload', 'user_changepass'];
+      } else if (role === 'auditor') {
+        // 🌟 1. ຜູ້ກວດສອບພາຍນອກ (External Auditor) 🌟
+        // ມີສິດເບິ່ງຢ່າງດຽວ (Read-Only) ໃນທຸກໆພາກສ່ວນ
+        permissionCodes = [
+          'view_admin_dashboard', 'loan_view_all', 'user_view',
+          'doc_view', 'payment_view', 'user_changepass'
+        ];
       } else if (role === 'staff') {
         const level = staffLevel || '';
 
-        if (['sales', 'credit_officer'].includes(level)) {
+        if (level === 'auditor') {
+          // 🌟 2. ຜູ້ກວດສອບພາຍໃນ (Internal Auditor) 🌟
+          // ໃຫ້ສິດຄືກັນກັບ External Auditor ແຕ່ຈັດຢູ່ໃນກຸ່ມ Staff
+          permissionCodes = [
+            'view_admin_dashboard', 'loan_view_all', 'user_view',
+            'doc_view', 'payment_view', 'user_changepass'
+          ];
+        } else if (['sales', 'credit_officer'].includes(level)) {
           // 🟢 กลุ่มเจ้าหน้าที่ทั่วไป: ทำรายการสินเชื่อ, อัปโหลดเอกสาร, และบันทึกชำระเงิน
           permissionCodes = [
             'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_edit',
@@ -45,8 +60,9 @@ class AuthService {
             'payment_view', 'payment_create',
             'user_changepass'
           ];
-        } else if (['credit_manager', 'deputy_director', 'director'].includes(level)) {
+        } else if (['approver', 'credit_manager', 'deputy_director', 'director'].includes(level)) {
           // 🟢 กลุ่มผู้บริหาร/หัวหน้า: ดูทั้งหมด, อนุมัติ/ปฏิเสธ, และยืนยันการชำระเงิน
+          // (ເພີ່ມ 'approver' ເຂົ້າກຸ່ມນີ້ເພື່ອໃຫ້ກົງກັບ Database ໃໝ່ທີ່ເຮົາຫາກໍເພີ່ມ)
           permissionCodes = [
             'loan_view_all', 'loan_view_assigned', 'loan_create', 'loan_edit', 'loan_approve', 'loan_reject',
             'doc_view', 'doc_upload', 'doc_delete',

@@ -15,16 +15,15 @@ RUN npm run build
 # Stage 2: Production
 FROM node:24-alpine AS production
 
+# ✅ [新增] ແກ້ໄຂບັນຫາ Network Timeout ໂດຍການປ່ຽນໄປໃຊ້ Mirror ທີ່ເສຖียรກວ່າ (Kernel.org)
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.edge.kernel.org/g' /etc/apk/repositories
+
 WORKDIR /app
 
-# 2.1 ຕັ້ງຄ່າ Timezone ຂອງ Container ໃຫ້ເປັນເວລາລາວ (ສຳຄັນຫຼາຍສຳລັບລະບົບການເງິນ/Cron Job)
-RUN apk update && apk add --no-cache tzdata && \
-    cp /usr/share/zoneinfo/Asia/Vientiane /etc/localtime && \
-    echo "Asia/Vientiane" > /etc/timezone
-
-# ✅ 2. ຕິດຕັ້ງ Chromium, Fonts (ສະໜັບສະໜູນພາສາລາວ) ແລະ Library ທີ່ Puppeteer & SOAP ຕ້ອງໃຊ້
-# ປ່ຽນ ttf-freefont ເປັນ font-noto ແລະ font-noto-lao ເພື່ອບໍ່ໃຫ້ເກີດ Error ແລະ ອ່ານພາສາລາວໄດ້ດີ
-RUN apk update && apk add --no-cache \
+# ✅ [优化] ລວມການຕິດຕັ້ງ Timezone, Chromium, Fonts ແລະ Java ໄວ້ໃນ Layer ດຽວກັນ 
+# ເພື່ອຫຼຸດການເອີ້ນໃຊ້ Network ຊ້ຳໆ ແລະ ເຮັດໃຫ້ Image ມີຂະໜາດນ້ອຍລົງ
+RUN apk add --update --no-cache \
+    tzdata \
     chromium \
     nss \
     freetype \
@@ -33,9 +32,12 @@ RUN apk update && apk add --no-cache \
     font-noto \
     font-noto-lao \
     font-noto-thai \
-    openjdk11-jre
+    openjdk11-jre \
+    && cp /usr/share/zoneinfo/Asia/Vientiane /etc/localtime \
+    && echo "Asia/Vientiane" > /etc/timezone \
+    && rm -rf /var/cache/apk/*
 
-# ✅ 3. ບອກໃຫ້ Puppeteer ໃຊ້ Chromium ຂອງລະບົບແທນຕົວທີ່ມັນໂຫລດມາເອງ
+# ✅ ບອກໃຫ້ Puppeteer ໃຊ້ Chromium ຂອງລະບົບແທນຕົວທີ່ມັນໂຫລດມາເອງ
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 

@@ -115,8 +115,8 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
             // 2. ເມືອງ/ແຂວງ: ໃຊ້ fulladdress ແປງຈາກ ID
             let fullStr = '';
             if (typeof fulladdress === 'function') {
-                 // ສົ່ງ exactVillage ທີ່ເປັນ String ແນ່ນອນເຂົ້າໄປ
-                 fullStr = fulladdress(exactVillage, districtId, provinceId);
+                // ສົ່ງ exactVillage ທີ່ເປັນ String ແນ່ນອນເຂົ້າໄປ
+                fullStr = fulladdress(exactVillage, districtId, provinceId);
             }
 
             const parsed = parseAddress(fullStr);
@@ -130,26 +130,26 @@ export const generateLoanPDF = async (req: Request, res: Response) => {
 
         // 🟢 ສະກັດທີ່ຢູ່ຂອງແຕ່ລະພາກສ່ວນ
         const cusAddr = resolveAddress(
-            formData.customer?.address, 
-            formData.customer?.address?.district_id || formData.customer?.district_id, 
+            formData.customer?.address,
+            formData.customer?.address?.district_id || formData.customer?.district_id,
             formData.customer?.address?.province_id || formData.customer?.province_id
         );
 
         const workAddr = resolveAddress(
-            formData.work?.address, 
-            formData.work?.address?.district_id || formData.work?.district_id, 
+            formData.work?.address,
+            formData.work?.address?.district_id || formData.work?.district_id,
             formData.work?.address?.province_id || formData.work?.province_id
         );
 
         const guaAddr = resolveAddress(
-            formData.guarantor?.address, 
-            formData.guarantor?.address?.district_id || formData.guarantor?.district_id, 
+            formData.guarantor?.address,
+            formData.guarantor?.address?.district_id || formData.guarantor?.district_id,
             formData.guarantor?.address?.province_id || formData.guarantor?.province_id
         );
 
         const guaWorkAddr = resolveAddress(
-            formData.guarantorWork?.address, 
-            formData.guarantorWork?.address?.district_id || formData.guarantorWork?.district_id, 
+            formData.guarantorWork?.address,
+            formData.guarantorWork?.address?.district_id || formData.guarantorWork?.district_id,
             formData.guarantorWork?.address?.province_id || formData.guarantorWork?.province_id
         );
 
@@ -797,7 +797,7 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
         const { loanData, scheduleRows, totals } = req.body;
         const loanId = loanData?.loan_id;
 
-                // =========================================================
+        // =========================================================
         // 🟢 1. Check Redis Cache ก่อนสร้างใหม่
         // =========================================================
         if (loanId) {
@@ -884,7 +884,7 @@ export const generateRepaymentSchedulePDF = async (req: Request, res: Response) 
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
                 '--no-zygote',              // ลดการใช้ RAM
-                '--single-process',         // ป้องกัน Process ค้างใน Docker
+                // '--single-process',         // ป้องกัน Process ค้างใน Docker
                 '--font-render-hinting=none',
                 '--disable-web-security',
                 '--lang=lo-LA,en-US'
@@ -1091,7 +1091,29 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const approvedAmount = price - downPayment;
         const term = Number(loanData?.loan_period || 0);
         const monthlyPay = Number(loanData?.monthly_pay || 0);
-        const totalInterest = (monthlyPay * term) - approvedAmount;
+
+        const interestRate = Number(loanData?.interest_rate_at_apply || 0) / 100;
+
+        // 🟢 ต้องตรวจสอบประเภทดอกเบี้ย (แก้ชื่อตัวแปร interest_type ตาม DB ของคุณ)
+        const isEffectiveRate = loanData?.interest_type === 'effective'; // หรือตรวจจาก ID เช่น === 2
+
+        let totalInterest = 0;
+
+        if (isEffectiveRate) {
+            // 🟡 คำนวณแบบลดต้นลดดอก (Effective Rate)
+            if (interestRate > 0 && term > 0) {
+                // ใช้สูตร PMT เพื่อหาค่างวดต่อเดือนก่อน
+                const pmt = (approvedAmount * interestRate * Math.pow(1 + interestRate, term)) / (Math.pow(1 + interestRate, term) - 1);
+                // ดอกเบี้ยรวม = (ค่างวดต่อเดือน x จำนวนงวด) - เงินต้น
+                totalInterest = (pmt * term) - approvedAmount;
+            }
+        } else {
+            // 🟡 คำนวณแบบคงที่ (Flat Rate) - สูตรเดิมของคุณ
+            totalInterest = approvedAmount * interestRate * term;
+        }
+
+        // กันเหนียว
+        if (totalInterest < 0) totalInterest = 0;
 
         // const pType = String(product.productType_id || product.product_type?.name || product.type || '');
         // const isGold = pType.toLowerCase().includes('gold') || pType.includes('ຄຳ') || pType === '1';

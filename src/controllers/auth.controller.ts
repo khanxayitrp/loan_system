@@ -4,14 +4,14 @@ import config from '../config/auth.config';
 import jwt from 'jsonwebtoken';
 
 // 👉 1. Import Custom Errors เข้ามาใช้งาน
-import { 
-  BadRequestError, 
-  UnauthorizedError, 
-  ForbiddenError, 
-  NotFoundError 
+import {
+  BadRequestError,
+  UnauthorizedError,
+  ForbiddenError,
+  NotFoundError
 } from '../utils/errors';
 
-export type RoleType = 'admin' | 'staff' | 'partner' | 'customer';
+export type RoleType = 'admin' | 'staff' | 'partner' | 'customer' | 'auditor';
 
 class AuthController {
 
@@ -60,12 +60,13 @@ class AuthController {
       }
 
       const callerRole = req.userPayload.role as RoleType;
-      
+
       const allowedRolesForCaller: Record<RoleType, RoleType[]> = {
-        admin: ['admin', 'staff', 'partner', 'customer'],
+        admin: ['admin', 'staff', 'partner', 'customer', 'auditor'],
         staff: ['customer'],
-        partner: [], 
-        customer: [] 
+        partner: [],
+        customer: [],
+        auditor: []
       };
 
       const targetRole = req.body.role as RoleType;
@@ -79,7 +80,7 @@ class AuthController {
       }
 
       const newUser = await authService.registerUser(req.body);
-      
+
       return res.status(201).json({
         success: true,
         message: 'ສໍາເລັດໃນການສ້າງຜູ້ໃຊ້ງານ',
@@ -105,8 +106,8 @@ class AuthController {
       if (!user) {
         throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ');
       }
-      
-      return res.status(200).json({ 
+
+      return res.status(200).json({
         success: true,
         user: {
           id: user.id,
@@ -183,7 +184,7 @@ class AuthController {
   public async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
       const { oldPassword, newPassword } = req.body;
-      const userId = req.userPayload?.userId; 
+      const userId = req.userPayload?.userId;
 
       if (!userId) {
         throw new UnauthorizedError('ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ງານ');
@@ -211,7 +212,7 @@ class AuthController {
 
       const loginCount = await authService.getFirstLoggedInUser(userId);
 
-      return res.status(200).json({ 
+      return res.status(200).json({
         success: true,
         message: 'ຂໍ້ມູນການເຂົ້າສູ່ລະບົບຄັ້ງທຳອິດ',
         data: loginCount
@@ -250,7 +251,7 @@ class AuthController {
   public async superAppWebviewLogin(req: Request, res: Response, next: NextFunction) {
     try {
       // รับ Token ชั่วคราวที่ Super App ส่งมาให้
-      const { tempToken } = req.body; 
+      const { tempToken } = req.body;
 
       if (!tempToken) {
         throw new BadRequestError('ກະລຸນາສົ່ງ Temp Token ຈາກ Super App');
@@ -278,7 +279,7 @@ class AuthController {
       });
 
     } catch (error) {
-      next(error); 
+      next(error);
     }
   }
 }
