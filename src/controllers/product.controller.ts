@@ -273,12 +273,12 @@ class ProductController {
                         price: basePrice, // ອັບເດດລາຄາໃໝ່ (ຖ້າມີ)
                         is_active: 1
                     }, { transaction: t });
-                    
+
                     await logAudit('products', product.id, 'UPDATE', null, product.toJSON(), userId, t);
                 } else {
                     // 🟢 CASE B: ເປັນສິນຄ້າໃໝ່ແທ້ໆ -> ສ້າງໃໝ່ (Create)
                     const baseSystemSku = await ProductController.generateSystemSku(partner.id, globalCategoryId, model);
-                    
+
                     product = await db.products.create({
                         partner_id: partner.id,
                         productType_id: Number(mainRow['Local_Cat_ID'] || mainRow['ລະຫັດປະເພດສິນຄ້າ'] || 1),
@@ -307,7 +307,7 @@ class ProductController {
                     const size = row['Size_Capacity'] || row['ຂະໜາດ/ຄວາມຈຸ'];
 
                     if (color || size || variantSku || rows.length === 1) {
-                        
+
                         let variant: any = null;
 
                         // ຊອກຫາ Variant ເກົ່າ
@@ -315,13 +315,13 @@ class ProductController {
                             variant = await db.product_variants.findOne({ where: { product_id: product.id, merchant_sku: variantSku }, transaction: t });
                         } else {
                             // ຖ້າບໍ່ມີ Variant SKU ໃຫ້ຄົ້ນຫາຈາກ ສີ ແລະ ຂະໜາດ
-                            variant = await db.product_variants.findOne({ 
-                                where: { 
-                                    product_id: product.id, 
-                                    color: color || null, 
-                                    size_or_capacity: size || null 
-                                }, 
-                                transaction: t 
+                            variant = await db.product_variants.findOne({
+                                where: {
+                                    product_id: product.id,
+                                    color: color || null,
+                                    size_or_capacity: size || null
+                                },
+                                transaction: t
                             });
                         }
 
@@ -334,7 +334,7 @@ class ProductController {
                                 stock_quantity: variant.stock_quantity + vStock,
                                 price: vPrice
                             }, { transaction: t });
-                            
+
                             await logAudit('product_variants', variant.id, 'UPDATE', null, variant.toJSON(), userId, t);
                         } else {
                             // 🟢 ເປັນ Variant ໃໝ່ (ເຊັ່ນ ພາຍໃຕ້ສິນຄ້າເກົ່າ ແຕ່ເພີ່ມ ສີແດງ ເຂົ້າມາ) -> ສ້າງໃໝ່
@@ -358,7 +358,7 @@ class ProductController {
                         }
                     }
                 }
-                
+
                 importedCount++;
             }
 
@@ -576,7 +576,7 @@ class ProductController {
             const { is_active } = req.body;
             if (is_active === undefined) throw new ValidationError('ກະລຸນາລະບຸສະຖານະ is_active');
 
-            const success = await productRepo.deleteOneProduct(parseInt(req.params.id), req.userPayload?.userId as number, is_active);
+            const success = await productRepo.deActivatedOneProduct(parseInt(req.params.id), req.userPayload?.userId as number, is_active);
             if (!success) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ ຫຼື ທ່ານບໍ່ມີສິດແກ້ໄຂ');
 
             await redisService.delByPattern('cache:products:*');

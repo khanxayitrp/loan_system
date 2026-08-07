@@ -1101,9 +1101,64 @@ class LoanApplicationRepository {
             // ==========================================
             // 🌟 STEP 6: ສົ່ງແຈ້ງເຕືອນ (ສະເພາະ Case ປ່ອຍສິນເຊື່ອສຳເລັດ)
             // ==========================================
+            // ----------------------------------------------------
+            // 🟢 6.1: แจ้งเตือนพนักงาน/ผู้บริหาร (Credit Manager ขึ้นไป)
+            // ----------------------------------------------------
+            try {
+                let targetStaffLevels: string[] = [];
+                let staffNotifTitle = '';
+                let staffNotifBody = '';
+                const loanNumber = loanApplication.loan_id || loanApplicationId;
+
+                // กรณีที่ 1: สถานะเป็น 'verifying' (รอหัวหน้าสินเชื่อตรวจสอบ)
+                if (finalStatus === 'verifying' && loanApplication.status !== 'verifying') {
+                    targetStaffLevels = ['credit_manager'];
+                    staffNotifTitle = 'ມີຄຳຂໍສິນເຊື່ອລໍຖ້າກວດກາ 📄';
+                    staffNotifBody = `ໃບຄຳຂໍສິນເຊື່ອເລກທີ ${loanNumber} ຕ້ອງການການກວດກາຈາກຫົວໜ້າສິນເຊື່ອ.`;
+                }
+                // กรณีที่ 2: สถานะเป็น 'verified' (หัวหน้าสินเชื่อผ่านแล้ว รอผู้บริหารอนุมัติ)
+                else if (finalStatus === 'verified' && loanApplication.status !== 'verified') {
+                    targetStaffLevels = ['approver', 'deputy_director', 'director'];
+                    staffNotifTitle = 'ສິນເຊື່ອລໍຖ້າການອະນຸມັດຂັ້ນສຸດທ້າຍ ✍️';
+                    staffNotifBody = `ໃບຄຳຂໍສິນເຊື່ອເລກທີ ${loanNumber} ຜ່ານການກວດກາແລ້ວ, ລໍຖ້າການອະນຸມັດປ່ອຍກູ້ຈາກຜູ້ບໍລິຫານ.`;
+                }
+
+                // หากมีเงื่อนไขที่ต้องส่งแจ้งเตือนพนักงาน
+                if (targetStaffLevels.length > 0) {
+                    // ดึง User IDs ของพนักงานที่มี Role ตามที่กำหนดและยัง Active อยู่
+                    const targetStaffs = await db.users.findAll({
+                        where: {
+                            staff_level: { [Op.in]: targetStaffLevels },
+                            is_active: 1
+                        },
+                        attributes: ['id']
+                    });
+
+                    if (targetStaffs.length > 0) {
+                        // ส่ง In-App Notification หาผู้บริหารทุกคนที่เกี่ยวข้อง
+                        for (const staff of targetStaffs) {
+                            await notificationService.sendNotification({
+                                recipient_type: RecipientType.STAFF, // หรือใช้ Enum ของระบบคุณ เช่น 'USER' หรือ 'STAFF'
+                                recipient_id: staff.id,
+                                event_type: NotificationEventType.APPLICATION_PENDING || 'LOAN_ACTION_REQUIRED',
+                                title: staffNotifTitle,
+                                body: staffNotifBody,
+                                reference_type: 'loan_applications',
+                                reference_id: loanApplicationId,
+                            });
+                        }
+                    }
+                }
+            } catch (staffNotifError) {
+                logger.error(`[Loan Update] Failed to send staff notification for Loan ${loanApplicationId}: ${(staffNotifError as Error).message}`);
+            }
+
+            // ----------------------------------------------------
+            // 🟢 6.2: แจ้งเตือนลูกค้า (เฉพาะตอนปล่อยสินเชื่อเสร็จสิ้น)
+            // ----------------------------------------------------
             if (finalStatus === 'disbursed' && loanApplication.status !== 'disbursed') {
                 try {
-                    // ດຶງຂໍ້ມູນລູກຄ້າ ແລະ ສິນຄ້າເພີ່ມເຕີມ ເພື່ອເອົາເບີໂທ ແລະ ຊື່ສິນຄ້າ (ເພາະໃນ Query ຫຼັກເຮົາບໍ່ໄດ້ Include ມາ)
+                    // ດຶງຂໍ້ມູນລູກຄ້າ ແລະ ສິນຄ້າເພີ່ມເຕີມ ເພື່ອເອົາເບີໂທ ແລະ ຊື່ສິນຄ້າ 
                     const loanDetails = await db.loan_applications.findByPk(loanApplicationId, {
                         include: [
                             { model: db.customers, as: 'customer' },
@@ -1120,12 +1175,11 @@ class LoanApplicationRepository {
                         const notifTitle = 'ສິນເຊື່ອໄດ້ຮັບການອະນຸມັດແລ້ວ 🎉';
                         const notifBody = `ຊົມເຊີຍ! ໃບຄຳຂໍສິນເຊື່ອເລກທີ ${loanNumber} ສຳລັບ ${productName} ໄດ້ຮັບການອະນຸມັດ ແລະ ປ່ອຍກູ້ສຳເລັດແລ້ວ. ທ່ານສາມາດເຂົ້າເບິ່ງຕາຕະລາງຜ່ອນຊຳລະໄດ້ໃນແອັບ.`;
 
-                        // 1. ສົ່ງ In-App Notification (ເກັບລົງ Database)
-                        // ຢ່າລືມ Import notificationService ແລະ NotificationEventType ໄວ້ເທິງສຸດຂອງໄຟລ໌
+                        // 1. ສົ່ງ In-App Notification
                         await notificationService.sendNotification({
                             recipient_type: RecipientType.CUSTOMER,
                             recipient_id: customerId,
-                            event_type: NotificationEventType.LOAN_APPROVED, // ໃຊ້ Enum ຖ້າມີ
+                            event_type: NotificationEventType.LOAN_APPROVED,
                             title: notifTitle,
                             body: notifBody,
                             reference_type: 'loan_applications',
@@ -1147,10 +1201,10 @@ class LoanApplicationRepository {
                         }
                     }
                 } catch (notifError) {
-                    // ຖ້າແຈ້ງເຕືອນພັງ ກໍບໍ່ໃຫ້ກະທົບກັບການອະນຸມັດທີ່ສຳເລັດໄປແລ້ວ
-                    logger.error(`[Loan Update] Failed to send approval notification for Loan ${loanApplicationId}: ${(notifError as Error).message}`);
+                    logger.error(`[Loan Update] Failed to send customer approval notification for Loan ${loanApplicationId}: ${(notifError as Error).message}`);
                 }
             }
+
             // ==========================================
             return updatedLoanApplication;
 
@@ -1158,6 +1212,7 @@ class LoanApplicationRepository {
             await t.rollback();
             throw error;
         }
+
     }
     private async logApprovalAction(applicationId: number, action: action, statusFrom: string | undefined, statusTo: string, remarks: string | undefined, userId: number, t: Transaction): Promise<void> {
         await db.loan_approval_logs.create({

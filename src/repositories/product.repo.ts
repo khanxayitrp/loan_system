@@ -53,9 +53,9 @@ class ProductRepository {
                 throw new Error('Product partner ID is required');
             }
 
-            const existProduct = await db.products.findOne({ 
+            const existProduct = await db.products.findOne({
                 where: { partner_id: cleanProduct.partner_id, product_name: cleanProduct.product_name },
-                transaction: t 
+                transaction: t
             });
             if (existProduct) {
                 logger.error(`Product with This Partner product already exists: ${cleanProduct.product_name}`);
@@ -132,7 +132,8 @@ class ProductRepository {
     }
 
     async findProductsByPartnerId(partnerId: number): Promise<products[]> {
-        return await db.products.findAll({ where: { partner_id: partnerId, is_active: 1 },
+        return await db.products.findAll({
+            where: { partner_id: partnerId, is_active: 1 },
             include: [
                 {
                     model: db.product_types,
@@ -144,7 +145,7 @@ class ProductRepository {
                     as: 'partner',
                     attributes: ['id', 'shop_name']
                 }
-            ] 
+            ]
         });
     }
 
@@ -169,12 +170,12 @@ class ProductRepository {
             }
 
             const oldData = product.toJSON();
-            
+
             // ກອງເອົາແຕ່ຂໍ້ມູນທີ່ຈະອັບເດດແທ້ໆ
             const updateData: any = {};
             const allowedFields = [
-                'productType_id', 'global_category_id', 'product_name', 
-                'description', 'brand', 'model', 'price', 'image_url', 
+                'productType_id', 'global_category_id', 'product_name',
+                'description', 'brand', 'model', 'price', 'image_url',
                 'merchant_sku', 'stock_quantity', 'reserved_stock', 'allowed_loan_type'
             ];
             for (const field of allowedFields) {
@@ -202,7 +203,7 @@ class ProductRepository {
         }
     }
 
-    async deleteOneProduct(productId: number, partnerId: number, status: number, performedBy: number = 1): Promise<boolean> {
+    async deActivatedOneProduct(productId: number, partnerId: number, status: number, performedBy: number = 1): Promise<boolean> {
         const t = await db.sequelize.transaction();
         try {
             const product = await this.findProductById(productId);
@@ -223,10 +224,20 @@ class ProductRepository {
             const oldData = product.toJSON();
             const updateData = { is_active: status };
 
-            await product.update(updateData, { 
-                where: { id: productId, partner_id: partner!.dataValues.id },
-                transaction: t 
-            });
+            console.log("========================")
+            console.log(oldData)
+            console.log("========================")
+            console.log(updateData)
+            console.log("========================")
+
+            // อัปเดตผ่าน Model โดยตรง
+            await db.products.update(
+                { is_active: status }, // สิ่งที่ต้องการแก้
+                {
+                    where: { id: productId }, // เงื่อนไข
+                    transaction: t
+                }
+            );
 
             // 🟢 ບັນທຶກ Audit Log (UPDATE - Switch Status)
             await logAudit('products', productId, 'UPDATE', oldData, updateData, performedBy, t);
@@ -281,7 +292,7 @@ class ProductRepository {
 
             await t.commit();
             logger.info(`Bulk updated status to ${status} for ${updateCount} products by partner ID: ${partnerId}`);
-            return updateCount; 
+            return updateCount;
 
         } catch (error) {
             await t.rollback();
@@ -291,14 +302,14 @@ class ProductRepository {
     }
 
     async findAllActiveProducts(options: {
-        search?: string,            
-        searchText?: string,        
+        search?: string,
+        searchText?: string,
         limit?: number,
         page?: number,
         getAllData?: boolean,
         shop_id?: number,
-        is_active?: number,         
-        productType_id?: number     
+        is_active?: number,
+        productType_id?: number
     }) {
         const { search, searchText, limit, page, getAllData = false, shop_id, is_active, productType_id } = options;
 
@@ -369,11 +380,12 @@ class ProductRepository {
 
     async findProductsByType(productTypeId: number): Promise<products[]> {
         return await db.products.findAll(
-            { where: 
-                { 
-                    productType_id: productTypeId, is_active: 1 
+            {
+                where:
+                {
+                    productType_id: productTypeId, is_active: 1
 
-                }, 
+                },
                 include: [
                     {
                         model: db.product_types,
@@ -390,7 +402,8 @@ class ProductRepository {
     }
 
     async findProductsByTypeAndPartner(productTypeId: number, partnerId: number): Promise<products[]> {
-        return await db.products.findAll({ where: { productType_id: productTypeId, partner_id: partnerId, is_active: 1 },
+        return await db.products.findAll({
+            where: { productType_id: productTypeId, partner_id: partnerId, is_active: 1 },
             include: [
                 {
                     model: db.product_types,
@@ -402,12 +415,13 @@ class ProductRepository {
                     as: 'partner',
                     attributes: ['id', 'shop_name']
                 }
-            ] 
-            });
+            ]
+        });
     }
 
     async findProductsByPriceRange(minPrice: number, maxPrice: number): Promise<products[]> {
-        return await db.products.findAll({ where: { price: { [Op.between]: [minPrice, maxPrice] }, is_active: 1 },
+        return await db.products.findAll({
+            where: { price: { [Op.between]: [minPrice, maxPrice] }, is_active: 1 },
             include: [
                 {
                     model: db.product_types,
@@ -419,7 +433,7 @@ class ProductRepository {
                     as: 'partner',
                     attributes: ['id', 'shop_name']
                 }
-            ] 
+            ]
         });
     }
 
@@ -427,13 +441,13 @@ class ProductRepository {
         const t = await db.sequelize.transaction();
         try {
             const partner = await db.partners.findOne({ where: { user_id: partnerId }, transaction: t })
-            
+
             // 🟢 ດຶງຂໍ້ມູນເກົ່າທັງໝົດທີ່ກຳລັງຈະຖືກປ່ຽນສະຖານະ ເພື່ອມາເກັບ Log
-            const productsToUpdate = await db.products.findAll({ 
+            const productsToUpdate = await db.products.findAll({
                 where: { partner_id: partner!.dataValues.id },
-                transaction: t 
+                transaction: t
             });
-            
+
             if (productsToUpdate.length === 0) {
                 logger.error(`No products found for partner ID: ${partnerId} to delete`);
                 await t.rollback();
@@ -441,7 +455,7 @@ class ProductRepository {
             }
 
             const deleteCount = await db.products.update(
-                { is_active: 0 }, 
+                { is_active: 0 },
                 { where: { partner_id: partner!.dataValues.id }, transaction: t }
             );
 
