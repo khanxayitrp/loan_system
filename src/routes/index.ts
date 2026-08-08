@@ -23,6 +23,7 @@ import addressRouter from './province_district.routes';
 import loanSuperAppRouter from './loan_superapp.routes';
 import notiRouter from './notification.routes';
 import loanRestructureRouter from './loan-restructure.routes';
+import dashboardRouter from './dashboard.routes';
 
 const router = express.Router();
 
@@ -41,7 +42,7 @@ router.use('/otp', otpRouter);
 
 router.use('/users', userRouter);
 
-router.use('/productTypes',productTypeRouter);
+router.use('/productTypes', productTypeRouter);
 
 router.use('/shops', partnerRouter);
 
@@ -68,12 +69,14 @@ router.use('/global-categories', globalCategoriesRouter);
 router.use('/repayments', repaymentRouter);
 
 router.use('/address', addressRouter);
- 
+
 router.use('/loan-superapp', loanSuperAppRouter);
 
 router.use('/notifications', notiRouter);
 
 router.use('/loan-restructure', loanRestructureRouter);
+
+router.use('/dashboard', dashboardRouter);
 
 
 export default router;

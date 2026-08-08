@@ -62,26 +62,41 @@ class NotificationService {
     // 🌟 1. ฟังก์ชันส่งการแจ้งเตือน (สร้างใหม่)
     public async sendNotification(payload: CreateNotificationInput, transaction?: Transaction) {
         try {
-            // 1.1 บันทึกลง Database
+            // 1.1 บันทึกลง Database (Map โครงสร้างให้ชัดเจน ป้องกัน Type Mismatch)
             const notification = await db.notifications.create({
-                ...payload,
-                data: payload.data ? payload.data : undefined,
-                created_at: new Date()
-            } as any, { transaction });
+                recipient_type: payload.recipient_type, // 'CUSTOMER' หรือ 'STAFF'
+                recipient_id: payload.recipient_id,
+                event_type: payload.event_type,
+                title: payload.title,
+                body: payload.body,
+                // 🌟 แก้ไข: ใช้ ?? undefined แทน || null เพื่อแก้ปัญหา TS2322 
+                // Sequelize จะตัดฟิลด์ที่เป็น undefined ทิ้ง และ DB จะใส่ค่า DEFAULT NULL ให้เอง
+                reference_type: payload.reference_type ?? undefined,
+                reference_id: payload.reference_id ?? undefined,
+                // 🌟 แก้ไข: ถอด JSON.stringify ออก ส่ง Object เข้าไปตรงๆ ได้เลย
+                // Sequelize จะทำการแปลง Object ให้เป็น JSON String ตอนบันทึกลง DB ให้อัตโนมัติ
+                data: payload.data ?? undefined,
+            }, { transaction });
 
-            // 1.2 เพิ่มยอด Unread Count ใน Redis (เพื่อให้แอปดึงตัวเลขไปโชว์ได้ไวๆ)
-            const redisKey = `unread_count:${payload.recipient_type}:${payload.recipient_id}`;
-            await redisService.incr(redisKey); // บวก 1 อัตโนมัติ
+            // 1.2 เพิ่มยอด Unread Count ใน Redis
+            // 🌟 หุ้มด้วย Try-Catch แยกต่างหาก เพื่อไม่ให้ Redis Error ไปทำให้ DB Rollback
+            try {
+                const redisKey = `unread_count:${payload.recipient_type}:${payload.recipient_id}`;
+                await redisService.incr(redisKey);
+            } catch (redisError) {
+                logger.warn(`[NotificationService] Redis increment failed for ${payload.recipient_type}:${payload.recipient_id}: ${(redisError as Error).message}`);
+            }
 
-            // 1.3 (Option) โยนเข้า Message Queue (เช่น BullMQ) เพื่อให้ Worker ไปยิง Firebase (FCM) ต่อ
-            // await pushNotificationQueue.add('send_push', { notificationId: notification.id, payload });
+            // 1.3 (Option) โยนเข้า Message Queue 
+            // try { ... } catch (queueError) { ... }
 
             return notification;
+
         } catch (error) {
-            logger.error(`[NotificationService] Failed to send notification: ${(error as Error).message}`);
+            // 🌟 พิมพ์ Error จาก Database ให้ชัดเจน ว่าทำไมถึง Insert ไม่ลง
+            logger.error(`[NotificationService] Failed to insert notification to DB: ${(error as Error).message}`);
             throw error;
         }
-
     }
 
     // 🌟 2. ดึงรายการแจ้งเตือน (พร้อม Pagination)

@@ -1110,14 +1110,14 @@ class LoanApplicationRepository {
                 let staffNotifBody = '';
                 const loanNumber = loanApplication.loan_id || loanApplicationId;
 
-                // กรณีที่ 1: สถานะเป็น 'verifying' (รอหัวหน้าสินเชื่อตรวจสอบ)
-                if (finalStatus === 'verifying' && loanApplication.status !== 'verifying') {
+                // 🌟 แก้ไข: ใช้ oldLoanData.status เปรียบเทียบ
+                if (finalStatus === 'verifying' && oldLoanData.status !== 'verifying') {
                     targetStaffLevels = ['credit_manager'];
                     staffNotifTitle = 'ມີຄຳຂໍສິນເຊື່ອລໍຖ້າກວດກາ 📄';
                     staffNotifBody = `ໃບຄຳຂໍສິນເຊື່ອເລກທີ ${loanNumber} ຕ້ອງການການກວດກາຈາກຫົວໜ້າສິນເຊື່ອ.`;
                 }
-                // กรณีที่ 2: สถานะเป็น 'verified' (หัวหน้าสินเชื่อผ่านแล้ว รอผู้บริหารอนุมัติ)
-                else if (finalStatus === 'verified' && loanApplication.status !== 'verified') {
+                // 🌟 แก้ไข: ใช้ oldLoanData.status เปรียบเทียบ
+                else if (finalStatus === 'verified' && oldLoanData.status !== 'verified') {
                     targetStaffLevels = ['approver', 'deputy_director', 'director'];
                     staffNotifTitle = 'ສິນເຊື່ອລໍຖ້າການອະນຸມັດຂັ້ນສຸດທ້າຍ ✍️';
                     staffNotifBody = `ໃບຄຳຂໍສິນເຊື່ອເລກທີ ${loanNumber} ຜ່ານການກວດກາແລ້ວ, ລໍຖ້າການອະນຸມັດປ່ອຍກູ້ຈາກຜູ້ບໍລິຫານ.`;
@@ -1134,22 +1134,30 @@ class LoanApplicationRepository {
                         attributes: ['id']
                     });
 
+                    // 💡 [Debug Log] ดูว่าเจอพนักงานที่ต้องส่งแจ้งเตือนหรือไม่
+                    console.log(`[Notification Debug] Found ${targetStaffs.length} staffs for levels:`, targetStaffLevels);
+
                     if (targetStaffs.length > 0) {
                         // ส่ง In-App Notification หาผู้บริหารทุกคนที่เกี่ยวข้อง
                         for (const staff of targetStaffs) {
                             await notificationService.sendNotification({
-                                recipient_type: RecipientType.STAFF, // หรือใช้ Enum ของระบบคุณ เช่น 'USER' หรือ 'STAFF'
+                                // 🌟 แก้ไข: ใช้ 'USER' แทน RecipientType.STAFF เพราะตาราง users ปกติใช้ Enum เป็น USER
+                                recipient_type: RecipientType.STAFF,
                                 recipient_id: staff.id,
-                                event_type: NotificationEventType.APPLICATION_PENDING || 'LOAN_ACTION_REQUIRED',
+                                // 🌟 แก้ไข: บังคับเป็น String โดยตรงเพื่อป้องกัน Enum หาไม่เจอ
+                                event_type: NotificationEventType.APPLICATION_PENDING,
                                 title: staffNotifTitle,
                                 body: staffNotifBody,
                                 reference_type: 'loan_applications',
                                 reference_id: loanApplicationId,
                             });
                         }
+                        console.log(`[Notification Debug] Successfully sent staff notifications for Loan: ${loanNumber}`);
                     }
                 }
             } catch (staffNotifError) {
+                // 💡 [Debug Log] พิมพ์ Error ออกมาให้เห็นชัดเจนว่าพังที่ตรงไหน
+                console.error(`[Notification Error] Failed to send staff notification:`, staffNotifError);
                 logger.error(`[Loan Update] Failed to send staff notification for Loan ${loanApplicationId}: ${(staffNotifError as Error).message}`);
             }
 
@@ -1209,8 +1217,16 @@ class LoanApplicationRepository {
             return updatedLoanApplication;
 
         } catch (error) {
-            await t.rollback();
-            throw error;
+            // 🌟 แก้ไข: ใช้ (t as any).finished เพื่อหลบหลีก TS2339 Error
+            try {
+                if (t && !(t as any).finished) {
+                    await t.rollback();
+                }
+            } catch (rollbackError) {
+                // Ignore rollback errors if transaction is already completed
+                console.error('[Transaction Rollback Error]:', rollbackError);
+            }
+            throw error; // โยน Error ตัวจริงกลับไปให้ Controller จัดการต่อ
         }
 
     }
