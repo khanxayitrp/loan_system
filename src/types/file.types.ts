@@ -32,7 +32,10 @@ export interface FileUploadConfig {
   fileNamePrefix?: string;
 }
 
+// 🌟 1. ย้าย override_evidence มาไว้ใน DocumentType (เพราะรองรับ PDF ด้วย)
 export type DocumentType = 'id_card' | 'house_reg' | 'salary_slip' | 'face_scan' | 'other';
+
+// 🌟 2. เอาออกจาก ImageType
 export type ImageType = 'product' | 'shop_logo' | 'payment_proof' | 'signature';
 
 export const FILE_UPLOAD_CONFIG = {
@@ -46,6 +49,18 @@ export const FILE_UPLOAD_CONFIG = {
       'application/pdf'
     ],
     uploadDir: 'uploads/documents'
+  },
+
+  // Override Evidence
+  OVERRIDE_EVIDENCES: {
+    maxFileSize: 5 * 1024 * 1024, // 5MB
+    allowedMimeTypes: [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'application/pdf'
+    ],
+    uploadDir: 'uploads/override'
   },
 
   // Signature

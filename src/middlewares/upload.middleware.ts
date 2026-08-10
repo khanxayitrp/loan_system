@@ -97,6 +97,14 @@ export const uploadSignature = multer({
   fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.SIGNATURE_IMAGES.allowedMimeTypes)
 });
 
+export const uploadOverrideEvidence = multer({
+  storage: memoryStorage,
+  limits: {
+    fileSize: FILE_UPLOAD_CONFIG.OVERRIDE_EVIDENCES.maxFileSize
+  },
+  fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.OVERRIDE_EVIDENCES.allowedMimeTypes)
+});
+
 /**
  * Generic upload middleware
  */

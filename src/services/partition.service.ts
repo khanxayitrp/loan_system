@@ -4,10 +4,18 @@ import { QueryTypes } from 'sequelize';
 import { logger } from '../utils/logger';
 import redisService from './redis.service'; // ปรับ path ให้ตรงกับโปรเจกต์ของคุณ
 
+// 🌟 1. สร้าง Interface กำหนดโครงสร้างตาราง
+interface PartitionConfig {
+    tableName: string;
+    valueType: 'STRING' | 'UNIX_TIMESTAMP';
+}
 class PartitionService {
     
-    // กำหนดรายชื่อตารางที่ต้องการจัดการ Partition แบบ Dynamic
-    private readonly PARTITIONED_TABLES = ['notifications'];
+    // 🌟 2. อัปเดตรายชื่อและตั้งค่าประเภทของแต่ละตาราง
+    private readonly PARTITIONED_TABLES: PartitionConfig[] = [
+        { tableName: 'notifications', valueType: 'STRING' }, // ตารางเดิมของคุณ (ใช้ DATETIME)
+        { tableName: 'audit_logs', valueType: 'UNIX_TIMESTAMP' } // ตารางใหม่ (ใช้ TIMESTAMP)
+    ];
     
     // ตั้งค่า Lock timeout สำหรับ Redis
     private readonly LOCK_TIMEOUT = 1800; // Lock ไว้ 30 นาที
@@ -16,7 +24,8 @@ class PartitionService {
      * รันตรวจสอบและสร้าง Partition ล่วงหน้า 3 เดือนสำหรับ 1 ตาราง
      * @param tableName ชื่อตารางที่ต้องการจัดการ
      */
-    private async ensureFuturePartitions(tableName: string): Promise<void> {
+    private async ensureFuturePartitions(config: PartitionConfig): Promise<void> {
+        const { tableName, valueType } = config; // 🌟 แตกตัวแปรออกมาใช้
         try {
             // 1. คำนวณหาเป้าหมาย: วันนี้ + 3 เดือน
             const targetDate = new Date();
@@ -59,11 +68,20 @@ class PartitionService {
 
             logger.info(`[PartitionService] Creating new partition ${partitionName} for table ${tableName}...`);
 
+            // 🌟 4. ตัดสินใจว่าจะใช้ Format แบบไหนตาม Config ที่ตั้งไว้
+            let boundaryValue = '';
+            if (valueType === 'UNIX_TIMESTAMP') {
+                boundaryValue = `UNIX_TIMESTAMP('${boundaryDateString}')`; // ไม่มี Single Quote ครอบข้างนอก
+            } else {
+                boundaryValue = `'${boundaryDateString}'`; // มี Single Quote สำหรับ DATETIME ปกติ
+            }
+
+            // 5. ถ้ายังไม่มี ให้สร้างใหม่โดยการ REORGANIZE p_future
             // 5. ถ้ายังไม่มี ให้สร้างใหม่โดยการ REORGANIZE p_future
             const alterQuery = `
                 ALTER TABLE ${tableName}
                 REORGANIZE PARTITION p_future INTO (
-                    PARTITION ${partitionName} VALUES LESS THAN ('${boundaryDateString}'),
+                    PARTITION ${partitionName} VALUES LESS THAN (${boundaryValue}), 
                     PARTITION p_future VALUES LESS THAN (MAXVALUE)
                 );
             `;
