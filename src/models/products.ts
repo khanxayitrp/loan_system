@@ -297,6 +297,17 @@ export class products extends Model<productsAttributes, productsCreationAttribut
           { name: "global_category_id" },
         ]
       },
+      // 🟢 เพิ่ม Index ใหม่ตรงนี้
+      {
+        name: "idx_partner_active",
+        using: "BTREE",
+        fields: [{ name: "partner_id" }, { name: "is_active" }]
+      },
+      {
+        name: "idx_product_name",
+        using: "BTREE",
+        fields: [{ name: "product_name" }]
+      }
     ]
   });
   }

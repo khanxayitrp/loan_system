@@ -513,6 +513,23 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
           { name: "variant_id" },
         ]
       },
+      // 🟢 เพิ่ม Index ใหม่ตรงนี้
+      {
+        name: "idx_unique_loan_id",
+        unique: true,
+        using: "BTREE",
+        fields: [{ name: "loan_id" }]
+      },
+      {
+        name: "idx_status",
+        using: "BTREE",
+        fields: [{ name: "status" }]
+      },
+      {
+        name: "idx_customer_status",
+        using: "BTREE",
+        fields: [{ name: "customer_id" }, { name: "status" }]
+      }
     ]
   });
   }

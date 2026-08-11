@@ -95,6 +95,15 @@ export class customer_locations extends Model<customer_locationsAttributes, cust
           { name: "customer_id" },
         ]
       },
+      // เพิ่มต่อท้ายใน indexes: [...]
+      {
+        name: "idx_customer_loctype",
+        using: "BTREE",
+        fields: [
+          { name: "customer_id" },
+          { name: "location_type" },
+        ]
+      }
     ]
   });
   }

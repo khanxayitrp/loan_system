@@ -274,7 +274,6 @@ class RepaymentService {
         requested_schedule_id: number | null,
         transaction: any
     ) {
-        // 1. ດຶງຕາຕະລາງທີ່ຍັງຄ້າງທັງໝົດ ມາລຽງຈາກເກົ່າໄປໃໝ່ (FIFO)
         const unpaidSchedules = await db.repayments.findAll({
             where: {
                 application_id: applicationId,
@@ -285,24 +284,15 @@ class RepaymentService {
             transaction
         });
 
-        if (unpaidSchedules.length === 0) {
-            throw new BadRequestError('ບໍ່ມີຍອດຄົງຄ້າງສຳລັບສັນຍານີ້');
-        }
+        if (unpaidSchedules.length === 0) throw new BadRequestError('ບໍ່ມີຍອດຄົງຄ້າງສຳລັບສັນຍານີ້');
 
-        // ====================================================
-        // 🌟 BEST PRACTICE: Auto-Correct ໃບບິນ
-        // ບັງຄັບໃຫ້ໃບບິນ (Receipt) ຜູກກັບງວດທີ່ເກົ່າທີ່ສຸດສະເໝີ
-        // ເພື່ອໃຫ້ລຳດັບການບັນທຶກຖືກຕ້ອງ 100% ຕາມຫຼັກການ Waterfall
-        // ====================================================
         const oldestUnpaidSchedule = unpaidSchedules[0];
         const actual_paid_schedule_id = oldestUnpaidSchedule.id;
 
-        // 🌟 ສ້າງຕົວແປມາເກັບສະຖິຕິການແບ່ງເງິນສຳລັບໃບບິນນີ້
         let total_principal_allocated = 0;
         let total_interest_allocated = 0;
         let total_penalty_allocated = 0;
 
-        // 2. ວົນ Loop ຕັດເງິນເທື່ອລະງວດ (Waterfall Algorithm)
         for (const schedule of unpaidSchedules) {
             if (remaining_cash <= 0 && remaining_discount <= 0) break;
 
@@ -310,16 +300,24 @@ class RepaymentService {
             let unpaid_interest = Number(schedule.interest_amount) - Number(schedule.paid_interest || 0);
             let unpaid_principal = Number(schedule.principal_amount) - Number(schedule.paid_principal || 0);
 
+            // 🌟 1. Allocate Discount (ແບ່ງສ່ວນຫຼຸດໄປຕັດຄ່າປັບ ແລະ ດອກເບ້ຍ)
+            let schedule_discount = 0;
+
             if (remaining_discount > 0) {
                 const discountToPenalty = Math.min(remaining_discount, unpaid_penalty);
                 unpaid_penalty -= discountToPenalty;
                 remaining_discount -= discountToPenalty;
+                schedule_discount += discountToPenalty;
 
                 const discountToInterest = Math.min(remaining_discount, unpaid_interest);
                 unpaid_interest -= discountToInterest;
                 remaining_discount -= discountToInterest;
+                schedule_discount += discountToInterest;
             }
 
+            const new_discount_amount = Number(schedule.discounts || 0) + schedule_discount;
+
+            // 🌟 2. Allocate Cash (ແບ່ງເງິນສົດໄປຕັດຕາມລຳດັບ Waterfall)
             const pay_penalty = Math.min(remaining_cash, Math.max(0, unpaid_penalty));
             remaining_cash -= pay_penalty;
             const new_paid_penalty = Number(schedule.paid_penalty || 0) + pay_penalty;
@@ -335,35 +333,33 @@ class RepaymentService {
             const new_paid_principal = Number(schedule.paid_principal || 0) + pay_principal;
             total_principal_allocated += pay_principal;
 
+            // 🌟 3. Logical Check (ຄິດໄລ່ວ່າຈ່າຍຄົບຫຼືຍັງ ໂດຍເອົາເງິນສົດ + ສ່ວນຫຼຸດ ທຽບກັບ ຍອດຕັ້ງຕົ້ນ)
+            const total_cleared = new_paid_principal + new_paid_interest + new_paid_penalty + new_discount_amount;
+            const total_expected = Number(schedule.principal_amount) + Number(schedule.interest_amount) + Number(schedule.penalty || 0);
+
             let newStatus: 'unpaid' | 'partial' | 'paid' | 'overdue' = schedule.payment_status as any;
-
-            const isPrincipalPaid = new_paid_principal >= Number(schedule.principal_amount);
-            const isInterestPaid = new_paid_interest >= Number(schedule.interest_amount);
-            const isPenaltyPaid = new_paid_penalty >= Number(schedule.penalty || 0);
-
-            if (isPrincipalPaid && isInterestPaid && isPenaltyPaid) {
+            
+            // ใช้ความคลาดเคลื่อนยอมรับได้เล็กน้อย ป้องกันทศนิยม (Precision Issue)
+            if (total_cleared >= (total_expected - 0.01)) {
                 newStatus = 'paid';
-            } else if (new_paid_principal > 0 || new_paid_interest > 0 || new_paid_penalty > 0) {
+            } else if (total_cleared > 0) {
                 newStatus = 'partial';
             }
 
+            // 🌟 4. บันทึก discount_amount ลง Database
             await repaymentRepo.updateRepayment(schedule.id, {
                 paid_principal: new_paid_principal,
                 paid_interest: new_paid_interest,
                 paid_penalty: new_paid_penalty,
+                discounts: new_discount_amount, // <-- ຈຸດທີ່ຂາດຫາຍໄປ
                 payment_status: newStatus as any,
                 paid_at: newStatus === 'paid' ? new Date() : schedule.paid_at
             }, transaction);
         }
 
-        // 3. ເຊັກວ່າຍັງເຫຼືອໜີ້ຄ້າງຫຼືບໍ່
         let isCompleted = false;
         const checkAll = await db.repayments.count({
-            where: {
-                application_id: applicationId,
-                payment_status: { [Op.ne]: 'paid' }
-            },
-            transaction
+            where: { application_id: applicationId, payment_status: { [Op.ne]: 'paid' } }, transaction
         });
 
         if (checkAll === 0) {
@@ -371,16 +367,9 @@ class RepaymentService {
             isCompleted = true;
         }
 
-        // 🌟 Return actual_paid_schedule_id ກັບຄືນໄປພ້ອມ
         return {
-            remaining_cash,
-            isCompleted,
-            actual_paid_schedule_id,
-            allocation: {
-                principal_paid: total_principal_allocated,
-                interest_paid: total_interest_allocated,
-                penalty_paid: total_penalty_allocated
-            }
+            remaining_cash, isCompleted, actual_paid_schedule_id,
+            allocation: { principal_paid: total_principal_allocated, interest_paid: total_interest_allocated, penalty_paid: total_penalty_allocated }
         };
     }
 

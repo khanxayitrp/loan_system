@@ -184,6 +184,13 @@ export class partners extends Model<partnersAttributes, partnersCreationAttribut
           { name: "user_id" },
         ]
       },
+      // 🟢 เพิ่ม Index ใหม่ตรงนี้
+      {
+        name: "idx_unique_shop_id",
+        unique: true,
+        using: "BTREE",
+        fields: [{ name: "shop_id" }]
+      }
     ]
   });
   }

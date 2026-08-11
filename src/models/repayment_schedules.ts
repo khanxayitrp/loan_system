@@ -161,6 +161,15 @@ export class repayment_schedules extends Model<repayment_schedulesAttributes, re
           { name: "created_by" },
         ]
       },
+      // เพิ่มต่อท้ายใน indexes: [...]
+      {
+        name: "idx_app_status",
+        using: "BTREE",
+        fields: [
+          { name: "application_id" },
+          { name: "status" },
+        ]
+      }
     ]
   });
   }

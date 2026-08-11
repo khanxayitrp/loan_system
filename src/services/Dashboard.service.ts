@@ -20,7 +20,8 @@ export class DashboardService {
             topProductsOverall,
             topProductsMonth,
             demographics,
-            topCustomers
+            topCustomers,
+            monthlyComparison
         ] = await Promise.all([
             // Metric 1: จำนวนร้านค้าทั้งหมด
             db.partners.count({ where: { is_active: 1 } }),
@@ -44,7 +45,9 @@ export class DashboardService {
             this.getCustomerDemographics(),
 
             // Table: ลูกค้ายอดเยี่ยม (อนุมัติแล้วมูลค่าสูงสุด)
-            this.getTopCustomers()
+            this.getTopCustomers(),
+
+            this.getMonthlyLoanComparison() // Chart 4: เปรียบเทียบยอดสินเชื่อรายเดือน (6 เดือนล่าสุด)
         ]);
 
         return {
@@ -61,7 +64,8 @@ export class DashboardService {
                 topProductsMonth,
                 demographics
             },
-            topCustomers
+            topCustomers,
+            monthlyComparison
         };
     }
     /**
@@ -243,6 +247,30 @@ export class DashboardService {
             name: `${c.first_name} ${c.last_name || ''}`.trim(),
             contracts: Number(c.contract_count),
             total: `${(Number(c.total_amount) / 1000000).toFixed(1)}M LAK`
+        }));
+    }
+    // ==========================================
+    // 🌟 ฟังก์ชันใหม่: ดึงข้อมูลเปรียบเทียบรายเดือน (ย้อนหลัง 6 เดือน)
+    // ==========================================
+    private async getMonthlyLoanComparison() {
+        const query = `
+            SELECT 
+                DATE_FORMAT(created_at, '%Y-%m') AS month_year,
+                COUNT(id) AS total_requests,
+                SUM(CASE WHEN status IN ('disbursed', 'completed', 'closed_early') THEN 1 ELSE 0 END) AS total_disbursed
+            FROM loan_applications
+            WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+            ORDER BY month_year DESC;
+        `;
+
+        const results: any[] = await db.sequelize.query(query, { type: QueryTypes.SELECT });
+
+        // แปลงผลลัพธ์เป็น Number ให้ Frontend ใช้งานง่าย
+        return results.map(row => ({
+            month: row.month_year,
+            requests: Number(row.total_requests || 0),
+            disbursed: Number(row.total_disbursed || 0)
         }));
     }
 }

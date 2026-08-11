@@ -144,6 +144,15 @@ export class document_signatures extends Model<document_signaturesAttributes, do
           { name: "user_id" },
         ]
       },
+      // เพิ่มต่อท้ายใน indexes: [...]
+      {
+        name: "idx_app_status",
+        using: "BTREE",
+        fields: [
+          { name: "application_id" },
+          { name: "status" },
+        ]
+      }
     ]
   });
   }

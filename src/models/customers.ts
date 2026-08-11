@@ -357,6 +357,17 @@ export class customers extends Model<customersAttributes, customersCreationAttri
           { name: "user_id" },
         ]
       },
+      // 🟢 เพิ่ม Index ใหม่ตรงนี้
+      {
+        name: "idx_fullname",
+        using: "BTREE",
+        fields: [{ name: "first_name" }, { name: "last_name" }]
+      },
+      {
+        name: "idx_kyc_status",
+        using: "BTREE",
+        fields: [{ name: "kyc_status" }]
+      }
     ]
   });
   }

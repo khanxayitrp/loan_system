@@ -131,6 +131,12 @@ export class customer_documents extends Model<customer_documentsAttributes, cust
           { name: "uploaded_by" },
         ]
       },
+      // 🟢 เพิ่ม Index ใหม่ตรงนี้
+      {
+        name: "idx_customer_doctype",
+        using: "BTREE",
+        fields: [{ name: "customer_id" }, { name: "doc_type" }]
+      }
     ]
   });
   }

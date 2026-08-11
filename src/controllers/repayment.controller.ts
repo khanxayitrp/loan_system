@@ -10,6 +10,8 @@ export const processPayment = async (req: Request, res: Response, next: NextFunc
         // ດຶງ ID ພະນັກງານທີ່ກຳລັງກົດຮັບເງິນ
         const receivedBy = (req as any).userPayload?.userId || 1;
 
+        console.log("-------------payload---------------:", payload)    
+
         // ສົ່ງໃຫ້ Service ຈັດການ
         const result = await repaymentService.processPayment(payload, receivedBy);
 

@@ -188,6 +188,23 @@ export class repayments extends Model<repaymentsAttributes, repaymentsCreationAt
           { name: "schedule_id" },
         ]
       },
+      // 🟢 เพิ่ม Index ใหม่ตรงนี้
+      {
+        name: "idx_app_status",
+        using: "BTREE",
+        fields: [
+          { name: "application_id" },
+          { name: "payment_status" },
+        ]
+      },
+      {
+        name: "idx_status_duedate",
+        using: "BTREE",
+        fields: [
+          { name: "payment_status" },
+          { name: "due_date" },
+        ]
+      }
     ]
   });
   }

@@ -727,6 +727,17 @@ export class loan_contract extends Model<loan_contractAttributes, loan_contractC
           { name: "variant_id" },
         ]
       },
+      // 🟢 เพิ่ม Index ใหม่ตรงนี้
+      {
+        name: "idx_cus_phone",
+        using: "BTREE",
+        fields: [{ name: "cus_phone" }]
+      },
+      {
+        name: "idx_cus_id_pass_number",
+        using: "BTREE",
+        fields: [{ name: "cus_id_pass_number" }]
+      }
     ]
   });
   }
