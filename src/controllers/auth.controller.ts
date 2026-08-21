@@ -257,6 +257,8 @@ class AuthController {
         throw new BadRequestError('ກະລຸນາສົ່ງ Temp Token ຈາກ Super App');
       }
 
+      console.log('Received tempToken from Super App:', tempToken);
+
       // นำไปประมวลผลผ่าน Service
       const { customer, token } = await authService.processSuperAppLogin(tempToken);
 

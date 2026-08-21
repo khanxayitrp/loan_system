@@ -71,7 +71,7 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
 };
 
 type Role = 'admin' | 'staff' | 'partner' | 'customer';
-type StaffLevel = 'sale' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'approver' | 'none';
+type StaffLevel = 'sale' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'assistant_director' | 'none';
 
 export const isAuthorized = (allowedRoles: Role[], allowedLevels: StaffLevel[] = []) => {
   return (req: Request, res: Response, next: NextFunction) => {

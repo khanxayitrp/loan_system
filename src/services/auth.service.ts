@@ -13,6 +13,7 @@ import { logAudit } from '../utils/auditLogger';
 import { formatStandardPhoneNumber } from '../utils/formatters'
 import { BadRequestError, NotFoundError, ConflictError, UnauthorizedError } from '../utils/errors';
 import axios from 'axios';
+import { decode } from 'punycode';
 
 class AuthService {
 
@@ -60,7 +61,7 @@ class AuthService {
             'payment_view', 'payment_create',
             'user_changepass'
           ];
-        } else if (['approver', 'credit_manager', 'deputy_director', 'director'].includes(level)) {
+        } else if (['assistant_director', 'credit_manager', 'deputy_director', 'director'].includes(level)) {
           // 🟢 กลุ่มผู้บริหาร/หัวหน้า: ดูทั้งหมด, อนุมัติ/ปฏิเสธ, และยืนยันการชำระเงิน
           // (ເພີ່ມ 'approver' ເຂົ້າກຸ່ມນີ້ເພື່ອໃຫ້ກົງກັບ Database ໃໝ່ທີ່ເຮົາຫາກໍເພີ່ມ)
           permissionCodes = [
@@ -319,23 +320,24 @@ class AuthService {
 
   private extractPhoneFromToken(tempToken: string): string {
     try {
-      // ถ้า token เป็น JWT ให้ decode ดูเนื้อใน (ยังไม่ verify signature ตรงนี้)
       const decoded: any = jwt.decode(tempToken);
 
       if (!decoded || decoded.iss != 'https://laolot.digital/') {
         throw new UnauthorizedError('Token ไม่ถูกต้อง');
       }
 
-      if (!decoded || !decoded.roleid || !decoded.userid || !decoded.DisplayName || !decoded.accesstype) {
+      // ✅ แก้ไข: รวมเงื่อนไขของ DisplayName ไว้ในวงเล็บ ใช้ || (OR) ข้างใน
+      if (!decoded || !decoded.roleid || !decoded.userid || !decoded.accesstype || !(decoded.DisplayName || decoded.displayName)) {
         throw new UnauthorizedError('Token ไม่ถูกต้อง');
       }
 
-      if (!decoded || !decoded.DisplayName) {
+      // ✅ แก้ไข: เช็คว่าถ้าไม่มีตัวไหนเลย ถึงจะ throw error
+      if (!decoded || !(decoded.DisplayName || decoded.displayName)) {
         throw new UnauthorizedError('ไม่พบเบอร์โทรใน Token');
       }
 
-      const phone = decoded.DisplayName;
-      return phone; // ⚠️ ค่านี้ยังไม่น่าเชื่อถือ 100% ต้องเอาไป verify กับ superapp อีกที
+      const phone = decoded.DisplayName || decoded.displayName;
+      return phone;
     } catch (error) {
       console.error('[AUTH SERVICE] Error decoding token:', error);
       throw new UnauthorizedError('รูปแบบ Token ไม่ถูกต้อง');

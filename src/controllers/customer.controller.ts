@@ -3,15 +3,18 @@ import customerRepo from '../repositories/customer.repo'; // ปรับ path �
 import { otpService } from '../services/otp.service';
 import { db } from '../models/init-models';
 import tokenService from '../services/token.service';
+import fileUploadService from '../services/fileUpload.service';
+import { FILE_UPLOAD_CONFIG } from '../types/file.types';
 
-// 👉 1. Import Custom Errors
+// 👉 Import Custom Errors
 import { 
     ValidationError, 
     BadRequestError, 
     NotFoundError, 
-    ForbiddenError // เตรียมไว้เผื่อใช้กรณี user ถูกแบน
+    ForbiddenError
 } from '../utils/errors'; 
 import { formatStandardPhoneNumber } from '../utils/formatters';
+import { Transaction } from 'sequelize';
 
 export const requestOtpForCustomer = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -20,7 +23,6 @@ export const requestOtpForCustomer = async (req: Request, res: Response, next: N
         throw new ValidationError('Phone number is required');
     }
 
-    // สร้างและส่ง OTP (ใน dev จะ log OTP ออกมา)
     const result = await otpService.sendOTP({
       phoneNumber: phone,
       message: 'Your OTP code is: {OTP}. Valid for 5 minutes.',
@@ -32,32 +34,49 @@ export const requestOtpForCustomer = async (req: Request, res: Response, next: N
       data: result
     });
   } catch (error) {
-    next(error); // โยนให้ Global Error Handler
+    next(error); 
   }
 };
 
 export const createCustomer = async (req: Request, res: Response, next: NextFunction) => {
+  let uploadedObjectKey: string | null = null; // 🌟 เก็บ Key ไว้ลบไฟล์กรณี Error (Rollback)
+
   try {
+    // ⚠️ ເມື່ອເປັນ multipart/form-data ຂໍ້ມູນທຸກຢ່າງໃນ req.body ຈະເປັນ String
     const {
       identity_number, first_name, last_name, phone, province_id, district_id,
-      address, occupation, income_per_month, other_debt, otp
+      address, occupation, income_per_month, other_debt, otp,
+      account_number
     } = req.body;
+
+    const file = req.file; // 🌟 ຮັບໄຟລ໌ຮູບຈາກ Multer Middleware
 
     if (!phone || !otp) {
         throw new ValidationError('ກະລຸນາລະບຸເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
     }
 
-    // Verify OTP ก่อน
-    const isValid = await otpService.verifyOTP({
-      phoneNumber: phone,
-      otp
-    });
+    // 1. ຢືນຢັນ OTP ກ່ອນອັບໂຫຼດຮູບ (ປ້ອງກັນການອັບໂຫຼດຖ້າ OTP ຜິດ)
+    const isValid = await otpService.verifyOTP({ phoneNumber: phone, otp });
     
-    // สมมติว่า verifyOTP รีเทิร์นค่ากลับมาเป็น boolean (ตามโค้ดเดิมของคุณ)
     if (!isValid) {
       throw new BadRequestError('Invalid or expired OTP');
     }
 
+    // 2. ອັບໂຫຼດຮູບໂປຣໄຟລ໌ (ຖ້າມີ)
+    let profile_image_url: string | null = null;
+    if (file) {
+        const uploadResult = await fileUploadService.uploadSingleFile(
+            file, 
+            FILE_UPLOAD_CONFIG.PROFILE_IMAGES, // 🌟 ອ້າງອີງ Config ທີ່ສ້າງໃໝ່
+            'profile'
+        );
+        if (uploadResult.success && uploadResult.fileUrl) {
+            profile_image_url = uploadResult.fileUrl;
+            uploadedObjectKey = uploadResult.filePath || null; // ເກັບ Key ໄວ້
+        }
+    }
+
+    // 3. ບັນທຶກຂໍ້ມູນລົງ Database
     const customer = await customerRepo.createCustomer({
       identity_number,
       first_name,
@@ -67,9 +86,11 @@ export const createCustomer = async (req: Request, res: Response, next: NextFunc
       district_id,
       address,
       occupation,
-      income_per_month,
-      other_debt,
-      // user_id: req.user?.id || null, // ถ้ามี auth จาก middleware
+      income_per_month: income_per_month ? Number(income_per_month) : undefined, // ແປງເປັນ Number
+      other_debt: other_debt ? Number(other_debt) : undefined, // ແປງເປັນ Number
+      profile_image_url: profile_image_url!,
+      account_number: account_number || null,
+      // user_id: req.user?.id || null, // ຖ້າມີ auth ຈາກ middleware
     });
 
     return res.status(201).json({
@@ -78,6 +99,11 @@ export const createCustomer = async (req: Request, res: Response, next: NextFunc
       data: customer
     });
   } catch (error) {
+    // 🌟 4. Rollback: ລຶບຮູບຖິ້ມ ຖ້າບັນທຶກ DB ບໍ່ສຳເລັດ
+    if (uploadedObjectKey) {
+        console.warn(`[Rollback] Deleting orphan file: ${uploadedObjectKey}`);
+        await fileUploadService.deleteFile(uploadedObjectKey).catch(e => console.error(e));
+    }
     next(error);
   }
 };
@@ -109,27 +135,22 @@ export const getCustomerById = async (req: Request, res: Response, next: NextFun
 export const getCustomerBySearch = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { phone, first_name, last_name } = req.query;
-    console.log("🔍 Incoming search params:", req.query);
 
     let customer = null;
 
-    // 1. ກໍລະນີຫາດ້ວຍເບີໂທ
     if (phone && typeof phone === 'string') {
       customer = await customerRepo.findCustomersByPhone(phone);
     }
 
-    // 2. ຖ້າຫາດ້ວຍເບີບໍ່ເຫັນ (ຫຼື ບໍ່ໄດ້ສົ່ງເບີມາ) ໃຫ້ຫາດ້ວຍຊື່-ນາມສະກຸນ
     if (!customer && first_name && last_name) {
-      const fullName = `${first_name} ${last_name}`; // 💡 แก้ไข string concatenation ให้ถูกต้อง
+      const fullName = `${first_name} ${last_name}`; 
       customer = await customerRepo.findCustomersByName(fullName);
     }
 
-    // 3. ຖ້າບໍ່ມີຂໍ້ມູນຫຍັງສົ່ງມາເລີຍ
     if (!phone && (!first_name || !last_name)) {
         throw new BadRequestError('ກະລຸນາລະບຸ ຊື່-ນາມສະກຸນ ຫຼື ເບີໂທລະສັບ');
     }
 
-    // 4. ສົ່ງຜົນລັດ
     if (!customer) {
         throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້າ');
     }
@@ -145,7 +166,6 @@ export const getCustomerBySearch = async (req: Request, res: Response, next: Nex
   }
 };
 
-// 🟢 API ສຳລັບລູກຄ້າທີ່ເຄີຍຂໍສິນເຊື່ອແລ້ວ ແຕ່ຕ້ອງການເຂົ້າລະບົບມາເພື່ອ "ອັບໂຫຼດເອກະສານ"
 export const verifyOtpAndGetToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { phone, otp } = req.body;
@@ -154,36 +174,22 @@ export const verifyOtpAndGetToken = async (req: Request, res: Response, next: Ne
       throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
     }
 
-    // ตรงนี้ดูจากโค้ดเดิมเหมือน otpService.verifyOTP จะรีเทิร์น object { success, message, data }
-    const verificationResult = await otpService.verifyOTP({
-      phoneNumber: phone,
-      otp
-    });
+    const verificationResult = await otpService.verifyOTP({ phoneNumber: phone, otp });
 
     if (!verificationResult.success) {
-        // ใช้ BadRequestError พร้อมส่งข้อมูลจำนวนครั้งที่เหลือกลับไปด้วย
         throw new BadRequestError(verificationResult.message || 'ລະຫັດ OTP ບໍ່ຖືກຕ້ອງ ຫຼື ໝົດອາຍຸແລ້ວ');
-        // หมายเหตุ: หากต้องการส่ง details (เช่น จำนวนครั้ง) แนะนำให้เพิ่ม details parameter ใน BadRequestError ของ utils/errors.ts ด้วย 
-        // หรือใช้วิธีส่งผ่าน ValidationError ได้เช่นกัน
     }
 
     const standardPhone = formatStandardPhoneNumber(phone);
-    // 2. ຄົ້ນຫາລູກຄ້າໃນຖານຂໍ້ມູນ ດ້ວຍເບີໂທ
-    const customer = await db.customers.findOne({ where: { phone:standardPhone } });
+    
+    const customer = await customerRepo.findCustomersByPhone(standardPhone);
 
     if (!customer) {
         throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້ານີ້ໃນລະບົບ. ກະລຸນາສະໝັກ ຫຼື ສົ່ງຄຳຂໍສິນເຊື່ອກ່ອນ.');
     }
-      
-    // 🔥 ด่านอรหันต์: ถ้าลูกค้าคนนี้ถูกระงับการใช้งาน
-    // if (customer.is_active === 0) {
-    //   throw new ForbiddenError('ບັນຊີລູກຄ້າຖືກລະງັບການນຳໃຊ້');
-    // }
 
-    // 3. 🟢 ສ້າງ Token ຂອງລູກຄ້າ ຜ່ານ TokenService
     const token = tokenService.generateCustomerToken(customer.id, customer.phone);
 
-    // 4. ສົ່ງ Token ກັບໄປໃຫ້ Frontend
     return res.status(200).json({
       success: true,
       message: 'ຢືນຢັນ OTP ສຳເລັດ, ໄດ້ຮັບ Token ແລ້ວ',
@@ -193,7 +199,19 @@ export const verifyOtpAndGetToken = async (req: Request, res: Response, next: Ne
           id: customer.id,
           phone: customer.phone,
           first_name: customer.first_name,
-          last_name: customer.last_name
+          last_name: customer.last_name,
+          profile_image_url: customer.profile_image_url, // 🌟 ສົ່ງຮູບກັບໄປໃຫ້ແອັບ
+          account_number: customer.account_number, // 🌟 ບັນຊີທະນາຄານ
+          membership: customer.membership_tier ? {
+              tier_name: customer.membership_tier.tier_name,
+              score: customer.membership_score
+          } : null,
+          credit_limits: customer.customer_credit ? {
+              total_limit: customer.customer_credit.credit_limit,
+              available_balance: customer.customer_credit.available_balance,
+              cash_advance_limit: customer.customer_credit.cash_advance_limit,
+              used_cash_advance: customer.customer_credit.used_cash_advance
+          } : null
         }
       }
     });

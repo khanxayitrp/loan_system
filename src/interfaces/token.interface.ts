@@ -1,7 +1,7 @@
 export interface TokenPayload {
   userId: number;
   role: 'admin' | 'staff' | 'partner' | 'customer';
-  staff_level?: 'sale' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'approver' | 'none';
+  staff_level?: 'sale' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'assistant_director' | 'none';
   permissions?: string[];
 
   phone?: string; // 🟢 สำหรับลูกค้า

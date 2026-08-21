@@ -206,30 +206,55 @@ router.post(
  * @swagger
  * /portal/applications:
  *   get:
- *     summary: Get all loan applications for the logged-in customer
+ *     summary: Get all loan applications for the logged-in customer (with Cursor Pagination)
  *     description: Retrieve a list of all loan applications owned by the authenticated customer
  *     tags: [Customer Portal]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: integer
+ *         description: ID of the last item from the previous page (for pagination)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of items to return (default is 10)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Filter by status (e.g., pending, approved)
+ *       - in: query
+ *         name: is_confirmed
+ *         schema:
+ *           type: integer
+ *         description: Filter by confirmation status (0 or 1)
  *     responses:
  *       200:
  *         description: List of applications retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   application_id:
- *                    type: integer
- *                   customer_id:
- *                     type: integer
- *                   status:
- *                     type: string
- *                   created_at:
- *                     type: string
- *                     format: date-time
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     # ... (properties ຂອງແຕ່ລະແຖວ)
+ *                 counts:
+ *                   type: object
+ *                 next_cursor:
+ *                   type: integer
+ *                   nullable: true
+ *                   description: The cursor to use for the next page. If null, there are no more pages.
  *       401:
  *         description: Unauthorized - Missing or invalid token
  *       500:

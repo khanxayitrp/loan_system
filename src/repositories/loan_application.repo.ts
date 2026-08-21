@@ -7,6 +7,7 @@ import { logAudit } from "../utils/auditLogger";
 import RepaymentRepository from './repayment.repo';
 import delivery_receiptRepo from "./delivery_receipt.repo";
 import notificationService from '../services/notification.service';
+import redisService from '../services/redis.service';
 import { NotificationEventType, RecipientType } from '../types/notification';
 
 export type action = "submitted" | "verified_basic" | "verified_call" | "verified_cib" | "verified_field" | "assessed_income" | "verified_delivery_receipt" | "approved" | "rejected" | "returned_for_edit" | "cancelled";
@@ -145,7 +146,6 @@ class LoanApplicationRepository {
     }
 
     async findLoanApplicationByCusIDandLoanId(customerId: number, loanId: number): Promise<loan_applications | null> {
-        // ກວດສອບກ່ອນວ່າເຄີຍສ້າງໄປແລ້ວຫຼືຍັງ ເພື່ອປ້ອງກັນ Memory Leak ແລະ Error ຊ້ຳຊ້ອນ
         if (!db.customers.associations.province_info) {
             db.customers.belongsTo(db.provinces, { foreignKey: 'province_id', as: 'province_info' });
         }
@@ -222,6 +222,7 @@ class LoanApplicationRepository {
             ],
         });
     }
+
     async findLoanApplicationById(loanApplicationId: number): Promise<loan_applications | null> {
         return await db.loan_applications.findOne({
             where: { id: loanApplicationId },
@@ -260,10 +261,9 @@ class LoanApplicationRepository {
                         }
                     ]
                 },
-                // 🟢 ເພີ່ມ Include ສຳລັບ Product Variants ຢູ່ນີ້!
                 {
                     model: db.product_variants,
-                    as: 'variant', // ⚠️ ໝາຍເຫດ: ກວດເບິ່ງ Alias (as) ໃນໄຟລ໌ init-models.ts ຂອງທ່ານອີກຮອບວ່າຕັ້ງຊື່ເປັນ 'variant' ຫຼື 'product_variant'
+                    as: 'variant',
                     attributes: ['id', 'color', 'size_or_capacity', 'merchant_sku', 'price']
                 },
                 {
@@ -294,21 +294,13 @@ class LoanApplicationRepository {
                 {
                     model: db.document_signatures,
                     as: 'document_signatures',
-                    // 1. ເພີ່ມ attributes ທີ່ຈຳເປັນໃຫ້ຄົບ
                     attributes: ['id', 'document_type', 'role_type', 'user_id', 'signer_name', 'status', 'signed_at'],
-                    // 2. ເອົາ where: { document_type: 'delivery_note' } ອອກ ເພື່ອໃຫ້ດຶງ contract ມານຳ
                     required: false,
                     where: {
                         [Op.or]: [
-                            { document_type: 'delivery_note' }, // เงื่อนไขที่ 1: เอา delivery_note ทั้งหมด
-                            {
-                                document_type: 'contract',
-                                status: 'signed'                // เงื่อนไขที่ 2: เอา contract ที่เซ็นแล้วเท่านั้น
-                            },
-                            {
-                                document_type: 'repayment_schedule',
-                                status: 'signed'
-                            }
+                            { document_type: 'delivery_note' },
+                            { document_type: 'contract', status: 'signed' },
+                            { document_type: 'repayment_schedule', status: 'signed' }
                         ]
                     }
                 }
@@ -316,15 +308,15 @@ class LoanApplicationRepository {
         });
     }
 
+    // =========================================================================
+    // 🌟 1. ອັບເດດມາໃຊ້ Cursor-Based Pagination ສຳລັບໜ້າລາຍການສິນເຊື່ອຂອງລູກຄ້າ
+    // =========================================================================
     async findLoanApplicationsByCustomerId(filters: any) {
-        const { customerId, status, is_confirmed, min, max, page, limit } = filters;
+        const { customerId, status, is_confirmed, min, max, limit, cursor } = filters;
         const whereClause: any = {};
 
         if (customerId) whereClause.customer_id = customerId;
 
-        console.log('Filters received in Repository:', filters);
-
-        // 🟢 ຈຸດທີ່ແກ້ໄຂ: ຖ້າສົ່ງ status ມາເປັນ array ຫຼຶ string ທີ່ມີຈຸດ ໃຫ້ເຮັດ Op.in ເລີຍ
         let inputStatus = filters.status || filters['status[]'];
         if (inputStatus) {
             if (Array.isArray(inputStatus)) {
@@ -344,21 +336,22 @@ class LoanApplicationRepository {
             if (max !== undefined) whereClause.total_amount[Op.lte] = max;
         }
 
-        let pageNum = 1;
+        // 🌟 Cursor Logic
         let limitNum = 10;
-        if (page) pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
         if (limit) limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
-        const offset = (pageNum - 1) * limitNum;
 
-        // 🟢 1. ດຶງຈຳນວນແຍກຕາມສະຖານະ (ໂດຍອ້າງອີງເງື່ອນໄຂດຽວກັນກັບ Data, ແຕ່ອາດຈະບໍ່ເອົາສະຖານະມາເປັນເງື່ອນໄຂ ເພື່ອໃຫ້ນັບລວມທັງໝົດໄດ້)
-        // ສ້າງ where condition ໃໝ່ສຳລັບນັບສະເພາະລູກຄ້າຄົນນີ້ (ແຕ່ບໍ່ filter ຕາມ status)
+        if (cursor) {
+            whereClause.id = { [Op.lt]: cursor }; // ໃຊ້ ID ທີ່ນ້ອຍກວ່າ (ສຳລັບການລຽງ DESC)
+        }
+
+        // 🟢 ດຶງຈຳນວນແຍກຕາມສະຖານະ (ສຳລັບໂຊຣ໌ຕົວເລກໃນ Tab ຕ່າງໆ)
         const countWhereClause: any = { ...whereClause };
-        delete countWhereClause.status; // ລຶບ status ອອກເພື່ອນັບທຸກໆສະຖານະຂອງລູກຄ້າ
-        delete countWhereClause.is_confirmed; // ລຶບ is_confirmed ອອກເພື່ອນับทຸກສະຖານະຂອງລູກຄ້າ
+        delete countWhereClause.status;
+        delete countWhereClause.is_confirmed;
+        delete countWhereClause.id; // ບໍ່ເອົາ Cursor ມາກັ່ນຕອງຕອນນັບຈຳນວນລວມ
 
         const DataCount = await db.loan_applications.findAll({
             where: countWhereClause,
-            // where: customerId ? { customer_id: customerId } : {}, // ຖ້າມີ customerId ໃຫ້ filter ตาม customer_id, ถ้าไม่มีให้ดึงทั้งหมด
             attributes: [
                 [
                     db.sequelize.literal(`
@@ -373,33 +366,22 @@ class LoanApplicationRepository {
                 ],
                 [db.sequelize.fn('COUNT', db.sequelize.col('*')), 'total']
             ],
-            // ປ່ຽນຈາກ group: [db.sequelize.literal('display_status')]
             group: ['display_status'],
             raw: true,
         });
 
-        // 🟢 ແປງຜົນລັບຈາກ Array ເປັນ Object ເພື່ອໃຫ້ອ່ານງ່າຍ ເຊັ່ນ { draft: 1, pending: 5, approved: 10 }
         const countsByStatus: Record<string, number> = {
-            draft: 0,
-            pending: 0,
-            verifying: 0,
-            approved: 0,
-            rejected: 0,
-            cancelled: 0,
-            completed: 0,
-            closed_early: 0
+            draft: 0, pending: 0, verifying: 0, approved: 0, rejected: 0, cancelled: 0, completed: 0, closed_early: 0
         };
 
         (DataCount as any[]).forEach((item) => {
             const statusName = item.display_status;
             const count = parseInt(item.total, 10) || 0;
-            if (statusName) {
-                countsByStatus[statusName] = count;
-            }
+            if (statusName) countsByStatus[statusName] = count;
         });
 
-        // 🟢 2. ດຶງຂໍ້ມູນລາຍລະອຽດ (Pagination)
-        const result = await db.loan_applications.findAndCountAll({
+        // 🟢 ດຶງຂໍ້ມູນລາຍການສິນເຊື່ອໂດຍໃຊ້ Limit & Cursor (ບໍ່ໃຊ້ Offset)
+        const result = await db.loan_applications.findAll({
             where: whereClause,
             attributes: ['id', 'loan_id', 'total_amount', 'loan_period', 'is_confirmed', 'status', 'created_at', 'updated_at'],
             include: [
@@ -407,41 +389,40 @@ class LoanApplicationRepository {
                 {
                     model: db.products, as: 'product', attributes: ['id', 'product_name', 'image_url'],
                     include: [
-                        {
-                            model: db.partners,
-                            as: 'partner',
-                            attributes: ['id', 'shop_name']
-                        }
+                        { model: db.partners, as: 'partner', attributes: ['id', 'shop_name'] }
                     ]
                 }
             ],
-            order: [['created_at', 'DESC']],
+            order: [['id', 'DESC']], // 🌟 ຕ້ອງລຽງຕາມ ID ເພື່ອໃຫ້ Cursor ເຮັດວຽກໄດ້ຖືກຕ້ອງ
             limit: limitNum,
-            offset: offset,
-            distinct: true // ສຳຄັນຫຼາຍ ເວລາມີ include ທີ່ມີຄວາມສຳພັນແບບ 1:M ເພື່ອໃຫ້ນັບແຖວຫຼັກຖືກຕ້ອງ
+            // distinct: true
         });
 
-        // 🟢 3. ສົ່ງຂໍ້ມູນກັບຄືນໄປໃນຮູບແບບທີ່ທ່ານຕ້ອງການ
+        // 🌟 ກຳນົດ Cursor ສຳລັບໜ້າຖັດໄປ
+        let nextCursor = null;
+        if (result.length > 0 && result.length === limitNum) {
+            nextCursor = result[result.length - 1].id;
+        }
+
         return {
-            data: result.rows,              // ຂໍ້ມູນລາຍລະອຽດຂອງໃບຄຳຂໍ
-            total: result.count,            // ຈຳນວນທັງໝົດທີ່ກົງກັບ Filter (ສຳລັບ Pagination)
-            counts: countsByStatus,         // ຂໍ້ມູນຈຳນວນແຍກຕາມສະຖານະ ເຊັ່ນ counts.draft, counts.pending
-            currentPage: pageNum,
-            totalPages: Math.ceil(result.count / limitNum)
+            data: result,
+            counts: countsByStatus,
+            next_cursor: nextCursor // 👈 ສົ່ງໄປໃຫ້ Frontend ໃຊ້ສຳລັບ Load More
         };
     }
 
-    async findLoanApplications(filters: any): Promise<{ rows: loan_applications[]; count: number }> {
-        const { customerId, requesterId, productId, status, min, max, is_confirmed, page, limit, minScore, maxScore } = filters;
+    // =========================================================================
+    // 🌟 2. ອັບເດດມາໃຊ້ Cursor-Based Pagination ສຳລັບໜ້າ Admin/ລາຍການທັງໝົດ
+    // =========================================================================
+    async findLoanApplications(filters: any): Promise<{ rows: loan_applications[]; count: number; next_cursor: number | null }> {
+        const { customerId, requesterId, productId, status, min, max, is_confirmed, limit, cursor, minScore, maxScore } = filters;
         const whereClause: any = {};
 
         if (customerId) whereClause.customer_id = customerId;
         if (requesterId) whereClause.requester_id = requesterId;
         if (productId) whereClause.product_id = productId;
-        if (status) whereClause.status = status;
         if (is_confirmed !== undefined) whereClause.is_confirmed = is_confirmed;
 
-        // 🟢 Add filter for credit score
         if (minScore !== undefined || maxScore !== undefined) {
             whereClause.credit_score = {};
             if (minScore !== undefined) whereClause.credit_score[Op.gte] = minScore;
@@ -449,7 +430,6 @@ class LoanApplicationRepository {
         }
 
         let inputStatus = filters.status || filters['status[]'];
-
         if (inputStatus) {
             if (Array.isArray(inputStatus)) {
                 whereClause.status = { [Op.in]: inputStatus };
@@ -466,13 +446,16 @@ class LoanApplicationRepository {
             if (max !== undefined) whereClause.total_amount[Op.lte] = max;
         }
 
-        let pageNum = 1;
         let limitNum = 10;
-        if (page) pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
         if (limit) limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
-        const offset = (pageNum - 1) * limitNum;
 
-        return await db.loan_applications.findAndCountAll({
+        // 🌟 Cursor Logic
+        if (cursor) {
+            whereClause.id = { [Op.lt]: cursor }; 
+        }
+
+        // 🟢 ດຶງຂໍ້ມູນລາຍການສິນເຊື່ອໂດຍໃຊ້ Limit & Cursor
+        const result = await db.loan_applications.findAll({
             where: whereClause,
             include: [
                 { model: db.customers, as: 'customer', attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone'] },
@@ -481,40 +464,50 @@ class LoanApplicationRepository {
                 { model: db.users, as: 'approver', attributes: ['id', 'username', 'full_name'] },
                 { model: db.delivery_receipts, as: 'delivery_receipt', attributes: ['id', 'application_id', 'receipts_id', 'status'] },
                 { model: db.loan_contract, as: 'loan_contracts', attributes: ['id', 'loan_contract_number'] },
-
-                // 🟢 ສ່ວນທີ່ແກ້ໄຂໃໝ່ (Multi-Approver Tracking & Delivery Note Support)
                 {
                     model: db.document_signatures,
                     as: 'document_signatures',
-                    // 1. ເພີ່ມ attributes ທີ່ຈຳເປັນໃຫ້ຄົບ
                     attributes: ['id', 'document_type', 'role_type', 'user_id', 'signer_name', 'status', 'signed_at'],
-                    // 2. ເອົາ where: { document_type: 'delivery_note' } ອອກ ເພື່ອໃຫ້ດຶງ contract ມານຳ
                     required: false,
                     where: {
                         [Op.or]: [
-                            { document_type: 'delivery_note' }, // เงื่อนไขที่ 1: เอา delivery_note ทั้งหมด
-                            {
-                                document_type: 'contract',
-                                status: 'signed'                // เงื่อนไขที่ 2: เอา contract ที่เซ็นแล้วเท่านั้น
-                            }
+                            { document_type: 'delivery_note' },
+                            { document_type: 'contract', status: 'signed' }
                         ]
                     },
-                    // 3. ດຶງຂໍ້ມູນ User (ຜູ້ອະນຸມັດ) ມາພ້ອມ
                     include: [
                         {
                             model: db.users,
-                            as: 'user', // ⚠️ ໝາຍເຫດ: ກວດເບິ່ງໃນ Model ວ່າທ່ານຕັ້ງ alias (as) ເປັນ 'user' ຫຼືຊື່ອື່ນເດີ້
+                            as: 'user', 
                             attributes: ['id', 'username', 'full_name'],
                             required: false
                         }
                     ]
                 }
             ],
-            order: [['created_at', 'DESC']],
+            order: [['id', 'DESC']], // 🌟 ຕ້ອງລຽງຕາມ ID ເພື່ອໃຫ້ Cursor ເຮັດວຽກໄດ້ຖືກຕ້ອງ
             limit: limitNum,
-            offset: offset,
-            distinct: true
+            // distinct: true
         });
+
+        let nextCursor = null;
+        if (result.length > 0 && result.length === limitNum) {
+            nextCursor = result[result.length - 1].id;
+        }
+
+        // 🟢 (Optional) ນັບຈຳນວນທັງໝົດເພື່ອສະແດງຜົນໃນໜ້າ Admin ແຕ່ຈະບໍ່ເອົາໄປໃຊ້ໃນການຄຳນວນໜ້າ
+        const countWhere = { ...whereClause };
+        delete countWhere.id; // ບໍ່ເອົາ cursor ໄປ filter ຕອນນັບ
+        const totalCount = await db.loan_applications.count({ where: countWhere,
+            distinct: true,
+            col: 'id'
+         });
+
+        return {
+            rows: result,
+            count: totalCount,
+            next_cursor: nextCursor // 👈 ສົ່ງໄປໃຫ້ Frontend ໃຊ້ສຳລັບ Load More
+        };
     }
 
     // =========================================================================
@@ -716,7 +709,7 @@ class LoanApplicationRepository {
                 const approverUser = await db.users.findByPk(data.approver_id, { transaction: t });
                 const staffLevel = approverUser?.staff_level ?? '';
 
-                if (approverUser?.role !== 'admin' && !['approver', 'credit_manager', 'deputy_director', 'director'].includes(staffLevel)) {
+                if (approverUser?.role !== 'admin' && !['assistant_director', 'credit_manager', 'deputy_director', 'director'].includes(staffLevel)) {
                     throw new ForbiddenError('ທ່ານບໍ່ມີສິດໃນການອະນຸມັດ ຫຼື ກວດກາສິນເຊື່ອ');
                 }
 
@@ -767,7 +760,7 @@ class LoanApplicationRepository {
                         roleType = 'credit_head';
                         actionIntent = 'verified';
                     }
-                    else if (['deputy_director', 'director', 'approver'].includes(staffLevel)) {
+                    else if (['deputy_director', 'director', 'assistant_director'].includes(staffLevel)) {
                         // ກຸ່ມຜູ້ບໍລິຫານ (ຕ້ອງໃຫ້ Credit Manager ຜ່ານກ່ອນ)
                         const cmSignature = await db.document_signatures.findOne({
                             where: { application_id: loanApplicationId, document_type: 'approval_summary', role_type: 'credit_head', status: 'signed' },
@@ -838,9 +831,8 @@ class LoanApplicationRepository {
                 const signatureStatus = finalStatus === 'rejected' ? 'rejected' : 'signed';
 
 
-                // 4.1 ອັບເດດລາຍເຊັນໃນໃບ Approval Summary
-                // (ລັອກໃຫ້ສະເພາະ credit_head ແລະ approver_1 ເທົ່ານັ້ນ)
-                if (['credit_head', 'approver_1'].includes(roleType)) {
+                // 🌟 4.1 ອັບເດດລາຍເຊັນໃນໃບ Approval Summary (ແກ້ໄຂແລ້ວ: ໃຫ້ Auto-sign ຮອດຄົນທີ 3 ໄດ້)
+                if (['credit_head', 'approver_1', 'approver_2', 'approver_3'].includes(roleType)) {
                     const existingSummarySig = await db.document_signatures.findOne({
                         where: { application_id: loanApplicationId, document_type: 'approval_summary', role_type: roleType },
                         transaction: t
@@ -944,10 +936,28 @@ class LoanApplicationRepository {
                     const verifyDate = new Date();
                     const finalPaymentDay = Number(updatePayload.payment_day) || Number(loanApplication.payment_day) || 1;
 
-                    // 🌟 ດຶງຄ່າ '2026-09-10' ທີ່ສົ່ງມານີ້ ແປງເປັນ Date Object
+                    // 🌟 ດຶງຄ່າ '2026-09-10' ທີ່ສົ່ງມານີ້ ແປງເປັນ Date Object ຢ່າງປອດໄພ
                     let exactFirstDueDate = undefined;
                     if (updatePayload.first_due_date) {
-                        exactFirstDueDate = new Date(updatePayload.first_due_date);
+                        let dateString = String(updatePayload.first_due_date).trim();
+                        
+                        // ດັກຈັບກໍລະນີສົ່ງມາເປັນ DD/MM/YYYY
+                        if (dateString.includes('/')) {
+                            const parts = dateString.split('/');
+                            // ຖ້າຊຸດທຳອິດມີ 1-2 ຕົວອັກສອນ (ແປວ່າເປັນວັນທີ)
+                            if (parts[0].length <= 2) {
+                                dateString = `${parts[2]}-${parts[1]}-${parts[0]}`; // ແປງເປັນ YYYY-MM-DD
+                            }
+                        } 
+                        // ດັກຈັບກໍລະນີສົ່ງມາເປັນ DD-MM-YYYY
+                        else if (dateString.includes('-')) {
+                            const parts = dateString.split('-');
+                            if (parts[0].length <= 2) {
+                                dateString = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                            }
+                        }
+                        
+                        exactFirstDueDate = new Date(dateString);
                     }
 
                     await RepaymentRepository.shiftDraftScheduleDates(
@@ -955,7 +965,7 @@ class LoanApplicationRepository {
                         finalPaymentDay,
                         verifyDate,
                         t,
-                        exactFirstDueDate, // 👈 ຢ່າລືມສົ່ງຕົວແປນີ້ເຂົ້າໄປເປັນ Parameter ທີ 5
+                        exactFirstDueDate, // 👈 ສົ່ງ Date ທີ່ແປງຮູບແບບຖືກຕ້ອງແລ້ວເຂົ້າໄປ
                         performedBy
                     );
                 }
@@ -1098,11 +1108,30 @@ class LoanApplicationRepository {
             // 🎯 Commit Transaction ໃຫ້ສຳເລັດກ່ອນສົ່ງແຈ້ງເຕືອນ
             await t.commit();
 
+            // =========================================================
+            // 🌟 STEP 6: ຈັດການລຶບ Cache ທັນທີຫຼັງການປ່ຽນແປງຂໍ້ມູນ (Hybrid System Rule)
+            // =========================================================
+            if (redisService && redisService.isClientConnected()) {
+                await redisService.del(`cache:loan_application:${loanApplicationId}`);
+                await redisService.delByPattern('cache:loan_applications:list:*');
+                await redisService.delByPattern('cache:dashboard:*');
+
+                const contract = await db.loan_contract.findOne({ where: { loan_id: loanApplicationId } });
+                if (contract) {
+                    await redisService.del(`cache:pdf:contract:${contract.id}`);
+                }
+
+                await redisService.del(`cache:repayment_schedule:${loanApplicationId}`);
+                await redisService.del(`cache:pdf:repayment_schedule:${loanApplicationId}`);
+                
+                logger.info(`[Cache] Successfully invalidated caches for Loan Application ID: ${loanApplicationId}`);
+            }
+
             // ==========================================
-            // 🌟 STEP 6: ສົ່ງແຈ້ງເຕືອນ (ສະເພາະ Case ປ່ອຍສິນເຊື່ອສຳເລັດ)
+            // 🌟 STEP 7: ສົ່ງແຈ້ງເຕືອນ (ສະເພາະ Case ປ່ອຍສິນເຊື່ອສຳເລັດ)
             // ==========================================
             // ----------------------------------------------------
-            // 🟢 6.1: แจ้งเตือนพนักงาน/ผู้บริหาร (Credit Manager ขึ้นไป)
+            // 🟢 7.1: แจ้งเตือนพนักงาน/ผู้บริหาร (Credit Manager ขึ้นไป)
             // ----------------------------------------------------
             try {
                 let targetStaffLevels: string[] = [];
@@ -1162,7 +1191,7 @@ class LoanApplicationRepository {
             }
 
             // ----------------------------------------------------
-            // 🟢 6.2: แจ้งเตือนลูกค้า (เฉพาะตอนปล่อยสินเชื่อเสร็จสิ้น)
+            // 🟢 7.2: แจ้งเตือนลูกค้า (เฉพาะตอนปล่อยสินเชื่อเสร็จสิ้น)
             // ----------------------------------------------------
             if (finalStatus === 'disbursed' && loanApplication.status !== 'disbursed') {
                 try {
@@ -1302,15 +1331,26 @@ class LoanApplicationRepository {
     }
     async getApprovalLogs(applicationId: number) {
         return await db.loan_approval_logs.findAll({
-            where: { application_id: applicationId, action: ['verified', 'returned_for_edit', 'approved', 'rejected'] },
+            where: { application_id: applicationId, action: ['verified', 'returned_for_edit', 'approved', 'rejected', 'commented'] },
             include: [{
                 model: db.users,
                 as: 'performed_by_user', // ⚠️ ກວດເບິ່ງໃນ init-models ວ່າທ່ານຕັ້ງ alias ເປັນ 'user' ຫຼືຊື່ອື່ນເດີ້
                 attributes: ['id', 'full_name', 'staff_level']
             }],
+            
             order: [['performed_at', 'ASC']] // ລຽງຈາກເກົ່າໄປໃໝ່
         });
     }
+
+    async addComment(applicationId: number, performedBy: number, remarks: string, replyToId?: number | null) {
+    return await db.loan_approval_logs.create({
+        application_id: applicationId,
+        action: 'commented',
+        remarks: remarks,
+        reply_to_id: replyToId || null,
+        performed_by: performedBy
+    });
+}
 }
 
 export default new LoanApplicationRepository();

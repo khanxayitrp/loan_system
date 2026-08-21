@@ -34,6 +34,11 @@
             counter-reset: page-num;
         }
 
+        /* 🟢 ບັງຄັບສີຂອງ Checkbox ໃຫ້ເປັນສີດຳ */
+        input[type="checkbox"] {
+            accent-color: #000;
+        }
+
         /* 🟢 บังคับขนาดหน้ากระดาษตายตัว */
         .page {
             position: relative;
@@ -182,7 +187,8 @@
             width: auto;
             min-height: 1.1em;
             text-align: center;
-            color: #1a56db;
+            color: #000; /* 🟢 ສີດຳ */
+            font-weight: normal; /* 🟢 ປັບຄວາມໜາໃຫ້ເປັນປົກກະຕິ ຈະໄດ້ບໍ່ເຂັ້ມເກີນໄປ */
             word-break: break-word;
         }
 
@@ -287,15 +293,17 @@
 
         <div class="contract-info-container">
             <div class="contract-info">
+                <!-- 🟢 ແກ້ໄຂສີຟ້າເປັນສີດຳ (#000) -->
                 <div class="contract-info-row">
                     <strong>ເລກທີສັນຍາ:</strong> <span class="blank-space solid-line w-150"
-                        style="color: #1a56db;">{{contractNumber}}</span>
+                        style="color: #000;">{{contractNumber}}</span>
                 </div>
+                <!-- 🟢 ແກ້ໄຂສີຟ້າເປັນສີດຳ (#000) -->
                 <div class="contract-info-row">
                     <strong>ນະຄອນຫຼວງວຽງຈັນ:</strong>
-                    ວັນທີ <span class="blank-space solid-line w-30" style="color: #1a56db;">{{contractDay}}</span> /
-                    <span class="blank-space solid-line w-30" style="color: #1a56db;">{{contractMonth}}</span> /
-                    <span class="blank-space solid-line w-50" style="color: #1a56db;">{{contractYear}}</span>
+                    ວັນທີ <span class="blank-space solid-line w-30" style="color: #000;">{{contractDay}}</span> /
+                    <span class="blank-space solid-line w-30" style="color: #000;">{{contractMonth}}</span> /
+                    <span class="blank-space solid-line w-50" style="color: #000;">{{contractYear}}</span>
                 </div>
             </div>
         </div>
@@ -402,16 +410,12 @@
             <tr>
                 <td class="label">ປີການເຮັດວຽກ:</td>
                 <td><span class="input-field">{{workYears}}</span></td>
-                <!-- <td class="label">ປີ</td> -->
                 <td><span class="input-field">{{workMonths}}</span></td>
                 <td class="label">ເດືອນ</td>
                 <td class="label">ຈຳນວນພະນັກງານ:</td>
                 <td><span class="input-field">{{workTotalEmp}}</span></td>
                 <td class="label">ມື້ເງິນເດືອນອອກ:</td>
                 <td><span class="input-field">{{workSalaryDay}}</span></td>
-
-                <!-- <td class="label">ພະແນກ:</td>
-                <td><span class="input-field">{{workSalary}}</span></td> -->
             </tr>
 
             <tr>
@@ -467,8 +471,9 @@
                 <td class="label"><b>ຄ່າງວດເດືອນທຳອິດ+ຄ່າທຳນຽມ:</b></td>
                 <td><span class="input-field">{{prodFirstInst}}</span></td>
                 <td class="label">ມື້ກຳນົດການຊຳລະຄ່າງວດ:</td>
+                <!-- 🟢 ແກ້ໄຂສີຟ້າເປັນສີດຳ (#000) -->
                 <td>ທຸກວັນທີ <span
-                        style="display:inline-block; border-bottom:1px solid #000; width: 30px; text-align:center; color:#1a56db;">{{prodPayDay}}</span>
+                        style="display:inline-block; border-bottom:1px solid #000; width: 30px; text-align:center; color:#000;">{{prodPayDay}}</span>
                     <b>ຂອງເດືອນ</b>
                 </td>
             </tr>

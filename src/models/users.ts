@@ -28,7 +28,7 @@ export interface usersAttributes {
   password: string;
   full_name: string;
   role: 'admin' | 'staff' | 'partner' | 'customer' | 'auditor';
-  staff_level?: 'approver' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'auditor' | 'none';
+  staff_level?: 'assistant_director' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'auditor' | 'none';
   is_active?: number;
   created_at?: Date;
   updated_at?: Date;
@@ -46,7 +46,7 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
   password!: string;
   full_name!: string;
   role!: 'admin' | 'staff' | 'partner' | 'customer' | 'auditor';
-  staff_level?: 'approver' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'auditor' | 'none';
+  staff_level?: 'assistant_director' | 'sales' | 'credit_officer' | 'credit_manager' | 'deputy_director' | 'director' | 'auditor' | 'none';
   is_active?: number;
   created_at?: Date;
   updated_at?: Date;
@@ -379,7 +379,7 @@ export class users extends Model<usersAttributes, usersCreationAttributes> imple
         allowNull: false
       },
       staff_level: {
-        type: DataTypes.ENUM('approver', 'sales', 'credit_officer', 'credit_manager', 'deputy_director', 'director', 'auditor', 'none'),
+        type: DataTypes.ENUM('assistant_director', 'sales', 'credit_officer', 'credit_manager', 'deputy_director', 'director', 'auditor', 'none'),
         allowNull: true,
         defaultValue: "none"
       },

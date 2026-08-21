@@ -88,6 +88,15 @@ export const uploadPaymentProof = multer({
   fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.PAYMENT_PROOFS.allowedMimeTypes)
 });
 
+// 🌟 ส่วนที่เพิ่มใหม่: สำหรับรูปโปรไฟล์ลูกค้า (Profile Image)
+export const uploadProfileImage = multer({
+  storage: memoryStorage,
+  limits: {
+    fileSize: FILE_UPLOAD_CONFIG.PROFILE_IMAGES.maxFileSize
+  },
+  fileFilter: createFileFilter(FILE_UPLOAD_CONFIG.PROFILE_IMAGES.allowedMimeTypes)
+});
+
 // สำหรับรูปภาพเซ็นชื่อ
 export const uploadSignature = multer({
   storage: memoryStorage,

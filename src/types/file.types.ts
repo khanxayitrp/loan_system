@@ -51,6 +51,17 @@ export const FILE_UPLOAD_CONFIG = {
     uploadDir: 'uploads/documents'
   },
 
+  PROFILE_IMAGES: {
+    maxFileSize: 5 * 1024 * 1024, // 5MB
+    allowedMimeTypes: [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp'
+    ],
+    uploadDir: 'uploads/profiles' // MinIO จะเปลี่ยนเป็นโฟลเดอร์ profiles อัตโนมัติ
+  },
+
   // Override Evidence
   OVERRIDE_EVIDENCES: {
     maxFileSize: 5 * 1024 * 1024, // 5MB

@@ -83,43 +83,15 @@ export const updateLoanApplication = async (req: Request, res: Response, next: N
       approver_id: userId, // บันทึกผู้อนุมัติ
     }
 
+    // 🌟 1. ส่งให้ Service/Repo ทำงาน (และให้ Service จัดการลบ Cache เบ็ดเสร็จในตัวเอง)
     const updated = await loanAppRepo.updateLoanApplication(Number(id), loanData);
 
     if (!updated) {
       throw new NotFoundError('Application not found');
     }
 
-    // =========================================================
-    // 🟢 ຈັດການລຶບ Cache ຫຼັງຈາກອັບເດດຂໍ້ມູນສຳເລັດ
-    // =========================================================
-    if (redisService) {
-      // 1. ລຶບ Cache ຂອງໂຕ Loan Application ເອງ
-      await redisService.del(`cache:loan_application:${id}`);
-      await redisService.delByPattern('cache:loan_applications:list:*');
-
-      // 2. ຊອກຫາ ສັນຍາ (Contract) ທີ່ຜູກກັບ Loan ນີ້
-      const contract = await db.loan_contract.findOne({
-        where: { loan_id: Number(id) } // ໝາຍເຫດ: ກວດເບິ່ງວ່າຕາຕະລາງທ່ານໃຊ້ application_id ຫຼື loan_id
-      });
-
-      // 3. ຖ້າມີສັນຍາແລ້ວ ໃຫ້ລຶບ Cache PDF ສັນຍາຖິ້ມ
-      if (contract && contract.id) {
-        await redisService.del(`cache:pdf:contract:${contract.id}`);
-        console.log(`🗑️ ລຶບ Cache PDF ສັນຍາສຳເລັດ: ${contract.id}`);
-      }
-
-      // =========================================================
-      // 🌟 [ເພີ່ມໃໝ່] 4. ລຶບ Cache ຂອງຕາຕະລາງຜ່ອນຊຳລະ (Repayment Schedule)
-      // ເນື່ອງຈາກການອະນຸມັດອາດຈະໄປອັບເດດ (shiftDraftScheduleDates) ວັນທີຈ່າຍ
-      // =========================================================
-      await redisService.del(`cache:repayment_schedule:${id}`);
-
-      // ຖ້າທ່ານມີ Cache ທີ່ໃຊ້ເກັບ PDF ຂອງຕາຕະລາງຜ່ອນ ກໍໃຫ້ລຶບນຳ
-      await redisService.del(`cache:pdf:repayment_schedule:${id}`);
-
-      console.log(`🗑️ ລຶບ Cache Repayment Schedule ສຳເລັດ ສຳລັບ Loan: ${id}`);
-    }
-    // =========================================================
+    // ❌ 2. ลบโค้ดจัดการ Redis Cache ใน Controller ออกทั้งหมด ❌
+    // (เพราะเราย้ายไปทำใน Step 6 ของ Service แล้ว เพื่อไม่ให้ Query ซ้ำซ้อนและลบได้ครอบคลุมกว่า)
 
     return res.status(200).json({
       success: true,
@@ -280,13 +252,16 @@ export const getLoanbyCusIDandLoanID = async (req: Request, res: Response, next:
 
 export const getAllLoanByCustomerId = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, min, max, is_confirmed, page, limit } = req.query
+    // 🟢 1. ປ່ຽນການຮັບຄ່າຈາກ page ມາເປັນການຮອງຮັບ cursor ນຳ
+    const { status, min, max, is_confirmed, limit, cursor } = req.query;
     const CustomerId = req.customerPayload?.userId;
     console.log('Request query:', req.query);
 
     const actualStatus = status || req.query['status[]'];
-    const pageNum = page ? parseInt(page as string, 10) : 1;
     const limitNum = limit ? parseInt(limit as string, 10) : 10;
+    
+    // 🟢 2. ແປງຄ່າ cursor ຖ້າມີການສົ່ງມາ (ມັກຈະເປັນ String, ຕ້ອງແປງເປັນ Number)
+    const cursorVal = cursor ? Number(cursor) : undefined;
 
     const result = await loanAppRepo.findLoanApplicationsByCustomerId({
       customerId: CustomerId ? Number(CustomerId) : undefined,
@@ -294,18 +269,18 @@ export const getAllLoanByCustomerId = async (req: Request, res: Response, next: 
       min: min ? Number(min) : undefined,
       max: max ? Number(max) : undefined,
       is_confirmed: is_confirmed !== undefined ? Number(is_confirmed) : undefined,
-      page: pageNum,
-      limit: limitNum
+      limit: limitNum,
+      cursor: cursorVal // 👈 ສົ່ງ cursor ໄປໃຫ້ Repo
     });
 
     return res.status(200).json({
       success: true,
       message: 'get all Loan Data by Customer',
       data: result.data,
-      total: result.total,
       counts: result.counts,
-      currentPage: result.currentPage,
-      totalPages: result.totalPages
+      // 🟢 3. ສົ່ງ next_cursor ໃຫ້ Client ໃຊ້ສຳລັບການຮຽກຮອບຖັດໄປ 
+      // ❌ ບໍ່ສົ່ງ currentPage ແລະ totalPages ແລ້ວ
+      next_cursor: result.next_cursor 
     });
 
   } catch (error) {
@@ -316,14 +291,15 @@ export const getAllLoanByCustomerId = async (req: Request, res: Response, next: 
 
 export const getAllLoan = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { CustomerId, requesterId, productId, status, min, max, is_confirmed, page, limit, minScore, maxScore } = req.query
+    // 🟢 1. ເພີ່ມ cursor ເຂົ້າໃນການຮັບຄ່າ
+    const { CustomerId, requesterId, productId, status, min, max, is_confirmed, limit, cursor, minScore, maxScore } = req.query
     console.log('Request query:', req.query);
 
     const actualStatus = status || req.query['status[]'];
-    const pageNum = page ? parseInt(page as string, 10) : 1;
     const limitNum = limit ? parseInt(limit as string, 10) : 10;
+    const cursorVal = cursor ? Number(cursor) : undefined;
 
-    const { rows, count } = await loanAppRepo.findLoanApplications({
+    const { rows, count, next_cursor } = await loanAppRepo.findLoanApplications({
       customerId: CustomerId ? Number(CustomerId) : undefined,
       requesterId: requesterId ? Number(requesterId) : undefined,
       productId: productId ? Number(productId) : undefined,
@@ -331,11 +307,10 @@ export const getAllLoan = async (req: Request, res: Response, next: NextFunction
       min: min ? Number(min) : undefined,
       max: max ? Number(max) : undefined,
       is_confirmed: is_confirmed ? Number(is_confirmed as string) : undefined,
-      // 🟢 Pass the parsed scores to the repository
       minScore: minScore ? Number(minScore) : undefined,
       maxScore: maxScore ? Number(maxScore) : undefined,
-      page: pageNum,
-      limit: limitNum
+      limit: limitNum,
+      cursor: cursorVal // 👈 ສົ່ງ cursor ໄປໃຫ້ Repo
     });
 
     return res.status(200).json({
@@ -343,10 +318,9 @@ export const getAllLoan = async (req: Request, res: Response, next: NextFunction
       message: 'get all Loan Data',
       data: rows,
       pagination: {
-        total: count,
-        page: pageNum,
+        total: count, // (ຍັງມີໄວ້ເບິ່ງຈຳນວນລວມກໍໄດ້)
         limit: limitNum,
-        totalPages: Math.ceil(count / limitNum)
+        next_cursor: next_cursor // 👈 ສົ່ງ next_cursor ກັບໄປໃຫ້ Frontend
       }
     });
 
@@ -391,8 +365,10 @@ export const sentApplyDraft = async (req: Request, res: Response, next: NextFunc
     return res.status(200).json({ success: true, message: `Sent Draft to Apply Completed`, data: updatedLoan });
 
   } catch (error) {
-    await transaction.rollback(); // คืนค่า Database ก่อน
-    next(error); // โยนเข้า Error Handler
+    if (transaction && !(transaction as any).finished) {
+    await transaction.rollback();
+  }
+  next(error);
   }
 };
 
@@ -616,8 +592,10 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
       }
     });
   } catch (error) {
+    if (transaction && !(transaction as any).finished) {
     await transaction.rollback();
-    next(error);
+  }
+  next(error);
   }
 };
 
@@ -679,8 +657,10 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
       data: result
     });
   } catch (error) {
+    if (transaction && !(transaction as any).finished) {
     await transaction.rollback();
-    next(error);
+  }
+  next(error);
   }
 }
 
@@ -910,8 +890,10 @@ export const createFromSuperAppWebview = async (req: Request, res: Response, nex
     });
 
   } catch (error) {
+    if (transaction && !(transaction as any).finished) {
     await transaction.rollback();
-    next(error);
+  }
+  next(error);
   }
 };
 
@@ -942,5 +924,44 @@ export const getApprovalLogs = async (req: Request, res: Response, next: NextFun
   } catch (error) {
     next(error);
   }
+}
+
+// 🌟 สร้างฟังก์ชันใหม่สำหรับรับ Request การคอมเมนต์
+export const addComment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const application_id = parseInt(req.params.id, 10);
+        const { remarks, reply_to_id } = req.body;
+        
+        // สมมติว่าดึง ID พนักงานจาก Token (Auth Middleware)
+        // ⚠️ ປ່ຽນ req.user?.id ຕາມໂຄງສ້າງ Authentication ຕົວຈິງຂອງທ່ານ
+        const performed_by = req.userPayload?.userId; // ດຶງ ID ຜູ້ໃຊ້ຈາກ Token
+
+        if (!performed_by) {
+            return res.status(401).json({ success: false, message: 'ບໍ່ພົບຂໍ້ມູນຜູ້ໃຊ້ (Unauthorized)' });
+        }
+
+        if (!remarks || remarks.trim() === '') {
+            return res.status(400).json({ success: false, message: 'ກະລຸນາປ້ອນຄວາມຄິດເຫັນ' });
+        }
+
+        const newComment = await loanAppRepo.addComment(
+            application_id, 
+            performed_by, 
+            remarks.trim(), 
+            reply_to_id
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: 'ບັນທຶກຄວາມຄິດເຫັນສຳເລັດແລ້ວ',
+            data: newComment
+        });
+    } catch (error: any) {
+        // ดักจับกรณีส่ง reply_to_id ที่ไม่มีใน Database
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return res.status(400).json({ success: false, message: 'ຂໍ້ຄວາມອ້າງອີງບໍ່ຖືກຕ້ອງ (Invalid reply reference)' });
+        }
+        next(error);
+    }
 }
 

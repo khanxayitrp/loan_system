@@ -11,10 +11,48 @@ const router = Router();
  * @swagger
  * /loan-application:
  *   get:
- *     summary: Get all loan applications
+ *     summary: Get all loan applications (with Cursor Pagination)
  *     tags: [Loan Application]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: integer
+ *         description: ID of the last item from the previous page (for pagination)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of items to return (default is 10)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Filter by status (e.g., pending, approved)
+ *       - in: query
+ *         name: min
+ *         schema:
+ *           type: number
+ *         description: Minimum loan amount
+ *       - in: query
+ *         name: max
+ *         schema:
+ *           type: number
+ *         description: Maximum loan amount
+ *       - in: query
+ *         name: CustomerId
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: minScore
+ *         schema:
+ *           type: number
+ *       - in: query
+ *         name: maxScore
+ *         schema:
+ *           type: number
  *     responses:
  *       200:
  *         description: A list of loan applications
@@ -389,5 +427,7 @@ router.get('/repayment-schedule/:application_id/all', verifyToken, loanCtrl.getR
 router.get('/document-signature/:application_id', verifyToken, loanCtrl.getSignatureByLoanID);
 
 router.get('/:id/approval-logs', loanCtrl.getApprovalLogs);
+
+router.post('/:id/comments', verifyToken, loanCtrl.addComment);
 
 export default router;

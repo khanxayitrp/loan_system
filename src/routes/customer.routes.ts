@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import * as customerCtrl from '../controllers/customer.controller';
 import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
+import { uploadProfileImage } from '../middlewares/upload.middleware';
 
 const router = Router();
 
@@ -39,7 +40,7 @@ router.post('/otp/request', customerCtrl.requestOtpForCustomer);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -68,11 +69,19 @@ router.post('/otp/request', customerCtrl.requestOtpForCustomer);
  *                 type: number
  *               otp:
  *                 type: string
+ *               account_number:
+ *                type: string
+ *               description: เลขบัญชี BCEL (ถ้ามี)
+ *               profile_image:
+ *                 type: string
+ *                 format: binary
+ *                 description: รูปโปรไฟล์ลูกค้า (Profile Image)
  *     responses:
  *       201:
  *         description: Customer created
  */
-router.post('/create', verifyToken, customerCtrl.createCustomer); // อาจให้ staff หรือ user เอง
+// 🌟 ເພີ່ມ uploadProfileImage.single('profile_image') ເຂົ້າໄປໃນ Route
+router.post('/create', verifyToken, uploadProfileImage.single('profile_image'), customerCtrl.createCustomer);
 
 // 🟢 Login ເພື່ອເອົາ Token ໄປໃຊ້ງານອັບໂຫຼດເອກະສານ
 /**

@@ -19,6 +19,40 @@ const CIB_SEVERITY = {
 
 class CheckListService {
 
+    // =========================================================================
+    // 🌟 [BEST PRACTICE] ຟັງຊັນຄຳນວນ Total Internal Exposure ແບບ Real-time
+    // ລວມຍອດຄ່າງວດຂອງສັນຍາທີ່ກຳລັງຜ່ອນ + ໃບຄຳຂໍອື່ນໆທີ່ກຳລັງລໍຖ້າອະນຸມັດ
+    // =========================================================================
+    public async calculateTotalInternalExposure(customerId: number, currentApplicationId: number, transaction?: any): Promise<number> {
+        try {
+            // 1. ຫາຄ່າງວດຂອງສັນຍາທີ່ກຳລັງຜ່ອນຢູ່ (Active Contracts) 
+            // ໝາຍເຫດ: ອາດຈະເພີ່ມເງື່ອນໄຂເຊັກກັບຕາຕະລາງ repayments ຖ້າປິດຍອດແລ້ວກໍ່ໃຫ້ຫັກອອກ
+            const activeContractsTotal = await db.loan_applications.sum('monthly_pay', {
+                where: {
+                    customer_id: customerId,
+                    status: 'disbursed'
+                },
+                transaction
+            }) || 0;
+
+            // 2. ຫາຄ່າງວດຂອງໃບຄຳຂໍອື່ນໆທີ່ "ກຳລັງລໍຖ້າອະນຸມັດ" (Pending Applications)
+            // 🛡️ ບັງຄັບ: ຕ້ອງຕັດໃບຄຳຂໍປັດຈຸບັນ (currentApplicationId) ອອກ ເພື່ອບໍ່ໃຫ້ບວກຊ້ຳ
+            const pendingApplicationsTotal = await db.loan_applications.sum('monthly_pay', {
+                where: {
+                    customer_id: customerId,
+                    id: { [Op.ne]: currentApplicationId }, 
+                    status: { [Op.in]: ['pending', 'verifying', 'verified', 'approved'] }
+                },
+                transaction
+            }) || 0;
+
+            return Number(activeContractsTotal) + Number(pendingApplicationsTotal);
+        } catch (error) {
+            logger.error(`Error calculating internal exposure for customer ${customerId}:`, error);
+            return 0;
+        }
+    }
+
     async CreateBasicVerification(data: any) {
         const t = await db.sequelize.transaction();
         try {
@@ -592,11 +626,8 @@ class CheckListService {
         const t = await db.sequelize.transaction();
         try {
             const loan_id = data.loan_id || data.application_id;
-            if (!loan_id) {
-                throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
-            }
+            if (!loan_id) throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
 
-            // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.assessed_by || data.user_id || 1;
 
             await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
@@ -617,6 +648,10 @@ class CheckListService {
                 total_verified_income: data.total_verified_income,
                 estimated_living_expenses: data.estimated_living_expenses || 0.00,
                 existing_debt_payments: data.existing_debt_payments || 0.00,
+                
+                // 🟢 ບັນທຶກຄ່າທີ່ Controller ຫາກໍຄຳນວນມາສົດໆລົງໄປ
+                internal_active_installments: data.internal_active_installments || 0.00, 
+                
                 proposed_installment: data.proposed_installment,
                 dsr_percentage: data.dsr_percentage,
                 max_approved_amount: data.max_approved_amount || 0.00,
@@ -626,21 +661,15 @@ class CheckListService {
 
             if (existingIncomeAssessment) {
                 const oldIncomeData = existingIncomeAssessment.toJSON();
-                console.log('📝 Income assessment exists, updating...');
                 await existingIncomeAssessment.update(incomeAssessmentData, { transaction: t });
                 income_assessment = existingIncomeAssessment;
-                
-                // 🟢 Audit Log (UPDATE)
                 await logAudit('loan_income_assessments', existingIncomeAssessment.id, 'UPDATE', oldIncomeData, incomeAssessmentData, performedBy, t);
             } else {
-                console.log('📝 Creating new income assessment...')
                 income_assessment = await db.loan_income_assessments.create(incomeAssessmentData, { transaction: t });
-                
-                // 🟢 Audit Log (CREATE)
                 await logAudit('loan_income_assessments', income_assessment.id, 'CREATE', null, incomeAssessmentData, performedBy, t);
             }
 
-            const remarks = existingIncomeAssessment ? 'ແກ້ໄຂຂໍ້ມູນການປະເມີນລາຍໄດ້ (Income Assessment) - ອັບເດດ' : 'ສ້າງຂໍ້ມູນການປະເມີນລາຍໄດ້ (Income Assessment) - ບັນທຶກ';
+            const remarks = existingIncomeAssessment ? 'ແກ້ໄຂຂໍ້ມູນການປະເມີນລາຍໄດ້ (Income Assessment)' : 'ສ້າງຂໍ້ມູນການປະເມີນລາຍໄດ້ (Income Assessment)';
 
             await db.loan_approval_logs.create({
                 application_id: loan_id,
@@ -650,11 +679,9 @@ class CheckListService {
             }, { transaction: t });
 
             await t.commit();
-            console.log('✅ Income assessment saved successfully!');
             return { success: true, message: 'Income assessment saved successfully', data: income_assessment };
         } catch (error: any) {
             await t.rollback();
-            console.error('❌ Error creating Income Assessment:', error);
             return { success: false, message: 'Error creating Income Assessment', data: null };
         }
     }
@@ -698,7 +725,19 @@ class CheckListService {
     }
     async GetIncomeAssessmentByLoanId(loan_id: number) {
         try {
-            const income_assessment = await db.loan_income_assessments.findOne({ where: { application_id: loan_id }, raw: true });
+            let income_assessment: any = await db.loan_income_assessments.findOne({ where: { application_id: loan_id }, raw: true });
+            
+            // 🌟 ອັບເດດໜີ້ພາຍໃນເປັນ Real-time ຄືກັນ
+            const loanApp = await db.loan_applications.findByPk(loan_id, { attributes: ['customer_id'] });
+            if (loanApp) {
+                const calculated_exposure = await this.calculateTotalInternalExposure(loanApp.customer_id, loan_id);
+                if (income_assessment) {
+                    income_assessment.internal_active_installments = calculated_exposure;
+                } else {
+                    income_assessment = { internal_active_installments: calculated_exposure };
+                }
+            }
+
             return { success: true, message: 'Income assessment retrieved successfully', data: income_assessment };
         } catch (error: any) {
             return { success: false, message: 'Error retrieving Income Assessment', data: null };
@@ -707,7 +746,7 @@ class CheckListService {
     async GetAllChecklistByLoanId(loan_id: number) {
         try {
             const basic_verification = await db.loan_basic_verifications.findOne({ where: { application_id: loan_id }, raw: true }) || null;
-            const income_assessment = await db.loan_income_assessments.findOne({ where: { application_id: loan_id }, raw: true }) || null;
+            let income_assessment: any = await db.loan_income_assessments.findOne({ where: { application_id: loan_id }, raw: true });
             const call_verifications = await db.loan_call_verifications.findAll({ where: { application_id: loan_id }, raw: true }) || [];
             
             const mainData = await db.loan_cib_checks.findOne({ where: { application_id: loan_id }, raw: true });
@@ -715,6 +754,38 @@ class CheckListService {
             const cib_check = mainData ? { ...mainData, cib_details: historyDetails || [] } : null;
 
             const field_visits = await db.loan_field_visits.findAll({ where: { application_id: loan_id }, raw: true }) || [];
+
+            // =============================================================
+            // 🌟 ບັງຄັບຄຳນວນ DSR ໃໝ່ແບບ Real-time ເພື່ອໃຫ້ Credit Scoring ໄດ້ຄ່າທີ່ຖືກຕ້ອງ
+            // =============================================================
+            const loanApp = await db.loan_applications.findByPk(loan_id, { attributes: ['customer_id', 'monthly_pay'] });
+            
+            if (loanApp) {
+                // 1. ດຶງໜີ້ພາຍໃນ (INSEE) ຫຼ້າສຸດ
+                const internal_active_installments = await this.calculateTotalInternalExposure(loanApp.customer_id, loan_id);
+
+                if (income_assessment) {
+                    // 2. ອັບເດດໜີ້ພາຍໃນເຂົ້າໄປໃນ Object
+                    income_assessment.internal_active_installments = internal_active_installments;
+
+                    // 3. ຄຳນວນພາລະໜີ້ລວມທັງໝົດ (ໜີ້ CIB + ໜີ້ INSEE + ຄ່າງວດໃໝ່)
+                    const totalDebtBurden = Number(income_assessment.existing_debt_payments || 0) 
+                                          + Number(internal_active_installments) 
+                                          + Number(income_assessment.proposed_installment || loanApp.monthly_pay || 0);
+                    
+                    const totalIncome = Number(income_assessment.total_verified_income || 0);
+
+                    // 4. ຄຳນວນ DSR % ໃໝ່
+                    income_assessment.dsr_percentage = totalIncome > 0 ? (totalDebtBurden / totalIncome) * 100 : 0;
+                } else {
+                    // ກໍລະນີຍັງບໍ່ເຄີຍປະເມີນລາຍຮັບມາກ່ອນ
+                    income_assessment = { 
+                        internal_active_installments: internal_active_installments,
+                        proposed_installment: loanApp.monthly_pay,
+                        dsr_percentage: 0
+                    };
+                }
+            }
 
             return {
                 success: true, message: 'All checklists retrieved successfully',

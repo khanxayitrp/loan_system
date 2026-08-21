@@ -12,6 +12,7 @@ export interface loan_income_assessmentsAttributes {
   total_verified_income: number;
   estimated_living_expenses?: number;
   existing_debt_payments?: number;
+  internal_active_installments?: number;
   proposed_installment: number;
   dsr_percentage: number;
   max_approved_amount?: number;
@@ -35,6 +36,7 @@ export class loan_income_assessments extends Model<loan_income_assessmentsAttrib
   total_verified_income!: number;
   estimated_living_expenses?: number;
   existing_debt_payments?: number;
+  internal_active_installments?: number;
   proposed_installment!: number;
   dsr_percentage!: number;
   max_approved_amount?: number;
@@ -95,6 +97,12 @@ export class loan_income_assessments extends Model<loan_income_assessmentsAttrib
       defaultValue: 0.00
     },
     existing_debt_payments: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    // 🟢 ເພີ່ມບັອກນີ້ລົງໄປ ຕໍ່ທ້າຍ existing_debt_payments
+    internal_active_installments: {
       type: DataTypes.DECIMAL(15,2),
       allowNull: true,
       defaultValue: 0.00

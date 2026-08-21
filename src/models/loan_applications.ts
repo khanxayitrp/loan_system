@@ -8,6 +8,7 @@ import type { document_signatures, document_signaturesId } from './document_sign
 import type { loan_approval_logs, loan_approval_logsId } from './loan_approval_logs';
 import type { loan_basic_verifications, loan_basic_verificationsId } from './loan_basic_verifications';
 import type { loan_call_verifications, loan_call_verificationsId } from './loan_call_verifications';
+import type { loan_change_requests, loan_change_requestsId } from './loan_change_requests';
 import type { loan_cib_checks, loan_cib_checksCreationAttributes, loan_cib_checksId } from './loan_cib_checks';
 import type { loan_cib_history_details, loan_cib_history_detailsId } from './loan_cib_history_details';
 import type { loan_contract, loan_contractId } from './loan_contract';
@@ -25,7 +26,7 @@ import type { users, usersId } from './users';
 
 export interface loan_applicationsAttributes {
   id: number;
-  loan_flow_type: 'single_item' | 'bnpl_cart';
+  loan_flow_type: 'single_item' | 'bnpl_cart' | 'cash_loan';
   customer_id: number;
   product_id: number;
   variant_id?: number;
@@ -63,7 +64,7 @@ export type loan_applicationsCreationAttributes = Optional<loan_applicationsAttr
 
 export class loan_applications extends Model<loan_applicationsAttributes, loan_applicationsCreationAttributes> implements loan_applicationsAttributes {
   id!: number;
-  loan_flow_type!: 'single_item' | 'bnpl_cart';
+  loan_flow_type!: 'single_item' | 'bnpl_cart' | 'cash_loan';
   customer_id!: number;
   product_id!: number;
   variant_id?: number;
@@ -175,6 +176,30 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
   hasLoan_call_verification!: Sequelize.HasManyHasAssociationMixin<loan_call_verifications, loan_call_verificationsId>;
   hasLoan_call_verifications!: Sequelize.HasManyHasAssociationsMixin<loan_call_verifications, loan_call_verificationsId>;
   countLoan_call_verifications!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany loan_change_requests via application_id
+  loan_change_requests!: loan_change_requests[];
+  getLoan_change_requests!: Sequelize.HasManyGetAssociationsMixin<loan_change_requests>;
+  setLoan_change_requests!: Sequelize.HasManySetAssociationsMixin<loan_change_requests, loan_change_requestsId>;
+  addLoan_change_request!: Sequelize.HasManyAddAssociationMixin<loan_change_requests, loan_change_requestsId>;
+  addLoan_change_requests!: Sequelize.HasManyAddAssociationsMixin<loan_change_requests, loan_change_requestsId>;
+  createLoan_change_request!: Sequelize.HasManyCreateAssociationMixin<loan_change_requests>;
+  removeLoan_change_request!: Sequelize.HasManyRemoveAssociationMixin<loan_change_requests, loan_change_requestsId>;
+  removeLoan_change_requests!: Sequelize.HasManyRemoveAssociationsMixin<loan_change_requests, loan_change_requestsId>;
+  hasLoan_change_request!: Sequelize.HasManyHasAssociationMixin<loan_change_requests, loan_change_requestsId>;
+  hasLoan_change_requests!: Sequelize.HasManyHasAssociationsMixin<loan_change_requests, loan_change_requestsId>;
+  countLoan_change_requests!: Sequelize.HasManyCountAssociationsMixin;
+  // loan_applications hasMany loan_change_requests via replacement_loan_id
+  replacement_loan_loan_change_requests!: loan_change_requests[];
+  getReplacement_loan_loan_change_requests!: Sequelize.HasManyGetAssociationsMixin<loan_change_requests>;
+  setReplacement_loan_loan_change_requests!: Sequelize.HasManySetAssociationsMixin<loan_change_requests, loan_change_requestsId>;
+  addReplacement_loan_loan_change_request!: Sequelize.HasManyAddAssociationMixin<loan_change_requests, loan_change_requestsId>;
+  addReplacement_loan_loan_change_requests!: Sequelize.HasManyAddAssociationsMixin<loan_change_requests, loan_change_requestsId>;
+  createReplacement_loan_loan_change_request!: Sequelize.HasManyCreateAssociationMixin<loan_change_requests>;
+  removeReplacement_loan_loan_change_request!: Sequelize.HasManyRemoveAssociationMixin<loan_change_requests, loan_change_requestsId>;
+  removeReplacement_loan_loan_change_requests!: Sequelize.HasManyRemoveAssociationsMixin<loan_change_requests, loan_change_requestsId>;
+  hasReplacement_loan_loan_change_request!: Sequelize.HasManyHasAssociationMixin<loan_change_requests, loan_change_requestsId>;
+  hasReplacement_loan_loan_change_requests!: Sequelize.HasManyHasAssociationsMixin<loan_change_requests, loan_change_requestsId>;
+  countReplacement_loan_loan_change_requests!: Sequelize.HasManyCountAssociationsMixin;
   // loan_applications hasOne loan_cib_checks via application_id
   loan_cib_check!: loan_cib_checks;
   getLoan_cib_check!: Sequelize.HasOneGetAssociationMixin<loan_cib_checks>;
@@ -316,9 +341,10 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
       primaryKey: true
     },
     loan_flow_type: {
-      type: DataTypes.ENUM('single_item','bnpl_cart'),
+      type: DataTypes.ENUM('single_item','bnpl_cart','cash_loan'),
       allowNull: false,
-      defaultValue: "single_item"
+      defaultValue: "single_item",
+      comment: "เพิ่ม cash_loan สำหรับการขอถอนเงินสดเข้าบัญชี"
     },
     customer_id: {
       type: DataTypes.INTEGER,
@@ -354,7 +380,8 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
     },
     loan_id: {
       type: DataTypes.STRING(20),
-      allowNull: false
+      allowNull: false,
+      unique: "idx_unique_loan_id"
     },
     total_amount: {
       type: DataTypes.DECIMAL(15,2),
@@ -472,6 +499,14 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
         ]
       },
       {
+        name: "idx_unique_loan_id",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "loan_id" },
+        ]
+      },
+      {
         name: "customer_id",
         using: "BTREE",
         fields: [
@@ -513,23 +548,21 @@ export class loan_applications extends Model<loan_applicationsAttributes, loan_a
           { name: "variant_id" },
         ]
       },
-      // 🟢 เพิ่ม Index ใหม่ตรงนี้
-      {
-        name: "idx_unique_loan_id",
-        unique: true,
-        using: "BTREE",
-        fields: [{ name: "loan_id" }]
-      },
       {
         name: "idx_status",
         using: "BTREE",
-        fields: [{ name: "status" }]
+        fields: [
+          { name: "status" },
+        ]
       },
       {
         name: "idx_customer_status",
         using: "BTREE",
-        fields: [{ name: "customer_id" }, { name: "status" }]
-      }
+        fields: [
+          { name: "customer_id" },
+          { name: "status" },
+        ]
+      },
     ]
   });
   }

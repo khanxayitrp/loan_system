@@ -16,24 +16,45 @@ class ChecklistController {
             const data = req.body;
             if (!data || Object.keys(data).length === 0) throw new BadRequestError('data is required');
 
-            // คำนวณรายได้
+            // 🌟 1. ດຶງຂໍ້ມູນໃບຄຳຂໍປັດຈຸບັນ ເພື່ອເອົາ customer_id
+            const loanApp = await db.loan_applications.findByPk(loan_id);
+            if (!loanApp) throw new BadRequestError('Loan application not found');
+
+            // 🌟 2. [Best Practice] ໃຫ້ Backend ຄຳນວນໜີ້ພາຍໃນໃໝ່ສະເໝີ 
+            // ປ້ອງກັນບໍ່ໃຫ້ Frontend ສົ່ງຕົວເລກຫຼອກມາເພື່ອຫຼຸດ DSR
+            const internal_active_installments = await checklistService.calculateTotalInternalExposure(loanApp.customer_id, loan_id);
+            
+            // ບັງຄັບທັບຄ່າທີ່ Frontend ສົ່ງມາ
+            data.internal_active_installments = internal_active_installments;
+
+            // 3. ຄຳນວນລາຍຮັບ
             const avgIncome = Number(data.average_monthly_income) || 0;
             const otherIncome = Number(data.other_verified_income) || 0;
             const total_verified_income = avgIncome + otherIncome;
             data.total_verified_income = total_verified_income;
 
-            // คำนวณ DSR
-            const debtBurden = (Number(data.existing_debt_payments) || 0) + (Number(data.proposed_installment) || 0);
+            // 🌟 4. ຄຳນວນ DSR ໂດຍລວມເອົາໜີ້ພາຍໃນທີ່ Backend ຫາກໍ່ດຶງມາສົດໆ
+            const debtBurden = (Number(data.existing_debt_payments) || 0) + 
+                               internal_active_installments + 
+                               (Number(data.proposed_installment) || 0);
+                               
             data.dsr_percentage = total_verified_income > 0 ? (debtBurden / total_verified_income) * 100 : 0;
 
             const checklistData: any = { ...data, loan_id, assessed_by };
 
             const result = await checklistService.CreateIncomeAssessment(checklistData);
             
-            // ✅ เช็คผลลัพธ์จาก Service ถ้า false โยนเข้า Error Handler
             if (!result.success) throw new BadRequestError(result.message);
 
-            // ✅ ส่ง result ของ Service คืน Client ตรงๆ เลย เพราะจัดฟอร์แมตมาสวยแล้ว
+            // =========================================================
+            // 🟢 ລຶບ Cache ເມື່ອບັນທຶກສຳເລັດ
+            // =========================================================
+            if (redisService && redisService.isClientConnected()) {
+                await redisService.del(`cache:checklist:summary:${loan_id}`);
+                await redisService.del(`cache:loan_application:${loan_id}`);
+                await redisService.delByPattern('cache:loan_applications:list:*');
+            }
+
             return res.status(200).json(result); 
         } catch (error) {
             next(error);

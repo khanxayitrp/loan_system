@@ -10,6 +10,8 @@ import type { customer_points, customer_pointsCreationAttributes, customer_point
 import type { customer_vouchers, customer_vouchersId } from './customer_vouchers';
 import type { customer_work_info, customer_work_infoId } from './customer_work_info';
 import type { loan_applications, loan_applicationsId } from './loan_applications';
+import type { membership_history, membership_historyId } from './membership_history';
+import type { membership_tiers, membership_tiersId } from './membership_tiers';
 import type { orders, ordersId } from './orders';
 import type { point_ledgers, point_ledgersId } from './point_ledgers';
 import type { product_reviews, product_reviewsId } from './product_reviews';
@@ -24,6 +26,9 @@ export interface customersAttributes {
   last_name?: string;
   date_of_birth?: string;
   phone: string;
+  account_number?: string;
+  membership_tier_id?: number;
+  membership_score?: number;
   address?: string;
   province_id?: string;
   district_id?: string;
@@ -32,6 +37,7 @@ export interface customersAttributes {
   income_per_month?: number;
   other_debt?: number;
   user_id?: number;
+  profile_image_url?: string;
   created_at?: Date;
   updated_at?: Date;
   unit?: string;
@@ -44,7 +50,7 @@ export interface customersAttributes {
 
 export type customersPk = "id";
 export type customersId = customers[customersPk];
-export type customersOptionalAttributes = "id" | "census_number" | "date_of_birth" | "address" | "province_id" | "district_id" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at";
+export type customersOptionalAttributes = "id" | "identity_number" | "census_number" | "last_name" | "date_of_birth" | "account_number" | "membership_tier_id" | "membership_score" | "address" | "province_id" | "district_id" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "profile_image_url" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at";
 export type customersCreationAttributes = Optional<customersAttributes, customersOptionalAttributes>;
 
 export class customers extends Model<customersAttributes, customersCreationAttributes> implements customersAttributes {
@@ -55,6 +61,9 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   last_name?: string;
   date_of_birth?: string;
   phone!: string;
+  account_number?: string;
+  membership_tier_id?: number;
+  membership_score?: number;
   address?: string;
   province_id?: string;
   district_id?: string;
@@ -63,6 +72,7 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   income_per_month?: number;
   other_debt?: number;
   user_id?: number;
+  profile_image_url?: string;
   created_at?: Date;
   updated_at?: Date;
   unit?: string;
@@ -171,6 +181,18 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   hasLoan_application!: Sequelize.HasManyHasAssociationMixin<loan_applications, loan_applicationsId>;
   hasLoan_applications!: Sequelize.HasManyHasAssociationsMixin<loan_applications, loan_applicationsId>;
   countLoan_applications!: Sequelize.HasManyCountAssociationsMixin;
+  // customers hasMany membership_history via customer_id
+  membership_histories!: membership_history[];
+  getMembership_histories!: Sequelize.HasManyGetAssociationsMixin<membership_history>;
+  setMembership_histories!: Sequelize.HasManySetAssociationsMixin<membership_history, membership_historyId>;
+  addMembership_history!: Sequelize.HasManyAddAssociationMixin<membership_history, membership_historyId>;
+  addMembership_histories!: Sequelize.HasManyAddAssociationsMixin<membership_history, membership_historyId>;
+  createMembership_history!: Sequelize.HasManyCreateAssociationMixin<membership_history>;
+  removeMembership_history!: Sequelize.HasManyRemoveAssociationMixin<membership_history, membership_historyId>;
+  removeMembership_histories!: Sequelize.HasManyRemoveAssociationsMixin<membership_history, membership_historyId>;
+  hasMembership_history!: Sequelize.HasManyHasAssociationMixin<membership_history, membership_historyId>;
+  hasMembership_histories!: Sequelize.HasManyHasAssociationsMixin<membership_history, membership_historyId>;
+  countMembership_histories!: Sequelize.HasManyCountAssociationsMixin;
   // customers hasMany orders via customer_id
   orders!: orders[];
   getOrders!: Sequelize.HasManyGetAssociationsMixin<orders>;
@@ -219,6 +241,11 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   hasWishlist!: Sequelize.HasManyHasAssociationMixin<wishlists, wishlistsId>;
   hasWishlists!: Sequelize.HasManyHasAssociationsMixin<wishlists, wishlistsId>;
   countWishlists!: Sequelize.HasManyCountAssociationsMixin;
+  // customers belongsTo membership_tiers via membership_tier_id
+  membership_tier!: membership_tiers;
+  getMembership_tier!: Sequelize.BelongsToGetAssociationMixin<membership_tiers>;
+  setMembership_tier!: Sequelize.BelongsToSetAssociationMixin<membership_tiers, membership_tiersId>;
+  createMembership_tier!: Sequelize.BelongsToCreateAssociationMixin<membership_tiers>;
   // customers belongsTo users via user_id
   user!: users;
   getUser!: Sequelize.BelongsToGetAssociationMixin<users>;
@@ -259,6 +286,26 @@ export class customers extends Model<customersAttributes, customersCreationAttri
       allowNull: false,
       unique: "phone"
     },
+    account_number: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      comment: "เลขบัญชี BCEL (สำหรับดึง Statement\/โอนเงินเข้า)"
+    },
+    membership_tier_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "ระดับสมาชิกปัจจุบัน",
+      references: {
+        model: 'membership_tiers',
+        key: 'id'
+      }
+    },
+    membership_score: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 0,
+      comment: "คะแนนสะสมสำหรับคำนวณการเลื่อนระดับ"
+    },
     address: {
       type: DataTypes.TEXT,
       allowNull: true
@@ -295,6 +342,11 @@ export class customers extends Model<customersAttributes, customersCreationAttri
         model: 'users',
         key: 'id'
       }
+    },
+    profile_image_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      comment: "URL เก็บรูปโปรไฟล์ของ Member (อัปโหลดขึ้น MinIO\/S3)"
     },
     unit: {
       type: DataTypes.STRING(20),
@@ -335,19 +387,19 @@ export class customers extends Model<customersAttributes, customersCreationAttri
         ]
       },
       {
-        name: "identity_number",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "identity_number" },
-        ]
-      },
-      {
         name: "phone",
         unique: true,
         using: "BTREE",
         fields: [
           { name: "phone" },
+        ]
+      },
+      {
+        name: "identity_number",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "identity_number" },
         ]
       },
       {
@@ -357,17 +409,28 @@ export class customers extends Model<customersAttributes, customersCreationAttri
           { name: "user_id" },
         ]
       },
-      // 🟢 เพิ่ม Index ใหม่ตรงนี้
       {
         name: "idx_fullname",
         using: "BTREE",
-        fields: [{ name: "first_name" }, { name: "last_name" }]
+        fields: [
+          { name: "first_name" },
+          { name: "last_name" },
+        ]
       },
       {
         name: "idx_kyc_status",
         using: "BTREE",
-        fields: [{ name: "kyc_status" }]
-      }
+        fields: [
+          { name: "kyc_status" },
+        ]
+      },
+      {
+        name: "fk_customer_tier",
+        using: "BTREE",
+        fields: [
+          { name: "membership_tier_id" },
+        ]
+      },
     ]
   });
   }

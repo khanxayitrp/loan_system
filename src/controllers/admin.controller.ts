@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AdminService } from '../services/admin.service';
 import { db } from '../models/init-models';
+import { Op } from 'sequelize';
 import fileUploadService from '../services/fileUpload.service'; // 🌟 นำเข้า MinIO Service
 import { FILE_UPLOAD_CONFIG } from '../types/file.types';
 
@@ -18,13 +19,35 @@ export class AdminController {
                     { model: db.customers, as: 'customer' }
                 ]
             });
+            
             if (!loan) return res.status(404).json({ message: 'Loan not found' });
 
-            // 🌟 ແກ້ໄຂ: ກຳນົດ Type ໃຫ້ເປັນ any
+            // ກຳນົດ Type ໃຫ້ເປັນ any
             const loanData: any = loan.toJSON();
-
-            // ດຽວນີ້ຈະບໍ່ເກີດ Error ແລ້ວ ທັງການຮຽກໃຊ້ .product ແລະ ການສ້າງ .partner_name
             loanData.partner_name = loanData.product?.partner?.shop_name || 'N/A';
+
+            // ==========================================
+            // 🌟 ແກ້ໄຂແລ້ວ: ດຶງຂໍ້ມູນຕາຕະລາງຜ່ອນຊຳລະ ທີ່ເປັນ 'approved' ຫຼື 'draft' ຫຼ້າສຸດ
+            // ==========================================
+            const activeSchedule = await db.repayment_schedules.findOne({
+                where: { 
+                    application_id: loan.id, 
+                    status: { [Op.in]: ['approved', 'draft'] } // <-- 🌟 ແກ້ໄຂຈຸດນີ້ 
+                },
+                order: [['version', 'DESC'], ['id', 'DESC']]
+            });
+
+            if (activeSchedule) {
+                // ດຶງລາຍລະອຽດຄ່າງວດ ທີ່ຜູກກັບ Schedule ID ນີ້ ແລະ ລຽງລຳດັບງວດ
+                const repaymentsDetails = await db.repayments.findAll({
+                    where: { schedule_id: activeSchedule.id },
+                    order: [['installment_no', 'ASC']]
+                });
+                
+                loanData.repayments = repaymentsDetails;
+            } else {
+                loanData.repayments = []; // ຖ້າບໍ່ມີໃຫ້ສົ່ງ Array ວ່າງໄປ
+            }
 
             return res.status(200).json({ success: true, data: loanData });
         } catch (error: any) {

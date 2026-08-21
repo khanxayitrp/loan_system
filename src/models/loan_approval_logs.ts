@@ -6,7 +6,8 @@ import type { users, usersId } from './users';
 export interface loan_approval_logsAttributes {
   id: number;
   application_id: number;
-  action: 'submitted' | 'verified_basic' | 'verified_call' | 'verified_cib' | 'verified_field' | 'assessed_income' | 'verified_delivery_receipt' | 'verified' | 'approved' | 'rejected' | 'returned_for_edit' | 'cancelled' | 'printed_approval_summary';
+  reply_to_id?: number | null; // <--- ເພີ່ມ | null ເຂົ້າໄປ
+  action: 'submitted' | 'verified_basic' | 'verified_call' | 'verified_cib' | 'verified_field' | 'assessed_income' | 'verified_delivery_receipt' | 'verified' | 'approved' | 'rejected' | 'returned_for_edit' | 'cancelled' | 'printed_approval_summary' | 'commented';
   status_from?: string;
   status_to?: string;
   remarks?: string;
@@ -22,7 +23,8 @@ export type loan_approval_logsCreationAttributes = Optional<loan_approval_logsAt
 export class loan_approval_logs extends Model<loan_approval_logsAttributes, loan_approval_logsCreationAttributes> implements loan_approval_logsAttributes {
   id!: number;
   application_id!: number;
-  action!: 'submitted' | 'verified_basic' | 'verified_call' | 'verified_cib' | 'verified_field' | 'assessed_income' | 'verified_delivery_receipt' | 'verified' | 'approved' | 'rejected' | 'returned_for_edit' | 'cancelled' | 'printed_approval_summary';
+  reply_to_id?: number;
+  action!: 'submitted' | 'verified_basic' | 'verified_call' | 'verified_cib' | 'verified_field' | 'assessed_income' | 'verified_delivery_receipt' | 'verified' | 'approved' | 'rejected' | 'returned_for_edit' | 'cancelled' | 'printed_approval_summary' | 'commented';
   status_from?: string;
   status_to?: string;
   remarks?: string;
@@ -38,7 +40,26 @@ export class loan_approval_logs extends Model<loan_approval_logsAttributes, loan
   performed_by_user!: users;
   getPerformed_by_user!: Sequelize.BelongsToGetAssociationMixin<users>;
   setPerformed_by_user!: Sequelize.BelongsToSetAssociationMixin<users, usersId>;
-  createPerformed_by_user!: Sequelize.BelongsToCreateAssociationMixin<users>;
+  
+  // 🌟 เพิ่ม Code ชุดนี้เข้าไป เพื่อให้ TypeScript รู้จักความสัมพันธ์ของการตอบกลับ 🌟
+  // loan_approval_logs belongsTo loan_approval_logs via reply_to_id
+  reply_to_log!: loan_approval_logs;
+  getReply_to_log!: Sequelize.BelongsToGetAssociationMixin<loan_approval_logs>;
+  setReply_to_log!: Sequelize.BelongsToSetAssociationMixin<loan_approval_logs, loan_approval_logsId>;
+  createReply_to_log!: Sequelize.BelongsToCreateAssociationMixin<loan_approval_logs>;
+
+  // loan_approval_logs hasMany loan_approval_logs via reply_to_id
+  replies!: loan_approval_logs[];
+  getReplies!: Sequelize.HasManyGetAssociationsMixin<loan_approval_logs>;
+  setReplies!: Sequelize.HasManySetAssociationsMixin<loan_approval_logs, loan_approval_logsId>;
+  addReply!: Sequelize.HasManyAddAssociationMixin<loan_approval_logs, loan_approval_logsId>;
+  addReplies!: Sequelize.HasManyAddAssociationsMixin<loan_approval_logs, loan_approval_logsId>;
+  createReply!: Sequelize.HasManyCreateAssociationMixin<loan_approval_logs>;
+  removeReply!: Sequelize.HasManyRemoveAssociationMixin<loan_approval_logs, loan_approval_logsId>;
+  removeReplies!: Sequelize.HasManyRemoveAssociationsMixin<loan_approval_logs, loan_approval_logsId>;
+  hasReply!: Sequelize.HasManyHasAssociationMixin<loan_approval_logs, loan_approval_logsId>;
+  hasReplies!: Sequelize.HasManyHasAssociationsMixin<loan_approval_logs, loan_approval_logsId>;
+  countReplies!: Sequelize.HasManyCountAssociationsMixin;
 
   static initModel(sequelize: Sequelize.Sequelize): typeof loan_approval_logs {
     return loan_approval_logs.init({
@@ -56,8 +77,16 @@ export class loan_approval_logs extends Model<loan_approval_logsAttributes, loan
         key: 'id'
       }
     },
+    reply_to_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'loan_approval_logs',
+        key: 'id'
+      }
+    },
     action: {
-      type: DataTypes.ENUM('submitted','verified_basic','verified_call','verified_cib','verified_field','assessed_income','verified_delivery_receipt','verified','approved','rejected','returned_for_edit','cancelled','printed_approval_summary'),
+      type: DataTypes.ENUM('submitted','verified_basic','verified_call','verified_cib','verified_field','assessed_income','verified_delivery_receipt','verified','approved','rejected','returned_for_edit','cancelled','printed_approval_summary','commented'),
       allowNull: false
     },
     status_from: {

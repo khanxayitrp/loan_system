@@ -6,6 +6,8 @@ export interface customer_creditsAttributes {
   id: number;
   customer_id: number;
   credit_limit: number;
+  cash_advance_limit: number;
+  used_cash_advance: number;
   available_balance: number;
   status?: 'active' | 'suspended';
   created_at?: Date;
@@ -14,13 +16,15 @@ export interface customer_creditsAttributes {
 
 export type customer_creditsPk = "id";
 export type customer_creditsId = customer_credits[customer_creditsPk];
-export type customer_creditsOptionalAttributes = "id" | "credit_limit" | "available_balance" | "status" | "created_at" | "updated_at";
+export type customer_creditsOptionalAttributes = "id" | "credit_limit" | "cash_advance_limit" | "used_cash_advance" | "available_balance" | "status" | "created_at" | "updated_at";
 export type customer_creditsCreationAttributes = Optional<customer_creditsAttributes, customer_creditsOptionalAttributes>;
 
 export class customer_credits extends Model<customer_creditsAttributes, customer_creditsCreationAttributes> implements customer_creditsAttributes {
   id!: number;
   customer_id!: number;
   credit_limit!: number;
+  cash_advance_limit!: number;
+  used_cash_advance!: number;
   available_balance!: number;
   status?: 'active' | 'suspended';
   created_at?: Date;
@@ -53,6 +57,18 @@ export class customer_credits extends Model<customer_creditsAttributes, customer
       type: DataTypes.DECIMAL(15,2),
       allowNull: false,
       defaultValue: 0.00
+    },
+    cash_advance_limit: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: false,
+      defaultValue: 0.00,
+      comment: "เพดานวงเงินถอนเงินสด (เช่น 30% ของ credit_limit)"
+    },
+    used_cash_advance: {
+      type: DataTypes.DECIMAL(15,2),
+      allowNull: false,
+      defaultValue: 0.00,
+      comment: "ยอดเงินสดที่ถอนไปแล้ว"
     },
     available_balance: {
       type: DataTypes.DECIMAL(15,2),
