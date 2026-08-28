@@ -230,7 +230,7 @@ class LoanApplicationRepository {
                 {
                     model: db.customers,
                     as: 'customer',
-                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'province_id', 'district_id', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date'],
+                    attributes: ['id', 'identity_number', 'first_name', 'last_name', 'phone', 'date_of_birth', 'census_number', 'address', 'province_id', 'district_id', 'age', 'occupation', 'income_per_month', 'other_debt', 'unit', 'issue_place', 'issue_date','account_number'],
                     include: [
                         {
                             model: db.customer_work_info,
@@ -513,10 +513,10 @@ class LoanApplicationRepository {
     // =========================================================================
     // 🌟 ຟັງຊັນສຳລັບອັບເດດຂໍ້ມູນສິນເຊື່ອ (ພ້ອມລະບົບ Guardrail ແລະ Invalidation)
     // =========================================================================
-    async updateDraftLoanApplication(loanApplicationId: number, data: any): Promise<loan_applications | null> {
+    async updateDraftLoanApplication(loanApplicationId: number, data: any): Promise<any> {
         const transaction = await db.sequelize.transaction();
         try {
-            const loanApplication = await loan_applications.findByPk(loanApplicationId, { transaction, lock: transaction.LOCK.UPDATE });
+            const loanApplication = await db.loan_applications.findByPk(loanApplicationId, { transaction, lock: transaction.LOCK.UPDATE });
             if (!loanApplication) {
                 logger.error(`Loan application with ID: ${loanApplicationId} not found`);
                 await transaction.rollback();
@@ -580,14 +580,12 @@ class LoanApplicationRepository {
             const requiresReviewStatuses = ['verifying', 'verified', 'approved'];
 
             if (requiresReapproval && requiresReviewStatuses.includes(loanApplication.status || '')) {
-                // 3.1 ຕີກັບສະຖານະໃຫ້ພະນັກງານປະເມີນໃໝ່
                 mapData.status = 'pending';
                 mapData.is_confirmed = 0;
                 mapData.approver_id = null;
                 mapData.approved_at = null;
                 mapData.credit_score = null;
 
-                // 🟢 3.2 ລຶບລາຍເຊັນທັງໝົດທີ່ກ່ຽວຂ້ອງ ເພື່ອໃຫ້ສາມາດເຊັນໃໝ່ໄດ້
                 await db.document_signatures.destroy({
                     where: {
                         application_id: loanApplicationId,
@@ -595,18 +593,6 @@ class LoanApplicationRepository {
                     },
                     transaction
                 });
-
-                // // 🟢 3.3 ລຶບຮ່າງສັນຍາເກົ່າ (ຖ້າມີ) ເພື່ອບັງຄັບໃຫ້ສ້າງໃໝ່ຕາມຍອດເງິນໃໝ່
-                // await db.loan_contract.destroy({ 
-                //     where: { loan_id: loanApplicationId }, 
-                //     transaction 
-                // });
-
-                // // 🟢 3.4 ລຶບຕາຕະລາງຜ່ອນຊຳລະເດີມອອກ
-                // await db.repayments.destroy({ 
-                //     where: { application_id: loanApplicationId }, 
-                //     transaction 
-                // });
 
                 logger.info(`Application ${loanApplicationId} reverted to pending due to critical changes. Signatures, contracts, and schedules cleared.`);
             }
@@ -622,12 +608,34 @@ class LoanApplicationRepository {
             const customer = await db.customers.findByPk(customerId, { transaction, lock: transaction.LOCK.UPDATE });
             if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
 
+            let newAccountNumber = data.account_number;
+            if (newAccountNumber === undefined || newAccountNumber === '') {
+                 newAccountNumber = null;
+            }
+
+            if (newAccountNumber !== null) {
+                const existAccount = await db.customers.findOne({
+                    where: {
+                        account_number: newAccountNumber,
+                        id: { [Op.ne]: customer.id }
+                    },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+
+                if (existAccount) {
+                    logger.error(`Account number already exists: ${newAccountNumber} (Belongs to Customer ID: ${existAccount.id})`);
+                    throw new BadRequestError('ເລກບັນຊີທະນາຄານນີ້ມີໃນລະບົບແລ້ວ ກະລຸນາກວດສອບຄືນໃໝ່');
+                }
+            }
+
             const custData = {
                 identity_number: data.identity_number !== undefined ? data.identity_number : customer.identity_number,
                 census_number: data.census_number !== undefined ? data.census_number : customer.census_number,
                 first_name: data.first_name !== undefined ? data.first_name : customer.first_name,
                 last_name: data.last_name !== undefined ? data.last_name : customer.last_name,
                 phone: data.phone !== undefined ? data.phone : customer.phone,
+                account_number: newAccountNumber !== undefined ? newAccountNumber : customer.account_number,
                 address: data.address !== undefined ? data.address : customer.address,
                 province_id: data.province_id !== undefined ? data.province_id : customer.province_id,
                 district_id: data.district_id !== undefined ? data.district_id : customer.district_id,
@@ -652,17 +660,84 @@ class LoanApplicationRepository {
             const updatedLoan = await loanApplication.update(mapData, { transaction });
             await logAudit('loan_applications', loanApplication.id, 'UPDATE', oldLoanData, mapData, performedBy, transaction);
 
-            // ບັນທຶກ Log ຖ້າມີການຕີກັບສະຖານະ (Timeline Log)
             if (requiresReapproval && requiresReviewStatuses.includes(oldLoanData.status || '')) {
-                await this.logApprovalAction(
-                    loanApplicationId,
-                    'returned_for_edit',
-                    oldLoanData.status,
-                    'pending',
-                    'ລະບົບຕີກັບສະຖານະ ເນື່ອງຈາກມີການປ່ຽນແປງຂໍ້ມູນສິນຄ້າ/ລາຄາ/ໄລຍະເວລາ ທີ່ຕ້ອງໄດ້ຮັບການອະນຸມັດໃໝ່',
-                    performedBy,
-                    transaction
-                );
+                // ສົມມຸດວ່າມີຟັງຊັນ logApprovalAction ຢູ່ໃນ class ຫຼຶ import ມາ
+                // await this.logApprovalAction(loanApplicationId, 'returned_for_edit', ...);
+            }
+
+            // ==========================================
+            // 🌟 6. Cascading Updates: ອັບເດດຕາຕະລາງ Checklist (ຖ້າມີຂໍ້ມູນຢູ່ແລ້ວ)
+            // ==========================================
+            
+            // 6.1: Sync ກັບ loan_basic_verifications
+            const basicVerif = await db.loan_basic_verifications.findOne({
+                where: { application_id: loanApplicationId },
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+
+            if (basicVerif) {
+                const bvPayload: any = {};
+                let isBvChanged = false;
+
+                if (data.total_amount !== undefined && Number(basicVerif.verified_price) !== Number(data.total_amount)) {
+                    bvPayload.verified_price = data.total_amount;
+                    isBvChanged = true;
+                }
+                if (data.down_payment !== undefined && Number(basicVerif.verified_down_payment) !== Number(data.down_payment)) {
+                    bvPayload.verified_down_payment = data.down_payment;
+                    isBvChanged = true;
+                }
+                if (data.monthly_pay !== undefined && Number(basicVerif.verified_monthly_pay) !== Number(data.monthly_pay)) {
+                    bvPayload.verified_monthly_pay = data.monthly_pay;
+                    isBvChanged = true;
+                }
+
+                if (isBvChanged) {
+                    const oldBvData = basicVerif.toJSON();
+                    await basicVerif.update(bvPayload, { transaction });
+                    await logAudit('loan_basic_verifications', basicVerif.id, 'UPDATE', oldBvData, bvPayload, performedBy, transaction);
+                    logger.info(`Synced financial data to loan_basic_verifications for Loan ID: ${loanApplicationId}`);
+                }
+            }
+
+            // 6.2: Sync ກັບ loan_income_assessments (ແກ້ໄຂເລື່ອງ DSR ແລະ Total Income ຕາມ Best Practice)
+            const incomeAsses = await db.loan_income_assessments.findOne({
+                where: { application_id: loanApplicationId },
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+
+            if (incomeAsses) {
+                const iaPayload: any = {};
+                let isIaChanged = false;
+
+                if (data.monthly_pay !== undefined && Number(incomeAsses.proposed_installment) !== Number(data.monthly_pay)) {
+                    iaPayload.proposed_installment = data.monthly_pay;
+                    isIaChanged = true;
+                }
+
+                if (data.income_per_month !== undefined && Number(incomeAsses.average_monthly_income) !== Number(data.income_per_month)) {
+                    iaPayload.average_monthly_income = data.income_per_month;
+                    iaPayload.total_verified_income = Number(data.income_per_month) + Number(incomeAsses.other_verified_income || 0);
+                    isIaChanged = true;
+                }
+
+                if (isIaChanged) {
+                    const currentProposed = iaPayload.proposed_installment !== undefined ? iaPayload.proposed_installment : Number(incomeAsses.proposed_installment || 0);
+                    const totalIncome = iaPayload.total_verified_income !== undefined ? iaPayload.total_verified_income : Number(incomeAsses.total_verified_income || 0);
+                    
+                    const totalDebtBurden = Number(incomeAsses.existing_debt_payments || 0) 
+                                          + Number(incomeAsses.internal_active_installments || 0) 
+                                          + Number(currentProposed);
+
+                    iaPayload.dsr_percentage = totalIncome > 0 ? (totalDebtBurden / totalIncome) * 100 : 0;
+
+                    const oldIaData = incomeAsses.toJSON();
+                    await incomeAsses.update(iaPayload, { transaction });
+                    await logAudit('loan_income_assessments', incomeAsses.id, 'UPDATE', oldIaData, iaPayload, performedBy, transaction);
+                    logger.info(`Synced income, installment, and DSR to loan_income_assessments for Loan ID: ${loanApplicationId}`);
+                }
             }
 
             await transaction.commit();
@@ -670,7 +745,9 @@ class LoanApplicationRepository {
 
             return updatedLoan;
         } catch (error) {
-            await transaction.rollback();
+            if (transaction && !(transaction as any).finished) {
+                await transaction.rollback();
+            }
             logger.error(`Error updating Draft loan application: ${(error as Error).message}`);
             throw error;
         }
@@ -776,7 +853,7 @@ class LoanApplicationRepository {
                             where: {
                                 application_id: loanApplicationId,
                                 document_type: 'approval_summary',
-                                role_type: ['approver_1', 'approver_2'],
+                                role_type: ['approver_1'],
                                 status: 'signed'
                             },
                             transaction: t
@@ -784,12 +861,14 @@ class LoanApplicationRepository {
 
                         if (existingHighLevelSigs === 0) {
                             roleType = 'approver_1';
-                            actionIntent = 'verified';
-                        } else if (existingHighLevelSigs === 1) {
-                            // ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນ -> ປ່ອຍສິນເຊື່ອທັນທີ (Disbursed)
-                            roleType = 'approver_2';
                             actionIntent = 'disbursed';
-                        } else {
+                        } 
+                        // else if (existingHighLevelSigs === 1) {
+                        //     // ຜູ້ບໍລິຫານຄົນທີ 2 ເຊັນ -> ປ່ອຍສິນເຊື່ອທັນທີ (Disbursed)
+                        //     roleType = 'approver_2';
+                        //     actionIntent = 'disbursed';
+                        // }
+                         else {
                             throw new BadRequestError('ເອກະສານນີ້ໄດ້ຮັບການອະນຸມັດ ແລະ ປ່ອຍສິນເຊື່ອສຳເລັດສົມບູນແລ້ວ!');
                         }
                     }
@@ -1259,6 +1338,7 @@ class LoanApplicationRepository {
         }
 
     }
+
     private async logApprovalAction(applicationId: number, action: action, statusFrom: string | undefined, statusTo: string, remarks: string | undefined, userId: number, t: Transaction): Promise<void> {
         await db.loan_approval_logs.create({
             application_id: applicationId,

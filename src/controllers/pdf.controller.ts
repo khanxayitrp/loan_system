@@ -645,6 +645,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             cusResStatus: mapResidenceStatus(formData.customer?.residenceStatus),
 
             workName: formData.work?.companyName || '________________',
+            workPhone: formData.work?.phone || '________________', // 🟢 ເພີ່ມເບີໂທບ່ອນເຮັດວຽກຂອງລູກຄ້າ
             workType: formData.work?.businessType || '________________',
             workBusinessDetail: formData.work?.businessDetail || '________________',
             workVillage: getVal(workAddr.village, '____________'),
@@ -721,6 +722,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             guaResStatus: mapResidenceStatus(formData.guarantor?.residenceStatus),
 
             guaWorkName: formData.guarantorWork?.companyName || '________________',
+            guaWorkPhone: formData.guarantorWork?.phone || '________________', // 🟢 ເພີ່ມເບີໂທບ່ອນເຮັດວຽກຂອງຜູ້ຄ້ຳ (ຖ້າມີ)
             guaWorkType: formData.guarantorWork?.businessType || '________________',
 
             guaWorkVillage: getVal(guaWorkAddr.village, '____________'),

@@ -3,10 +3,9 @@ import { logger } from '../utils/logger';
 import { Op } from 'sequelize';
 import path from 'path';
 import fs from 'fs/promises';
-import fileUploadService from './fileUpload.service'; // Adjust path
+import fileUploadService from './fileUpload.service'; 
+import redisService from './redis.service'; 
 import { Transaction } from 'sequelize';
-
-// 🟢 1. Import Helper ของเราเข้ามา
 import { logAudit } from '../utils/auditLogger';
 
 const CIB_SEVERITY = {
@@ -19,24 +18,13 @@ const CIB_SEVERITY = {
 
 class CheckListService {
 
-    // =========================================================================
-    // 🌟 [BEST PRACTICE] ຟັງຊັນຄຳນວນ Total Internal Exposure ແບບ Real-time
-    // ລວມຍອດຄ່າງວດຂອງສັນຍາທີ່ກຳລັງຜ່ອນ + ໃບຄຳຂໍອື່ນໆທີ່ກຳລັງລໍຖ້າອະນຸມັດ
-    // =========================================================================
     public async calculateTotalInternalExposure(customerId: number, currentApplicationId: number, transaction?: any): Promise<number> {
         try {
-            // 1. ຫາຄ່າງວດຂອງສັນຍາທີ່ກຳລັງຜ່ອນຢູ່ (Active Contracts) 
-            // ໝາຍເຫດ: ອາດຈະເພີ່ມເງື່ອນໄຂເຊັກກັບຕາຕະລາງ repayments ຖ້າປິດຍອດແລ້ວກໍ່ໃຫ້ຫັກອອກ
             const activeContractsTotal = await db.loan_applications.sum('monthly_pay', {
-                where: {
-                    customer_id: customerId,
-                    status: 'disbursed'
-                },
+                where: { customer_id: customerId, status: 'disbursed' },
                 transaction
             }) || 0;
 
-            // 2. ຫາຄ່າງວດຂອງໃບຄຳຂໍອື່ນໆທີ່ "ກຳລັງລໍຖ້າອະນຸມັດ" (Pending Applications)
-            // 🛡️ ບັງຄັບ: ຕ້ອງຕັດໃບຄຳຂໍປັດຈຸບັນ (currentApplicationId) ອອກ ເພື່ອບໍ່ໃຫ້ບວກຊ້ຳ
             const pendingApplicationsTotal = await db.loan_applications.sum('monthly_pay', {
                 where: {
                     customer_id: customerId,
@@ -57,20 +45,14 @@ class CheckListService {
         const t = await db.sequelize.transaction();
         try {
             const loan_id = data.loan_id || data.application_id;
-            if (!loan_id) {
-                throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
-            }
+            if (!loan_id) throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
 
-            // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.verifiedBy || data.verified_by || data.user_id || 1;
-
             let basic_verification = null;
-            let customer_info = null;
 
             const checkLoanApp = await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
-            if (!checkLoanApp) {
-                throw new Error('Loan application not found');
-            }
+            if (!checkLoanApp) throw new Error('Loan application not found');
+            
             const existingCustomer = await db.customers.findByPk(checkLoanApp.customer_id, { transaction: t, lock: t.LOCK.UPDATE });
 
             const existingBasicVerification = await db.loan_basic_verifications.findOne({
@@ -112,18 +94,12 @@ class CheckListService {
 
             if (existingBasicVerification) {
                 const oldBasicData = existingBasicVerification.toJSON();
-                console.log('📝 Basic verification exists, updating...');
                 await existingBasicVerification.update(basicVerificationData, { transaction: t });
                 basic_verification = existingBasicVerification;
-
-                // 🟢 Audit Log (UPDATE)
                 await logAudit('loan_basic_verifications', existingBasicVerification.id, 'UPDATE', oldBasicData, basicVerificationData, performedBy, t);
                 logRemark = 'ແກ້ໄຂຂໍ້ມູນການກວດສອບພື້ນຖານ (Updated Basic Verification)';
             } else {
-                console.log('📝 Creating new basic verification...');
                 basic_verification = await db.loan_basic_verifications.create(basicVerificationData, { transaction: t });
-                
-                // 🟢 Audit Log (CREATE)
                 await logAudit('loan_basic_verifications', basic_verification.id, 'CREATE', null, basicVerificationData, performedBy, t);
                 logRemark = 'ສ້າງຂໍ້ມູນການກວດສອບພື້ນຖານ (Created Basic Verification)';
             }
@@ -138,16 +114,10 @@ class CheckListService {
                     province_id: data.verifiedProvinceId || data.verified_province_id || null,
                     district_id: data.verifiedDistrictId || data.verified_district_id || null
                 };
-                customer_info = await existingCustomer.update(updateCustomerPayload, { transaction: t });
-                
-                // 🟢 Audit Log (UPDATE Customer)
+                await existingCustomer.update(updateCustomerPayload, { transaction: t });
                 await logAudit('customers', existingCustomer.id, 'UPDATE', oldCustomerData, updateCustomerPayload, performedBy, t);
 
-                const existingCustomerWorkInfo = await db.customer_work_info.findOne({
-                    where: { customer_id: existingCustomer.id },
-                    transaction: t
-                });
-                
+                const existingCustomerWorkInfo = await db.customer_work_info.findOne({ where: { customer_id: existingCustomer.id }, transaction: t });
                 if (existingCustomerWorkInfo) {
                     const oldWorkData = existingCustomerWorkInfo.toJSON();
                     const updateWorkPayload = {
@@ -157,13 +127,35 @@ class CheckListService {
                         duration_years: data.workYears || data.work_years
                     };
                     await existingCustomerWorkInfo.update(updateWorkPayload, { transaction: t });
-                    
-                    // 🟢 Audit Log (UPDATE Work Info)
                     await logAudit('customer_work_info', existingCustomerWorkInfo.id, 'UPDATE', oldWorkData, updateWorkPayload, performedBy, t);
                 }
             }
 
-            // Timeline Log
+            // =======================================================
+            // 🌟 SYNC FINANCIAL DATA BACK TO LOAN_APPLICATIONS
+            // =======================================================
+            const updateLoanPayload: any = {};
+            let isLoanDataChanged = false;
+
+            if (basicVerificationData.verified_price !== null && basicVerificationData.verified_price !== undefined) {
+                updateLoanPayload.total_amount = basicVerificationData.verified_price;
+                isLoanDataChanged = true;
+            }
+            if (basicVerificationData.verified_down_payment !== null && basicVerificationData.verified_down_payment !== undefined) {
+                updateLoanPayload.down_payment = basicVerificationData.verified_down_payment;
+                isLoanDataChanged = true;
+            }
+            if (basicVerificationData.verified_monthly_pay !== null && basicVerificationData.verified_monthly_pay !== undefined) {
+                updateLoanPayload.monthly_pay = basicVerificationData.verified_monthly_pay;
+                isLoanDataChanged = true;
+            }
+
+            if (isLoanDataChanged) {
+                const oldLoanData = checkLoanApp.toJSON();
+                await checkLoanApp.update(updateLoanPayload, { transaction: t });
+                await logAudit('loan_applications', checkLoanApp.id, 'UPDATE', oldLoanData, updateLoanPayload, performedBy, t);
+            }
+
             await db.loan_approval_logs.create({
                 application_id: loan_id,
                 action: 'verified_basic',
@@ -172,15 +164,16 @@ class CheckListService {
             }, { transaction: t });
 
             await t.commit();
-            console.log('✅ Basic verifications saved successfully!');
-            return {
-                success: true,
-                message: 'Basic verification saved successfully',
-                data: basic_verification
+
+            // 🌟 CLEAR CACHE
+            if (redisService && redisService.isClientConnected()) {
+                await redisService.del(`cache:loan_application:${loan_id}`);
+                await redisService.delByPattern('cache:loan_applications:list:*');
             }
 
+            return { success: true, message: 'Basic verification saved successfully', data: basic_verification };
         } catch (error: any) {
-            await t.rollback();
+            if (t && !(t as any).finished) await t.rollback();
             console.error('❌ Error saving basic verification:', error);
             return { success: false, message: error.message || 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການຢືມເງິນ', data: null };
         }
@@ -190,31 +183,17 @@ class CheckListService {
         const t = await db.sequelize.transaction();
         try {
             const loan_id = data.loan_id || data.application_id;
-            if (!loan_id) {
-                throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
-            }
+            if (!loan_id) throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
 
-            // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.called_by || data.calledBy || data.user_id || 1;
 
             await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
 
-            let callsData = [];
-            if (data.calls && Array.isArray(data.calls)) {
-                callsData = data.calls;
-            } else if (Array.isArray(data)) {
-                callsData = data;
-            } else {
-                callsData = [data]; 
-            }
-
+            let callsData = Array.isArray(data.calls) ? data.calls : (Array.isArray(data) ? data : [data]);
             const processedCalls = [];
             const incomingIds = []; 
 
-            const existingCount = await db.loan_call_verifications.count({
-                where: { application_id: loan_id },
-                transaction: t
-            });
+            const existingCount = await db.loan_call_verifications.count({ where: { application_id: loan_id }, transaction: t });
 
             for (const call of callsData) {
                 const payload = {
@@ -237,25 +216,18 @@ class CheckListService {
                         await existingCall.update(payload, { transaction: t });
                         incomingIds.push(existingCall.id); 
                         processedCalls.push(existingCall);
-                        
-                        // 🟢 Audit Log (UPDATE)
                         await logAudit('loan_call_verifications', existingCall.id, 'UPDATE', oldCallData, payload, performedBy, t);
                     }
                 } else {
                     const newCall = await db.loan_call_verifications.create(payload, { transaction: t });
                     incomingIds.push(newCall.id); 
                     processedCalls.push(newCall);
-                    
-                    // 🟢 Audit Log (CREATE)
                     await logAudit('loan_call_verifications', newCall.id, 'CREATE', null, payload, performedBy, t);
                 }
             }
 
-            // ลบข้อมูลเก่าที่ไม่ได้ส่งมา + 🟢 Audit Log (DELETE)
             let deleteCondition: any = { application_id: loan_id };
-            if (incomingIds.length > 0) {
-                deleteCondition.id = { [Op.notIn]: incomingIds };
-            }
+            if (incomingIds.length > 0) deleteCondition.id = { [Op.notIn]: incomingIds };
             
             const callsToDelete = await db.loan_call_verifications.findAll({ where: deleteCondition, transaction: t });
             for(const item of callsToDelete) {
@@ -275,12 +247,10 @@ class CheckListService {
             }, { transaction: t });
 
             await t.commit();
-            console.log('✅ Call verifications saved successfully! Total records:', processedCalls.length);
             return { success: true, message: 'Call verification saved successfully', data: processedCalls };
 
         } catch (error: any) {
-            await t.rollback();
-            console.error('❌ Error saving call verification:', error);
+            if (t && !(t as any).finished) await t.rollback();
             return { success: false, message: error.message || 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກການໂທ', data: null };
         }
     }
@@ -289,22 +259,13 @@ class CheckListService {
         const t = await db.sequelize.transaction();
         try {
             const loan_id = data.loan_id || data.application_id;
-            if (!loan_id) {
-                throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
-            }
+            if (!loan_id) throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
 
-            // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.checked_by || data.checkedBy || data.user_id || 1;
 
             await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
 
-            let cibDetails = [];
-            if (data.cib_details && Array.isArray(data.cib_details)) {
-                cibDetails = data.cib_details;
-            } else if (data.cibDetails && Array.isArray(data.cibDetails)) {
-                cibDetails = data.cibDetails;
-            }
-
+            let cibDetails = Array.isArray(data.cib_details) ? data.cib_details : (Array.isArray(data.cibDetails) ? data.cibDetails : []);
             const processedDetails = [];
             const incomingIds = []; 
             let worstStatus = 'no_delay';
@@ -333,21 +294,16 @@ class CheckListService {
                         await existingRecord.update(payloadDetail, { transaction: t });
                         incomingIds.push(existingRecord.id);
                         processedDetails.push(existingRecord);
-                        
-                        // 🟢 Audit Log (UPDATE)
                         await logAudit('loan_cib_history_details', existingRecord.id, 'UPDATE', oldDetailData, payloadDetail, performedBy, t);
                     }
                 } else {
                     const newRecord = await db.loan_cib_history_details.create(payloadDetail, { transaction: t });
                     incomingIds.push(newRecord.id);
                     processedDetails.push(newRecord);
-                    
-                    // 🟢 Audit Log (CREATE)
                     await logAudit('loan_cib_history_details', newRecord.id, 'CREATE', null, payloadDetail, performedBy, t);
                 }
             }
 
-            // ลบข้อมูลเก่าที่ไม่ได้ส่งมา + 🟢 Audit Log (DELETE)
             let deleteCondition: any = { application_id: loan_id };
             if (incomingIds.length > 0) {
                 deleteCondition.id = { [Op.notIn]: incomingIds };
@@ -361,7 +317,6 @@ class CheckListService {
             }
             await db.loan_cib_history_details.destroy({ where: deleteCondition, transaction: t });
 
-            // ตารางหลัก (loan_cib_checks)
             const cibMainPayload: any = {
                 application_id: loan_id,
                 cib_status: worstStatus, 
@@ -373,56 +328,30 @@ class CheckListService {
             };
 
             let cibMain = null;
-            const existingMain = await db.loan_cib_checks.findOne({
-                where: { application_id: loan_id },
-                transaction: t,
-                lock: t.LOCK.UPDATE // 🔒 Lock ข้อมูลเพื่อป้องกันการแก้ไขพร้อมกันจากหลาย Transaction
-            });
+            const existingMain = await db.loan_cib_checks.findOne({ where: { application_id: loan_id }, transaction: t, lock: t.LOCK.UPDATE });
 
             if (existingMain) {
                 const oldMainData = existingMain.toJSON();
-                console.log('📝 CIB Main exists, updating status to:', worstStatus);
                 await existingMain.update(cibMainPayload, { transaction: t });
                 cibMain = existingMain;
-                
-                // 🟢 Audit Log (UPDATE)
                 await logAudit('loan_cib_checks', existingMain.id, 'UPDATE', oldMainData, cibMainPayload, performedBy, t);
             } else {
-                console.log('📝 Creating new CIB Main with status:', worstStatus);
                 cibMain = await db.loan_cib_checks.create(cibMainPayload, { transaction: t });
-                
-                // 🟢 Audit Log (CREATE)
                 await logAudit('loan_cib_checks', cibMain.id, 'CREATE', null, cibMainPayload, performedBy, t);
             }
 
             const logRemark = existingMain ? `ແກ້ໄຂຂໍ້ມູນການກວດສອບ CIB (ອັບເດດເປັນ ${processedDetails.length} ລາຍການ)` : `ສ້າງຂໍ້ມູນການກວດສອບ CIB (ບັນທຶກ ${processedDetails.length} ລາຍການ)`;
-            
-            // Timeline Log
-            await db.loan_approval_logs.create({
-                application_id: loan_id,
-                action: 'verified_cib',
-                remarks: logRemark,
-                performed_by: performedBy
-            }, { transaction: t });
+            await db.loan_approval_logs.create({ application_id: loan_id, action: 'verified_cib', remarks: logRemark, performed_by: performedBy }, { transaction: t });
 
             await t.commit();
-            console.log('✅ CIB Verification saved perfectly!');
-
-            return {
-                success: true,
-                message: 'CIB verification saved successfully',
-                data: { ...cibMain.toJSON(), cib_details: processedDetails }
-            };
+            return { success: true, message: 'CIB verification saved successfully', data: { ...cibMain.toJSON(), cib_details: processedDetails } };
 
         } catch (error: any) {
-            await t.rollback();
-            console.error('❌ Error saving CIB verification:', error);
+            if (t && !(t as any).finished) await t.rollback();
             return { success: false, message: error.message || 'Error saving CIB verification', data: null };
         }
     }
 
-
-    /** Location Cleanup Helpers **/
     private async findLocationUploadsDirectory(): Promise<string | null> {
         const possiblePaths = [
             path.resolve(process.cwd(), 'public', 'uploads', 'locations'),
@@ -432,22 +361,15 @@ class CheckListService {
         ];
         for (const testPath of possiblePaths) {
             try {
-                await fs.access(testPath);
-                return testPath;
+                await fs.access(testPath); return testPath;
             } catch { }
         }
         return null;
     }
 
     private async cleanupOrphanedLocationFiles(loanId: number): Promise<number> {
-        // (ส่วนนี้ไม่เกี่ยวกับ DB Insert/Update ข้าม logAudit ได้ครับ)
         try {
-            const dbRecords = await db.loan_field_visits.findAll({
-                where: { application_id: loanId },
-                attributes: ['photo_url_1', 'photo_url_2'],
-                raw: true
-            });
-
+            const dbRecords = await db.loan_field_visits.findAll({ where: { application_id: loanId }, attributes: ['photo_url_1', 'photo_url_2'], raw: true });
             const dbFileUrls = new Set<string>();
             dbRecords.forEach((r: any) => {
                 if (r.photo_url_1) dbFileUrls.add(r.photo_url_1.trim());
@@ -469,11 +391,8 @@ class CheckListService {
                     const entries = await fs.readdir(dir, { withFileTypes: true });
                     for (const entry of entries) {
                         const fullPath = path.join(dir, entry.name);
-                        if (entry.isDirectory()) {
-                            await searchDirectory(fullPath);
-                        } else if (entry.isFile() && entry.name.includes(pattern)) {
-                            allFilePaths.push(fullPath);
-                        }
+                        if (entry.isDirectory()) await searchDirectory(fullPath);
+                        else if (entry.isFile() && entry.name.includes(pattern)) allFilePaths.push(fullPath);
                     }
                 } catch (err) { }
             };
@@ -487,9 +406,7 @@ class CheckListService {
                 const match = normalizedPath.match(/uploads\/locations\/(.+)$/);
                 if (match) {
                     const dbUrl = `/uploads/locations/${match[1]}`;
-                    if (!dbFileUrls.has(dbUrl)) {
-                        orphanedFiles.push(filePath); 
-                    }
+                    if (!dbFileUrls.has(dbUrl)) orphanedFiles.push(filePath); 
                 }
             }
 
@@ -500,42 +417,25 @@ class CheckListService {
                 } catch (deleteError) {
                     let deletedCount = 0;
                     for (const filePath of orphanedFiles) {
-                        try {
-                            await fs.unlink(filePath);
-                            deletedCount++;
-                        } catch (e) { }
+                        try { await fs.unlink(filePath); deletedCount++; } catch (e) { }
                     }
                     return deletedCount;
                 }
             }
             return 0;
-        } catch (error) {
-            return 0;
-        }
+        } catch (error) { return 0; }
     }
 
     async CreateFieldVisits(data: any) {
         const t = await db.sequelize.transaction();
         try {
             const loan_id = data.loan_id || data.application_id;
-            if (!loan_id) {
-                throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
-            }
+            if (!loan_id) throw new Error('loan_id ຫຼື application_id ເປັນຂໍ້ມູນບັງຄັບ');
 
-            // 🟢 กำหนด ID คนทำรายการ
             const performedBy = data.visited_by || data.visitedBy || data.user_id || 1;
-
             await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
 
-            let field_visit = [];
-            if (data.visits && Array.isArray(data.visits)) {
-                field_visit = data.visits;
-            } else if (Array.isArray(data)) {
-                field_visit = data;
-            } else {
-                field_visit = [data]; 
-            }
-
+            let field_visit = Array.isArray(data.visits) ? data.visits : (Array.isArray(data) ? data : [data]);
             const processedFieldVisits = [];
             const incomingIds = []; 
 
@@ -558,11 +458,7 @@ class CheckListService {
                 if (field.id) {
                     existingRecord = await db.loan_field_visits.findByPk(field.id, { transaction: t, lock: t.LOCK.UPDATE });
                 } else {
-                    existingRecord = await db.loan_field_visits.findOne({
-                        where: { application_id: loan_id, visit_type: payload.visit_type },
-                        transaction: t,
-                        lock: t.LOCK.UPDATE
-                    });
+                    existingRecord = await db.loan_field_visits.findOne({ where: { application_id: loan_id, visit_type: payload.visit_type }, transaction: t, lock: t.LOCK.UPDATE });
                 }
 
                 if (existingRecord) {
@@ -570,24 +466,17 @@ class CheckListService {
                     await existingRecord.update(payload, { transaction: t });
                     incomingIds.push(existingRecord.id);
                     processedFieldVisits.push(existingRecord);
-                    
-                    // 🟢 Audit Log (UPDATE)
                     await logAudit('loan_field_visits', existingRecord.id, 'UPDATE', oldFieldData, payload, performedBy, t);
                 } else {
                     const newFieldVisit = await db.loan_field_visits.create(payload, { transaction: t });
                     incomingIds.push(newFieldVisit.id);
                     processedFieldVisits.push(newFieldVisit);
-                    
-                    // 🟢 Audit Log (CREATE)
                     await logAudit('loan_field_visits', newFieldVisit.id, 'CREATE', null, payload, performedBy, t);
                 }
             }
 
-            // ลบข้อมูลเก่า + 🟢 Audit Log (DELETE)
             let deleteCondition: any = { application_id: loan_id };
-            if (incomingIds.length > 0) {
-                deleteCondition.id = { [Op.notIn]: incomingIds };
-            }
+            if (incomingIds.length > 0) deleteCondition.id = { [Op.notIn]: incomingIds };
             
             const visitsToDelete = await db.loan_field_visits.findAll({ where: deleteCondition, transaction: t });
             for(const item of visitsToDelete) {
@@ -596,28 +485,16 @@ class CheckListService {
             await db.loan_field_visits.destroy({ where: deleteCondition, transaction: t });
 
             const existingCount = await db.loan_field_visits.count({ where: { application_id: loan_id }, transaction: t });
-            const logRemark = existingCount > 0
-                ? `ແກ້ໄຂຂໍ້ມູນການຢືມເງິນ (Field Visits) - ອັບເດດເປັນ ${processedFieldVisits.length} ລາຍການ`
-                : `ສ້າງຂໍ້ມູນການຢືມເງິນ (Field Visits) - ບັນທຶກ ${processedFieldVisits.length} ລາຍການ`;
+            const logRemark = existingCount > 0 ? `ແກ້ໄຂຂໍ້ມູນການຢືມເງິນ (Field Visits) - ອັບເດດເປັນ ${processedFieldVisits.length} ລາຍການ` : `ສ້າງຂໍ້ມູນການຢືມເງິນ (Field Visits) - ບັນທຶກ ${processedFieldVisits.length} ລາຍການ`;
 
-            await db.loan_approval_logs.create({
-                application_id: loan_id,
-                action: 'verified_field',
-                remarks: logRemark,
-                performed_by: performedBy
-            }, { transaction: t });
+            await db.loan_approval_logs.create({ application_id: loan_id, action: 'verified_field', remarks: logRemark, performed_by: performedBy }, { transaction: t });
 
             await t.commit();
-            logger.info(`✅ Field visits DB saved successfully! Total records: ${processedFieldVisits.length}`);
-
-            this.cleanupOrphanedLocationFiles(loan_id).catch(e => {
-                logger.error('Failed to cleanup location images in background', e);
-            });
+            this.cleanupOrphanedLocationFiles(loan_id).catch(e => { logger.error('Failed to cleanup location images in background', e); });
 
             return { success: true, message: 'Field visits saved successfully', data: processedFieldVisits };
         } catch (error: any) {
-            await t.rollback();
-            logger.error('❌ Error saving Field Visit:', error);
+            if (t && !(t as any).finished) await t.rollback();
             return { success: false, message: error.message || 'Error saving Field Visit', data: null };
         }
     }
@@ -630,15 +507,11 @@ class CheckListService {
 
             const performedBy = data.assessed_by || data.user_id || 1;
 
-            await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
+            const checkLoanApp = await db.loan_applications.findByPk(loan_id, { transaction: t, lock: t.LOCK.UPDATE });
+            if (!checkLoanApp) throw new Error('Loan application not found');
 
             let income_assessment = null;
-
-            const existingIncomeAssessment = await db.loan_income_assessments.findOne({
-                where: { application_id: loan_id },
-                transaction: t,
-                lock: t.LOCK.UPDATE
-            });
+            const existingIncomeAssessment = await db.loan_income_assessments.findOne({ where: { application_id: loan_id }, transaction: t, lock: t.LOCK.UPDATE });
             
             const incomeAssessmentData: any = {
                 application_id: loan_id,
@@ -648,10 +521,7 @@ class CheckListService {
                 total_verified_income: data.total_verified_income,
                 estimated_living_expenses: data.estimated_living_expenses || 0.00,
                 existing_debt_payments: data.existing_debt_payments || 0.00,
-                
-                // 🟢 ບັນທຶກຄ່າທີ່ Controller ຫາກໍຄຳນວນມາສົດໆລົງໄປ
                 internal_active_installments: data.internal_active_installments || 0.00, 
-                
                 proposed_installment: data.proposed_installment,
                 dsr_percentage: data.dsr_percentage,
                 max_approved_amount: data.max_approved_amount || 0.00,
@@ -669,131 +539,101 @@ class CheckListService {
                 await logAudit('loan_income_assessments', income_assessment.id, 'CREATE', null, incomeAssessmentData, performedBy, t);
             }
 
-            const remarks = existingIncomeAssessment ? 'ແກ້ໄຂຂໍ້ມູນການປະເມີນລາຍໄດ້ (Income Assessment)' : 'ສ້າງຂໍ້ມູນການປະເມີນລາຍໄດ້ (Income Assessment)';
+            // =======================================================
+            // 🌟 SYNC PROPOSED INSTALLMENT TO LOAN_APPLICATIONS
+            // =======================================================
+            if (incomeAssessmentData.proposed_installment) {
+                const oldLoanData = checkLoanApp.toJSON();
+                if (Number(oldLoanData.monthly_pay) !== Number(incomeAssessmentData.proposed_installment)) {
+                    const updatePayload = { monthly_pay: incomeAssessmentData.proposed_installment };
+                    await checkLoanApp.update(updatePayload, { transaction: t });
+                    await logAudit('loan_applications', checkLoanApp.id, 'UPDATE', oldLoanData, updatePayload, performedBy, t);
+                }
+            }
 
-            await db.loan_approval_logs.create({
-                application_id: loan_id,
-                action: 'assessed_income',
-                remarks,
-                performed_by: performedBy
-            }, { transaction: t });
+            const remarks = existingIncomeAssessment ? 'ແກ້ໄຂຂໍ້ມູນການປະເມີນລາຍໄດ້ (Income Assessment)' : 'ສ້າງຂໍ້ມູນການປະເມີນລາຍໄດ້ (Income Assessment)';
+            await db.loan_approval_logs.create({ application_id: loan_id, action: 'assessed_income', remarks, performed_by: performedBy }, { transaction: t });
 
             await t.commit();
+
+            if (redisService && redisService.isClientConnected()) {
+                await redisService.del(`cache:loan_application:${loan_id}`);
+                await redisService.delByPattern('cache:loan_applications:list:*');
+            }
+
             return { success: true, message: 'Income assessment saved successfully', data: income_assessment };
         } catch (error: any) {
-            await t.rollback();
+            if (t && !(t as any).finished) await t.rollback();
             return { success: false, message: 'Error creating Income Assessment', data: null };
         }
     }
-
-    // ==========================================
-    // GET METHODS (ไม่เปลี่ยนแปลง)
-    // ==========================================
 
     async GetBasicVerificationByLoanId(loan_id: number) {
         try {
             const basic_verification = await db.loan_basic_verifications.findOne({ where: { application_id: loan_id }, raw: true });
             return { success: true, message: 'Basic verification retrieved successfully', data: basic_verification };
-        } catch (error: any) {
-            return { success: false, message: 'Error retrieving basic verification', data: null };
-        }
+        } catch (error: any) { return { success: false, message: 'Error retrieving basic verification', data: null }; }
     }
+    
     async GetCallVerificationsByLoanId(loan_id: number) {
         try {
             const call_verifications = await db.loan_call_verifications.findAll({ where: { application_id: loan_id }, raw: true });
             return { success: true, message: 'Call verifications retrieved successfully', data: call_verifications };
-        } catch (error: any) {
-            return { success: false, message: 'Error retrieving Call Verifications', data: null };
-        }
+        } catch (error: any) { return { success: false, message: 'Error retrieving Call Verifications', data: null }; }
     }
+    
     async GetCIBCheckByLoanId(loan_id: number) {
         try {
             const mainData = await db.loan_cib_checks.findOne({ where: { application_id: loan_id }, raw: true });
             const historyDetails = await db.loan_cib_history_details.findAll({ where: { application_id: loan_id }, raw: true });
             return { success: true, message: 'CIB check retrieved successfully', data: { ...mainData, cib_details: historyDetails } };
-        } catch (error: any) {
-            return { success: false, message: 'Error retrieving CIB Check', data: null };
-        }
+        } catch (error: any) { return { success: false, message: 'Error retrieving CIB Check', data: null }; }
     }
+    
     async GetFieldVisitsByLoanId(loan_id: number) {
         try {
             const field_visits = await db.loan_field_visits.findAll({ where: { application_id: loan_id }, raw: true });
             return { success: true, message: 'Field visits retrieved successfully', data: field_visits };
-        } catch (error: any) {
-            return { success: false, message: 'Error retrieving Field Visits', data: null };
-        }
+        } catch (error: any) { return { success: false, message: 'Error retrieving Field Visits', data: null }; }
     }
+    
     async GetIncomeAssessmentByLoanId(loan_id: number) {
         try {
             let income_assessment: any = await db.loan_income_assessments.findOne({ where: { application_id: loan_id }, raw: true });
-            
-            // 🌟 ອັບເດດໜີ້ພາຍໃນເປັນ Real-time ຄືກັນ
             const loanApp = await db.loan_applications.findByPk(loan_id, { attributes: ['customer_id'] });
             if (loanApp) {
                 const calculated_exposure = await this.calculateTotalInternalExposure(loanApp.customer_id, loan_id);
-                if (income_assessment) {
-                    income_assessment.internal_active_installments = calculated_exposure;
-                } else {
-                    income_assessment = { internal_active_installments: calculated_exposure };
-                }
+                if (income_assessment) { income_assessment.internal_active_installments = calculated_exposure; } 
+                else { income_assessment = { internal_active_installments: calculated_exposure }; }
             }
-
             return { success: true, message: 'Income assessment retrieved successfully', data: income_assessment };
-        } catch (error: any) {
-            return { success: false, message: 'Error retrieving Income Assessment', data: null };
-        }
+        } catch (error: any) { return { success: false, message: 'Error retrieving Income Assessment', data: null }; }
     }
+    
     async GetAllChecklistByLoanId(loan_id: number) {
         try {
             const basic_verification = await db.loan_basic_verifications.findOne({ where: { application_id: loan_id }, raw: true }) || null;
             let income_assessment: any = await db.loan_income_assessments.findOne({ where: { application_id: loan_id }, raw: true });
             const call_verifications = await db.loan_call_verifications.findAll({ where: { application_id: loan_id }, raw: true }) || [];
-            
             const mainData = await db.loan_cib_checks.findOne({ where: { application_id: loan_id }, raw: true });
             const historyDetails = await db.loan_cib_history_details.findAll({ where: { application_id: loan_id }, raw: true });
             const cib_check = mainData ? { ...mainData, cib_details: historyDetails || [] } : null;
-
             const field_visits = await db.loan_field_visits.findAll({ where: { application_id: loan_id }, raw: true }) || [];
 
-            // =============================================================
-            // 🌟 ບັງຄັບຄຳນວນ DSR ໃໝ່ແບບ Real-time ເພື່ອໃຫ້ Credit Scoring ໄດ້ຄ່າທີ່ຖືກຕ້ອງ
-            // =============================================================
             const loanApp = await db.loan_applications.findByPk(loan_id, { attributes: ['customer_id', 'monthly_pay'] });
-            
             if (loanApp) {
-                // 1. ດຶງໜີ້ພາຍໃນ (INSEE) ຫຼ້າສຸດ
                 const internal_active_installments = await this.calculateTotalInternalExposure(loanApp.customer_id, loan_id);
-
                 if (income_assessment) {
-                    // 2. ອັບເດດໜີ້ພາຍໃນເຂົ້າໄປໃນ Object
                     income_assessment.internal_active_installments = internal_active_installments;
-
-                    // 3. ຄຳນວນພາລະໜີ້ລວມທັງໝົດ (ໜີ້ CIB + ໜີ້ INSEE + ຄ່າງວດໃໝ່)
-                    const totalDebtBurden = Number(income_assessment.existing_debt_payments || 0) 
-                                          + Number(internal_active_installments) 
-                                          + Number(income_assessment.proposed_installment || loanApp.monthly_pay || 0);
-                    
+                    const totalDebtBurden = Number(income_assessment.existing_debt_payments || 0) + Number(internal_active_installments) + Number(income_assessment.proposed_installment || loanApp.monthly_pay || 0);
                     const totalIncome = Number(income_assessment.total_verified_income || 0);
-
-                    // 4. ຄຳນວນ DSR % ໃໝ່
                     income_assessment.dsr_percentage = totalIncome > 0 ? (totalDebtBurden / totalIncome) * 100 : 0;
                 } else {
-                    // ກໍລະນີຍັງບໍ່ເຄີຍປະເມີນລາຍຮັບມາກ່ອນ
-                    income_assessment = { 
-                        internal_active_installments: internal_active_installments,
-                        proposed_installment: loanApp.monthly_pay,
-                        dsr_percentage: 0
-                    };
+                    income_assessment = { internal_active_installments: internal_active_installments, proposed_installment: loanApp.monthly_pay, dsr_percentage: 0 };
                 }
             }
-
-            return {
-                success: true, message: 'All checklists retrieved successfully',
-                data: { basic_verification, income_assessment, call_verifications, cib_check, field_visits }
-            }
-        } catch (error: any) {
-            return { success: false, message: 'Error retrieving all checklists', data: null };
-        }
+            return { success: true, message: 'All checklists retrieved successfully', data: { basic_verification, income_assessment, call_verifications, cib_check, field_visits } }
+        } catch (error: any) { return { success: false, message: 'Error retrieving all checklists', data: null }; }
     }
 }
 

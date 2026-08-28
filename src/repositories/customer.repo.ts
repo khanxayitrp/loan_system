@@ -125,6 +125,15 @@ class CustomerRepository {
         return await db.customers.findOne({ where: { identity_number: identityNumber } });
     }
 
+    // 🟢 ຟັງຊັນໃໝ່: ຄົ້ນຫາລູກຄ້າດ້ວຍເລກບັນຊີທະນາຄານ
+    async findCustomerByAccountNumber(accountNumber: string, options: { transaction?: any } = {}): Promise<customers | null> {
+        if (!accountNumber || accountNumber.trim() === '') return null;
+        return await db.customers.findOne({ 
+            where: { account_number: accountNumber.trim() }, 
+            transaction: options.transaction 
+        });
+    }
+
     async findCustomersByName(name: string, options: { transaction?: any } = {}): Promise<customers | null> {
         return await db.customers.findOne({
             where: Sequelize.where(

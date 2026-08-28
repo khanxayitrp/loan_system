@@ -10,30 +10,62 @@ const controller = new DashboardController();
 // 🔒 Dashboard Routes
 // ============================================================================
 
-// 🌟 2. ใช้ verifyToken และ isAuthorized(['admin', 'staff'])
-router.get(
-    '/summary',
-    verifyToken,
-    isAuthorized(['admin', 'staff']),
-    // ถ้าต้องการจำกัด Level พนักงานด้วย สามารถแก้เป็น: isAuthorized(['admin', 'staff'], ['director', 'deputy_director'])
-    controller.getSummary.bind(controller) // แนะนำให้ใช้ .bind(controller) เพื่อป้องกันปัญหา context ของ 'this' หลุด
-);
+/**
+ * @swagger
+ * /dashboard/summary:
+ *   get:
+ *     summary: Retrieve dashboard summary data
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Summary data returned successfully
+ *       401:
+ *         description: Unauthorized - token missing or invalid
+ *       403:
+ *         description: Forbidden - insufficient permissions
+ */
+router.get('/summary', verifyToken, isAuthorized(['admin', 'staff']), controller.getSummary.bind(controller))
 
-// Endpoint สำหรับล้าง Cache โดยตรงจากหน้าเว็บ
+/**
+ * @swagger
+ * /dashboard/refresh:
+ *   post:
+ *     summary: Clear dashboard cache
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Cache cleared successfully
+ *       401:
+ *         description: Unauthorized - token missing or invalid
+ *       403:
+ *         description: Forbidden - insufficient permissions
+ */
 router.post(
     '/refresh',
     verifyToken,
     isAuthorized(['admin', 'staff']),
     controller.clearCache.bind(controller)
 );
-// =======================================================
-// 🔒 Partner (ร้านค้า) Dashboard 
-// =======================================================
-router.get(
-    '/partner/summary',
-    verifyToken,
-    isAuthorized(['partner']), // จำกัดให้เฉพาะ Partner เข้าถึงได้
-    controller.getPartnerSummary.bind(controller)
-);
+/**
+ * @swagger
+ * /dashboard/partner/summary:
+ *   get:
+ *     summary: Retrieve partner dashboard summary
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Partner summary data returned
+ *       401:
+ *         description: Unauthorized - token missing or invalid
+ *       403:
+ *         description: Forbidden - partner access required
+ */
+router.get('/partner/summary', verifyToken, isAuthorized(['partner']), controller.getPartnerSummary.bind(controller))
 
 export default router;

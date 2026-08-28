@@ -398,6 +398,20 @@ router.post('/create-with-customer', optionalVerifyToken, loanCtrl.createWithCus
  *         required: true
  *         schema:
  *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - scheduleData
+ *             properties:
+ *               scheduleData:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                 description: Array of repayment schedule entries
  *     responses:
  *       201:
  *         description: Repayment schedule created
@@ -424,10 +438,82 @@ router.post('/repayment-schedule/:application_id', verifyToken, loanCtrl.createR
  */
 router.get('/repayment-schedule/:application_id/all', verifyToken, loanCtrl.getRepaymentSchedule);
 
+/**
+ * @swagger
+ * /loan-application/document-signature/{application_id}:
+ *   get:
+ *     summary: Get document signature by loan application ID
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: application_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Signature data fetched successfully
+ */
 router.get('/document-signature/:application_id', verifyToken, loanCtrl.getSignatureByLoanID);
 
+/**
+ * @swagger
+ * /loan-application/{id}/approval-logs:
+ *   get:
+ *     summary: Get approval logs for a loan application
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Approval logs fetched successfully
+ */
 router.get('/:id/approval-logs', loanCtrl.getApprovalLogs);
 
+/**
+ * @swagger
+ * /loan-application/{id}/comments:
+ *   post:
+ *     summary: Add a comment to a loan application
+ *     tags: [Loan Application]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - remarks
+ *             properties:
+ *               remarks:
+ *                 type: string
+ *               reply_to_id:
+ *                 type: integer
+ *                 description: ID of the comment being replied to (optional)
+ *     responses:
+ *       201:
+ *         description: Comment saved successfully
+ *       400:
+ *         description: Invalid reply reference or missing remarks
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/:id/comments', verifyToken, loanCtrl.addComment);
 
 export default router;

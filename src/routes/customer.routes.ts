@@ -12,6 +12,8 @@ const router = Router();
  *   post:
  *     summary: Request OTP for customer
  *     tags: [Customer]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -26,9 +28,16 @@ const router = Router();
  *     responses:
  *       200:
  *         description: OTP sent
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Server error
  */
 router.post('/otp/request', customerCtrl.requestOtpForCustomer);
-
 /**
  * @swagger
  * /customer/create:
@@ -70,8 +79,8 @@ router.post('/otp/request', customerCtrl.requestOtpForCustomer);
  *               otp:
  *                 type: string
  *               account_number:
- *                type: string
- *               description: เลขบัญชี BCEL (ถ้ามี)
+ *                 type: string
+ *                 description: เลขบัญชี BCEL (ถ้ามี)
  *               profile_image:
  *                 type: string
  *                 format: binary
@@ -80,9 +89,7 @@ router.post('/otp/request', customerCtrl.requestOtpForCustomer);
  *       201:
  *         description: Customer created
  */
-// 🌟 ເພີ່ມ uploadProfileImage.single('profile_image') ເຂົ້າໄປໃນ Route
 router.post('/create', verifyToken, uploadProfileImage.single('profile_image'), customerCtrl.createCustomer);
-
 // 🟢 Login ເພື່ອເອົາ Token ໄປໃຊ້ງານອັບໂຫຼດເອກະສານ
 /**
  * @swagger
@@ -90,6 +97,8 @@ router.post('/create', verifyToken, uploadProfileImage.single('profile_image'), 
  *   post:
  *     summary: Verify OTP and get customer token for document upload
  *     tags: [Customer]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -109,8 +118,14 @@ router.post('/create', verifyToken, uploadProfileImage.single('profile_image'), 
  *         description: OTP verified successfully, returns customer token
  *       400:
  *         description: Invalid OTP
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  *       404:
  *         description: Customer not found
+ *       500:
+ *         description: Server error
  */
 router.post('/verify-login', customerCtrl.verifyOtpAndGetToken);
 

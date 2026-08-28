@@ -380,26 +380,27 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
     let { phone, identity_number } = req.body;
     const {
       otp, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt,
+      account_number, // 🟢 ເພີ່ມການຮັບຄ່າ account_number ຈາກ req.body
       product_id, variant_id, quantity = 1, total_amount, loan_period, interest_rate_at_apply, monthly_pay, down_payment,
-      interest_type, interest_rate_type,
+      interest_type, interest_rate_type, 
       existing_customer_id
     } = req.body;
 
     // =======================================================
-    // 🟢 2. Data Standardization (ກັ່ນຕອງຂໍ້ມູນກ່ອນນຳໄປໃຊ້)
+    // 🟢 1. Data Standardization
     // =======================================================
-
-    // ປ່ຽນຄ່າວ່າງ ຫຼື ຄຳວ່າ "ບໍ່ມີ" ໃຫ້ກາຍເປັນ null ແທ້ໆ ເພື່ອປ້ອງກັນ Duplicate Key Error
+    // 🌟 ປ່ຽນຈາກ null ເປັນ undefined ເພື່ອໃຫ້ກົງກັບ Type ຂອງ Sequelize
     if (!identity_number || identity_number.trim() === '' || identity_number === 'ບໍ່ມີ') {
-      identity_number = null;
+      identity_number = undefined; 
     }
 
-    // ແປງເບີໂທໃຫ້ເປັນມາດຕະຖານ (020/030) ກັນໜຽວໄວ້ອີກຊັ້ນໜຶ່ງ
     if (phone) {
       phone = formatStandardPhoneNumber(phone);
     }
 
-    // 🔍 ກວດສອບກ່ອນວ່າມັກຈາກພະນັກງານ (Staff ຫຼື Admin) ຫຼື ບໍ່
+    // 🌟 ປ່ຽນຈາກ null ເປັນ undefined
+    const cleanAccountNumber = account_number && String(account_number).trim() !== '' ? String(account_number).trim() : undefined; 
+
     const isEmployeeRequest = !!req.userPayload && (req.userPayload.role === 'staff' || req.userPayload.role === 'admin');
     const staffId = req.userPayload?.userId || null;
     const performedBy = staffId || 1;
@@ -407,7 +408,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
     // =======================================================
     // 1. Verify OTP (ຂ້າມຂັ້ນຕອນນີ້ຖ້າເປັນພະນັກງານສະໝັກໃຫ້ລູກຄ້າ)
     // =======================================================
-    if (!isEmployeeRequest) {  // 👈 ປ່ຽນຊື່ຕົວແປຢູ່ບ່ອນນີ້
+    if (!isEmployeeRequest) { 
       if (!phone || !otp) {
         throw new ValidationError('ກະລຸນາປ້ອນເບີໂທລະສັບ ແລະ ລະຫັດ OTP');
       }
@@ -425,50 +426,55 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
     // =======================================================
     // 2. Get or Create Customer
     // =======================================================
-    let customer;
-    const customerPayload = { phone, identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
-    const customerUpdatePayload = { identity_number, first_name, last_name, province_id, district_id, address, age, occupation, income_per_month, other_debt };
-
+    let customer = null;
+    
+    // 🟢 Payload สำรับ Customer
+    const customerPayload = { 
+      phone, identity_number, first_name, last_name, account_number: cleanAccountNumber, 
+      province_id, district_id, address, age, occupation, income_per_month, other_debt 
+    };
+    const customerUpdatePayload = { 
+      identity_number, first_name, last_name, account_number: cleanAccountNumber, 
+      province_id, district_id, address, age, occupation, income_per_month, other_debt 
+    };
+    
+    // 🟢 A. ค้นหาลูกค้าก่อน (Find Customer)
     if (isEmployeeRequest) {
-      // STAFF FLOW: ຈັດການຂໍ້ມູນລູກຄ້າໂດຍພະນັກງານ
       if (existing_customer_id) {
         customer = await db.customers.findByPk(existing_customer_id, {
           transaction,
           lock: transaction.LOCK.UPDATE
         });
         if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
-
-        const oldCustomerData = customer.toJSON();
-        await customer.update(customerUpdatePayload, { transaction });
-        await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
       } else {
-        // 🟢 ຖ້າ Frontend ບໍ່ໄດ້ສົ່ງ ID ມາ (ພະນັກງານລືມກົດຄົ້ນຫາ), ໃຫ້ Backend ກວດເບີໂທເອງເລີຍ!
-        customer = await customerRepo.findCustomersByPhone(phone); // <- ເພີ່ມການກວດສອບເບີໂທຢູ່ນີ້
+        customer = await customerRepo.findCustomersByPhone(phone); 
+      }
+    } else {
+      // CUSTOMER (PUBLIC) FLOW:
+      customer = await customerRepo.findCustomersByPhone(phone);
+    }
 
-        if (customer) {
-          // ເຈອລູກຄ້າເກົ່າຈາກເບີໂທ: ອັບເດດຂໍ້ມູນ
-          const oldCustomerData = customer.toJSON();
-          await customer.update(customerUpdatePayload, { transaction });
-          await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
-        } else {
-          // ບໍ່ເຄີຍມີເບີໂທນີ້ໃນລະບົບ: ສ້າງໃໝ່ເລີຍ
-          customer = await customerRepo.createCustomer(customerPayload, { transaction });
-          await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
+    // 🟢 B. ตรวจสอบเงื่อนไข และ บันทึก (Validate & Save)
+    if (customer) {
+      // 🌟 เงื่อนไขตรวจสอบเลขบัญชี: ใช้ร่วมกันทั้ง Staff และ Public
+      // ถ้าลูกค้ามีเลขบัญชีใน Database อยู่แล้ว (ไม่เป็น null/ว่าง) -> ต้องตรวจสอบว่าตรงกันหรือไม่
+      if (customer.account_number !== null && customer.account_number !== undefined && customer.account_number.trim() !== '') {
+        if (!cleanAccountNumber || customer.account_number.trim() !== cleanAccountNumber) {
+          throw new BadRequestError(`ເລກບັນຊີທະນາຄານບໍ່ກົງກັບຂໍ້ມູນລູກຄ້າເກົ່າໃນລະບົບ (ເລກບັນຊີທີ່ລົງທະບຽນໄວ້ແມ່ນ: ${customer.account_number})`);
         }
       }
 
+      // ผ่านเงื่อนไข -> ทำการอัปเดตข้อมูลลูกค้า
+      const oldCustomerData = customer.toJSON();
+      await customer.update(customerUpdatePayload, { transaction });
+      await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
+
     } else {
-      // CUSTOMER (PUBLIC) FLOW: ລູກຄ້າສະໝັກເອງ (ຜ່ານ OTP ແລ້ວ)
-      customer = await customerRepo.findCustomersByPhone(phone);
-      if (!customer) {
-        customer = await customerRepo.createCustomer(customerPayload, { transaction });
-        await logAudit('customers', customer.id, 'CREATE', null, customer.toJSON(), performedBy, transaction);
-      } else {
-        const oldCustomerData = customer.toJSON();
-        await customer.update(customerUpdatePayload, { transaction });
-        await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, customerUpdatePayload, performedBy, transaction);
-      }
+      // ไม่เจอลูกค้าในระบบ -> สร้างบัญชีลูกค้าใหม่
+      customer = await customerRepo.createCustomer(customerPayload, { transaction });
+      // หมายเหตุ: logAudit ของ CREATE ถูกเรียกใช้ใน customerRepo.createCustomer อยู่แล้ว
     }
+
 
     // =======================================================
     // 3. Validate product
@@ -477,19 +483,17 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
     if (!product) throw new NotFoundError('ບໍ່ພົບສິນຄ້າ');
 
     let variant = null;
-    let basePriceToUse = product.price; // ຕັ້ງຕົ້ນດ້ວຍລາຄາສິນຄ້າຫຼັກ
+    let basePriceToUse = product.price; 
 
-    // ຖ້າມີການສົ່ງ variant_id ມາ ໃຫ້ກວດສອບກ່ອນ
     if (variant_id) {
       variant = await db.product_variants.findByPk(variant_id, { transaction });
       if (!variant) throw new NotFoundError('ບໍ່ພົບຕົວເລືອກຍ່ອຍ (Variant) ທີ່ເລືອກ');
 
-      // ກວດສອບຄວາມປອດໄພ: Variant ຕ້ອງຂຶ້ນກັບ Product ໂຕນີ້ແທ້
       if (Number(variant.product_id) !== Number(product.id)) {
         throw new BadRequestError('ຕົວເລືອກຍ່ອຍນີ້ ບໍ່ໄດ້ຂຶ້ນກັບສິນຄ້າທີ່ເລືອກ');
       }
 
-      basePriceToUse = variant.price; // ປ່ຽນໄປໃຊ້ລາຄາຂອງ Variant ແທນ
+      basePriceToUse = variant.price; 
     }
 
     const final_total = total_amount || (basePriceToUse * quantity);
@@ -563,6 +567,7 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
           identity_number: identity_number,
           first_name: first_name,
           last_name: last_name,
+          account_number: account_number, // 🟢 ສົ່ງກັບໄປໃຫ້ Frontend ຮັບຊາບ
           province_id: province_id,
           district_id: district_id,
           address: address,
@@ -578,7 +583,6 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
           product_name: product.product_name,
           price: product.price,
           interest_rate: interest_rate_at_apply,
-          // 🟢 4. ແນບຂໍ້ມູນ Variant ກັບຄືນໄປພ້ອມ
           variant: variant ? {
             id: variant.id,
             color: variant.color,
@@ -593,9 +597,9 @@ export const createWithCustomer = async (req: Request, res: Response, next: Next
     });
   } catch (error) {
     if (transaction && !(transaction as any).finished) {
-    await transaction.rollback();
-  }
-  next(error);
+      await transaction.rollback();
+    }
+    next(error);
   }
 };
 
