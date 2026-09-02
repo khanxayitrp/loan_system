@@ -3,16 +3,17 @@ import checklistService from "../services/checklist.service";
 import { BadRequestError } from "../utils/errors";
 import redisService from '../services/redis.service';
 import { db } from '../models/init-models'
+import { parseCIBPDF } from "../utils/cibParser";
 
 class ChecklistController {
-    
+
     public async saveIncomeAssessment(req: Request, res: Response, next: NextFunction) {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
             const assessed_by = (req as any).userPayload?.userId || 1;
 
             if (!loan_id || isNaN(loan_id)) throw new BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
-            
+
             const data = req.body;
             if (!data || Object.keys(data).length === 0) throw new BadRequestError('data is required');
 
@@ -23,7 +24,7 @@ class ChecklistController {
             // 🌟 2. [Best Practice] ໃຫ້ Backend ຄຳນວນໜີ້ພາຍໃນໃໝ່ສະເໝີ 
             // ປ້ອງກັນບໍ່ໃຫ້ Frontend ສົ່ງຕົວເລກຫຼອກມາເພື່ອຫຼຸດ DSR
             const internal_active_installments = await checklistService.calculateTotalInternalExposure(loanApp.customer_id, loan_id);
-            
+
             // ບັງຄັບທັບຄ່າທີ່ Frontend ສົ່ງມາ
             data.internal_active_installments = internal_active_installments;
 
@@ -34,16 +35,16 @@ class ChecklistController {
             data.total_verified_income = total_verified_income;
 
             // 🌟 4. ຄຳນວນ DSR ໂດຍລວມເອົາໜີ້ພາຍໃນທີ່ Backend ຫາກໍ່ດຶງມາສົດໆ
-            const debtBurden = (Number(data.existing_debt_payments) || 0) + 
-                               internal_active_installments + 
-                               (Number(data.proposed_installment) || 0);
-                               
+            const debtBurden = (Number(data.existing_debt_payments) || 0) +
+                internal_active_installments +
+                (Number(data.proposed_installment) || 0);
+
             data.dsr_percentage = total_verified_income > 0 ? (debtBurden / total_verified_income) * 100 : 0;
 
             const checklistData: any = { ...data, loan_id, assessed_by };
 
             const result = await checklistService.CreateIncomeAssessment(checklistData);
-            
+
             if (!result.success) throw new BadRequestError(result.message);
 
             // =========================================================
@@ -55,7 +56,7 @@ class ChecklistController {
                 await redisService.delByPattern('cache:loan_applications:list:*');
             }
 
-            return res.status(200).json(result); 
+            return res.status(200).json(result);
         } catch (error) {
             next(error);
         }
@@ -71,9 +72,9 @@ class ChecklistController {
     //         if (!data || Object.keys(data).length === 0) throw new BadRequestError('data is required');
 
     //         const checklistData: any = { ...data, loan_id, verified_by };
-            
+
     //         const result = await checklistService.CreateBasicVerification(checklistData);
-            
+
     //         if (!result.success) throw new BadRequestError(result.message);
     //         return res.status(200).json(result);
     //     } catch (error) {
@@ -90,9 +91,9 @@ class ChecklistController {
             if (!data || Object.keys(data).length === 0) throw new BadRequestError('data is required');
 
             const checklistData: any = { ...data, loan_id, verified_by };
-            
+
             const result = await checklistService.CreateBasicVerification(checklistData);
-            
+
             if (!result.success) throw new BadRequestError(result.message);
 
             // =========================================================
@@ -130,7 +131,7 @@ class ChecklistController {
 
             if (!loan_id || isNaN(loan_id)) throw new BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
 
-            let checklistData: any = Array.isArray(data) 
+            let checklistData: any = Array.isArray(data)
                 ? { calls: data, loan_id: loan_id, called_by: calledBy }
                 : { ...data, loan_id: loan_id, called_by: calledBy };
 
@@ -155,7 +156,7 @@ class ChecklistController {
             const checklistData: any = { ...data, loan_id, checked_by };
 
             const result = await checklistService.CreateCIBVerification(checklistData);
-            
+
             if (!result.success) throw new BadRequestError(result.message);
             return res.status(200).json(result);
         } catch (error) {
@@ -177,7 +178,7 @@ class ChecklistController {
                 : { ...data, loan_id: loan_id, visited_by };
 
             const result = await checklistService.CreateFieldVisits(checklistData);
-            
+
             if (!result.success) throw new BadRequestError(result.message);
             return res.status(200).json(result);
         } catch (error) {
@@ -265,6 +266,43 @@ class ChecklistController {
             next(error);
         }
     }
+    public async importCIBPDF(req: Request, res: Response, next: NextFunction) {
+        try {
+            const loanId = req.body.loan_id;
+            if (!loanId) {
+                throw new BadRequestError('loan_id ເປັນຂໍ້ມູນບັງຄັບ (is required)');
+            }
+
+            const file = req.file;
+            if (!file) {
+                throw new BadRequestError('ກະລຸນາເລືອກໄຟລ໌ເພື່ອອັບໂຫຼດ (No file uploaded)');
+            }
+
+            // 🌟 1. Security Check: ป้องกันการอัปโหลดไฟล์ประเภทอื่น
+            if (file.mimetype !== 'application/pdf') {
+                throw new BadRequestError('ກະລຸນາອັບໂຫຼດສະເພາະໄຟລ໌ PDF ເທົ່ານັ້ນ (Invalid file type)');
+            }
+
+            // 🌟 2. Parse Data: ส่ง Buffer ไปสกัดข้อมูล
+            // หากหาข้อมูลไม่ได้ Parser จะ Throw Error ออกมาเอง
+            const parsedData = await parseCIBPDF(file.buffer);
+
+            // ❌ ลบ Redundant Check (if parsedData.cib_details.length === 0) ทิ้งไป
+            // เพราะถ้ามาถึงบรรทัดนี้ได้ แปลว่ามีข้อมูลอย่างน้อย 1 แถวแน่นอน (ไม่ว่าจะเป็นของจริงหรือ Fallback)
+
+            // 🌟 3. Return JSON: ส่งกลับให้ Frontend ไปแสดงผล
+            res.status(200).json({
+                success: true,
+                message: 'ດຶງຂໍ້ມູນຈາກ PDF ສຳເລັດ',
+                data: parsedData,
+            });
+
+        } catch (error) {
+            // โยน Error ไปให้ Global Error Handler จัดการส่ง HTTP 400/500 กลับไปที่ Frontend
+            next(error);
+        }
+    }
 }
+
 
 export default new ChecklistController();

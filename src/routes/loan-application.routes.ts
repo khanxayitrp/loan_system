@@ -314,6 +314,8 @@ router.patch('/:id/apply', verifyToken, loanCtrl.sentApplyDraft);
  *                 type: string
  *               age:
  *                 type: integer
+ *               account_number:
+ *                 type: string
  *               occupation:
  *                 type: string
  *               income_per_month:

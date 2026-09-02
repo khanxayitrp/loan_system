@@ -1,9 +1,15 @@
-import {Router} from 'express';
+import { Router } from 'express';
+import multer from 'multer';
 import checklistController from '../controllers/checklist.controller';
 import { verifyToken } from '../middlewares/auth.middleware';
 
 const router = Router();
 
+// ✅ ตั้งค่า multer สำหรับอัปโหลดไฟล์ (ใช้ memory storage)
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
 /**
  * @swagger
  * tags:
@@ -260,5 +266,73 @@ router.get('/income-assessment/:loanId', verifyToken, checklistController.getInc
  *         description: Checklist summary data
  */
 router.get('/summary/:loanId', verifyToken, checklistController.getChecklist);
+
+/**
+ * @swagger
+ * /checklist/import-cib-pdf:
+ *   post:
+ *     summary: นำเข้าไฟล์ PDF รายงาน CIB และแยกข้อมูลอัตโนมัติ
+ *     tags: [Checklist]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: ไฟล์ PDF รายงาน CIB
+ *               loan_id:
+ *                 type: integer
+ *                 description: ID ของสัญญาสินเชื่อ
+ *     responses:
+ *       200:
+ *         description: นำเข้าสำเร็จ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     cib_details:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           institution_name:
+ *                             type: string
+ *                           account_type:
+ *                             type: string
+ *                           history_status:
+ *                             type: string
+ *                           outstanding_balance:
+ *                             type: number
+ *                     cib_status:
+ *                       type: string
+ *                     is_existing_customer:
+ *                       type: boolean
+ *                     existing_customer_status:
+ *                       type: string
+ *                     remark:
+ *                       type: string
+ *       400:
+ *         description: ข้อมูลไม่ครบหรือไฟล์ไม่ถูกต้อง
+ *       500:
+ *         description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+ */
+router.post(
+    '/import-cib-pdf',
+    verifyToken,
+    upload.single('file'), // middleware multer
+    checklistController.importCIBPDF // ✅ ต้องสร้าง controller นี้
+);
 
 export default router;

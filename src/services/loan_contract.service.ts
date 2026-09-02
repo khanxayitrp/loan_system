@@ -19,7 +19,7 @@ class LoanContractService {
             const existingContract = await db.loan_contract.findOne({
                 where: { loan_id: data.loan_id },
                 transaction: t,
-                lock: t.LOCK.UPDATE 
+                lock: t.LOCK.UPDATE
             });
 
             // 🟢 Mapping ຂໍ້ມູນຫຼັກທັງໝົດ
@@ -48,8 +48,8 @@ class LoanContractService {
                 cus_company_name: data.cusCompanyName,
                 cus_company_businessType: data.cusCompanyBusinessType,
                 cus_company_location: data.cusCompanyLocation,
-                cus_company_workYear: data.cusCompanyWorkYear, // 🟢 ອາຍຸການເຮັດວຽກ (ປີ)
-                cus_company_workMonth: data.cusCompanyWorkMonth, // 🟢 ອາຍຸການເຮັດວຽກ (ເດືອນ)
+                cus_company_workYear: data.cusCompanyWorkYear,
+                cus_company_workMonth: data.cusCompanyWorkMonth,
                 cus_position: data.cusPosition,
                 cus_income: data.cusIncome || null,
                 cus_payroll_date: data.cusPayrollDate || null,
@@ -136,7 +136,7 @@ class LoanContractService {
                     order: [['id', 'DESC']],
                     attributes: ['loan_contract_number'],
                     transaction: t,
-                    lock: t.LOCK.UPDATE 
+                    lock: t.LOCK.UPDATE
                 });
 
                 let contractNumber = 1;
@@ -163,14 +163,13 @@ class LoanContractService {
             const newSalary = loanContractData.cus_income !== null ? Number(loanContractData.cus_income) : null;
             const newOtherIncome = loanContractData.cus_income_other !== null ? Number(loanContractData.cus_income_other) : null;
             const newMonthlyPay = loanContractData.monthly_pay !== null ? Number(loanContractData.monthly_pay) : null;
-            
-            // 🟢 ເພີ່ມການດຶງຄ່າປີ ແລະ ເດືອນ
+
             const newWorkYear = loanContractData.cus_company_workYear !== null && loanContractData.cus_company_workYear !== undefined ? Number(loanContractData.cus_company_workYear) : null;
-            const newWorkMonth = loanContractData.cus_company_workMonth !== undefined ? Number(loanContractData.cus_company_workMonth) : null; // ຖ້າ Frontend ສົ່ງມາ
+            const newWorkMonth = loanContractData.cus_company_workMonth !== undefined ? Number(loanContractData.cus_company_workMonth) : null;
 
             if (newSalary !== null || newOtherIncome !== null || newMonthlyPay !== null || newWorkYear !== null || newWorkMonth !== null) {
-                
-                // 1. Sync ກັບ loan_basic_verifications (ອັບເດດ work_salary, work_years, work_months)
+
+                // 1. Sync ກັບ loan_basic_verifications
                 if (newSalary !== null || newWorkYear !== null || newWorkMonth !== null) {
                     const basicVerif = await db.loan_basic_verifications.findOne({
                         where: { application_id: data.loan_id },
@@ -204,7 +203,7 @@ class LoanContractService {
                     }
                 }
 
-                // 2. Sync ກັບ loan_income_assessments (ອັບເດດລາຍຮັບ, ຄຳນວນ Total & DSR ໃໝ່)
+                // 2. Sync ກັບ loan_income_assessments
                 const incomeAsses = await db.loan_income_assessments.findOne({
                     where: { application_id: data.loan_id },
                     transaction: t,
@@ -219,7 +218,7 @@ class LoanContractService {
                         iaPayload.average_monthly_income = newSalary;
                         isIaChanged = true;
                     }
-                    
+
                     if (newOtherIncome !== null && Number(incomeAsses.other_verified_income) !== newOtherIncome) {
                         iaPayload.other_verified_income = newOtherIncome;
                         isIaChanged = true;
@@ -234,12 +233,12 @@ class LoanContractService {
                         const currentAvg = iaPayload.average_monthly_income !== undefined ? iaPayload.average_monthly_income : Number(incomeAsses.average_monthly_income || 0);
                         const currentOther = iaPayload.other_verified_income !== undefined ? iaPayload.other_verified_income : Number(incomeAsses.other_verified_income || 0);
                         const currentProposed = iaPayload.proposed_installment !== undefined ? iaPayload.proposed_installment : Number(incomeAsses.proposed_installment || 0);
-                        
+
                         iaPayload.total_verified_income = currentAvg + currentOther;
 
-                        const actualDebtBurden = Number(incomeAsses.existing_debt_payments || 0) 
-                                               + Number(incomeAsses.internal_active_installments || 0) 
-                                               + currentProposed;
+                        const actualDebtBurden = Number(incomeAsses.existing_debt_payments || 0)
+                            + Number(incomeAsses.internal_active_installments || 0)
+                            + currentProposed;
 
                         iaPayload.dsr_percentage = iaPayload.total_verified_income > 0 ? (actualDebtBurden / iaPayload.total_verified_income) * 100 : 0;
 
@@ -250,7 +249,36 @@ class LoanContractService {
                     }
                 }
             }
+
             // ==========================================
+            // 🌟 ອັບເດດ Gender ເຂົ້າຕາຕະລາງ Customers 
+            // ==========================================
+            if (loanContractData.cus_sex) {
+                const loanApp = await db.loan_applications.findByPk(data.loan_id, { transaction: t, attributes: ['customer_id'] });
+
+                if (loanApp && loanApp.customer_id) {
+                    const customer = await db.customers.findByPk(loanApp.customer_id, { transaction: t, lock: t.LOCK.UPDATE });
+
+                    if (customer) {
+                        let genderToUpdate: 'Female' | 'Male' | null = null;
+                        const sexInput = loanContractData.cus_sex.toLowerCase();
+
+                        if (sexInput === 'male' || sexInput === 'ຊາຍ') {
+                            genderToUpdate = 'Male';
+                        } else if (sexInput === 'female' || sexInput === 'ຍິງ') {
+                            genderToUpdate = 'Female';
+                        }
+
+                        if (genderToUpdate && customer.gender !== genderToUpdate) {
+                            const oldCusData = customer.toJSON();
+                            // 🟢 ໃຊ້ Type Assertion (as 'Female' | 'Male') ປ້ອງກັນ TypeScript Error
+                            await customer.update({ gender: genderToUpdate as 'Female' | 'Male' }, { transaction: t });
+                            await logAudit('customers', customer.id, 'UPDATE', oldCusData, { gender: genderToUpdate }, performedBy, t);
+                            logger.info(`Synced gender (${genderToUpdate}) to customers table for Customer ID: ${customer.id}`);
+                        }
+                    }
+                }
+            }
 
             // Auto-Sign ສຳລັບພະນັກງານສິນເຊື່ອ (Maker)
             const staffUser = await db.users.findByPk(performedBy, { transaction: t });
@@ -266,9 +294,9 @@ class LoanContractService {
                 {
                     where: {
                         application_id: data.loan_id,
-                        document_type: 'contract', 
+                        document_type: 'contract',
                         reference_id: loan_contract.id,
-                        role_type: 'credit_staff' 
+                        role_type: 'credit_staff'
                     },
                     transaction: t
                 }
@@ -314,7 +342,7 @@ class LoanContractService {
             throw error;
         }
     }
-    
+
     async updateLoanContract(updateData: any) {
         const t = await db.sequelize.transaction();
         try {
@@ -332,13 +360,13 @@ class LoanContractService {
 
             // 🟢 1. Mapping ຂໍ້ມູນທີ່ຈະອັບເດດ (ລວມທັງ cusIncome, cusIncomeOther ແລະ Work Years/Months)
             const allowedFields = [
-                'cusPhone', 'cusAddress', 'cusOccupation', 'payment_day', 
-                'refPhone', 'refAddress', 'refOccupation', 
-                'cusIncome', 'cusIncomeOther', 
+                'cusPhone', 'cusAddress', 'cusOccupation', 'payment_day',
+                'refPhone', 'refAddress', 'refOccupation',
+                'cusIncome', 'cusIncomeOther',
                 'cusCompanyWorkYear', 'cusCompanyWorkMonth' // 🌟 ເພີ່ມອາຍຸການເຮັດວຽກ
             ];
             const updatedFields: any = {};
-            
+
             allowedFields.forEach(field => {
                 if (updateData[field] !== undefined) {
                     if (field === 'cusIncome') updatedFields.cus_income = updateData[field];
@@ -368,7 +396,7 @@ class LoanContractService {
             const newWorkMonth = updatedFields.cus_company_workMonth !== undefined ? Number(updatedFields.cus_company_workMonth) : null;
 
             if (newSalary !== null || newOtherIncome !== null || newWorkYear !== null || newWorkMonth !== null) {
-                
+
                 // --- Sync ໄປ loan_basic_verifications ---
                 if (newSalary !== null || newWorkYear !== null || newWorkMonth !== null) {
                     const basicVerif = await db.loan_basic_verifications.findOne({
@@ -418,7 +446,7 @@ class LoanContractService {
                         iaPayload.average_monthly_income = newSalary;
                         isIaChanged = true;
                     }
-                    
+
                     if (newOtherIncome !== null && Number(incomeAsses.other_verified_income) !== newOtherIncome) {
                         iaPayload.other_verified_income = newOtherIncome;
                         isIaChanged = true;
@@ -427,12 +455,12 @@ class LoanContractService {
                     if (isIaChanged) {
                         const currentAvg = iaPayload.average_monthly_income !== undefined ? iaPayload.average_monthly_income : Number(incomeAsses.average_monthly_income || 0);
                         const currentOther = iaPayload.other_verified_income !== undefined ? iaPayload.other_verified_income : Number(incomeAsses.other_verified_income || 0);
-                        
+
                         iaPayload.total_verified_income = currentAvg + currentOther;
 
-                        const actualDebtBurden = Number(incomeAsses.existing_debt_payments || 0) 
-                                               + Number(incomeAsses.internal_active_installments || 0) 
-                                               + Number(incomeAsses.proposed_installment || 0);
+                        const actualDebtBurden = Number(incomeAsses.existing_debt_payments || 0)
+                            + Number(incomeAsses.internal_active_installments || 0)
+                            + Number(incomeAsses.proposed_installment || 0);
 
                         iaPayload.dsr_percentage = iaPayload.total_verified_income > 0 ? (actualDebtBurden / iaPayload.total_verified_income) * 100 : 0;
 

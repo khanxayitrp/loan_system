@@ -25,6 +25,7 @@ import notiRouter from './notification.routes';
 import loanRestructureRouter from './loan-restructure.routes';
 import dashboardRouter from './dashboard.routes';
 import adminRouter from './admin.routes'
+import reportRouter from './report.routes'
 
 const router = express.Router();
 
@@ -81,5 +82,6 @@ router.use('/dashboard', dashboardRouter);
 
 router.use('/admin', adminRouter)
 
+router.use('/reports', reportRouter)
 
 export default router;

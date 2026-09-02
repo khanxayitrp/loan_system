@@ -1,4 +1,3 @@
-// src/routes/customer.routes.ts (ตัวอย่าง)
 import { Router } from 'express';
 import * as customerCtrl from '../controllers/customer.controller';
 import { verifyToken, checkPermission } from '../middlewares/auth.middleware';
@@ -6,185 +5,63 @@ import { uploadProfileImage } from '../middlewares/upload.middleware';
 
 const router = Router();
 
-/**
- * @swagger
- * /customer/otp/request:
- *   post:
- *     summary: Request OTP for customer
- *     tags: [Customer]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - phone
- *             properties:
- *               phone:
- *                 type: string
- *     responses:
- *       200:
- *         description: OTP sent
- *       400:
- *         description: Bad request
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       500:
- *         description: Server error
- */
-router.post('/otp/request', customerCtrl.requestOtpForCustomer);
-/**
- * @swagger
- * /customer/create:
- *   post:
- *     summary: Create customer
- *     tags: [Customer]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - identity_number
- *               - first_name
- *               - last_name
- *               - phone
- *               - address
- *               - occupation
- *               - income_per_month
- *               - otp
- *             properties:
- *               identity_number:
- *                 type: string
- *               first_name:
- *                 type: string
- *               last_name:
- *                 type: string
- *               phone:
- *                 type: string
- *               address:
- *                 type: string
- *               occupation:
- *                 type: string
- *               income_per_month:
- *                 type: number
- *               otp:
- *                 type: string
- *               account_number:
- *                 type: string
- *                 description: เลขบัญชี BCEL (ถ้ามี)
- *               profile_image:
- *                 type: string
- *                 format: binary
- *                 description: รูปโปรไฟล์ลูกค้า (Profile Image)
- *     responses:
- *       201:
- *         description: Customer created
- */
-router.post('/create', verifyToken, uploadProfileImage.single('profile_image'), customerCtrl.createCustomer);
-// 🟢 Login ເພື່ອເອົາ Token ໄປໃຊ້ງານອັບໂຫຼດເອກະສານ
-/**
- * @swagger
- * /customer/verify-login:
- *   post:
- *     summary: Verify OTP and get customer token for document upload
- *     tags: [Customer]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - phone
- *               - otp
- *             properties:
- *               phone:
- *                 type: string
- *               otp:
- *                 type: string
- *     responses:
- *       200:
- *         description: OTP verified successfully, returns customer token
- *       400:
- *         description: Invalid OTP
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       404:
- *         description: Customer not found
- *       500:
- *         description: Server error
- */
-router.post('/verify-login', customerCtrl.verifyOtpAndGetToken);
+// ==========================================
+// 🟢 Routes ໃໝ່ສຳລັບໜ້າ MemberShip
+// ==========================================
 
 /**
  * @swagger
- * /customer/search:
+ * /customer:
  *   get:
- *     summary: Search for customers
+ *     summary: Get all customers (with pagination and filters)
  *     tags: [Customer]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: phone
- *         schema:
- *           type: string
- *         description: Customer's phone number
- *       - in: query
- *         name: first_name
- *         schema:
- *           type: string
- *         description: Customer's first name
- *       - in: query
- *         name: last_name
- *         schema:
- *           type: string
- *         description: Customer's last name
  *     responses:
  *       200:
- *         description: A list of customers matching the search criteria
- *       400:
- *         description: Search parameters missing
- *       404:
- *         description: Customer not found
+ *         description: List of customers
  */
-router.get('/search', verifyToken, customerCtrl.getCustomerBySearch);
+router.get('/', verifyToken, customerCtrl.getAllCustomers);
+
+// 🌟 วางตรงนี้ (ก่อน /:id) เพื่อรับแบบ Bulk และระบุ Route ชัดเจน
+/**
+ * @swagger
+ * /customer/kyc/status:
+ *   patch:
+ *     summary: Bulk/Single update KYC status for customers
+ *     tags: [Customer]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/kyc/status', verifyToken, customerCtrl.updateKycStatus);
 
 /**
  * @swagger
  * /customer/{id}:
- *   get:
- *     summary: Get customer by ID
+ *   patch:
+ *     summary: Update customer data (supports profile image upload)
  *     tags: [Customer]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
  *     responses:
  *       200:
- *         description: Customer data
- *       404:
- *         description: Customer not found
+ *         description: Customer updated
  */
-router.get('/:id', verifyToken, customerCtrl.getCustomerById);
+router.patch('/:id', verifyToken, uploadProfileImage.single('profile_image'), customerCtrl.updateCustomerById);
 
-// เพิ่ม route อื่นๆ...
+
+// ==========================================
+// 🟡 Routes ເກົ່າຂອງທ່ານ (ຮັກສາໄວ້ຄືເກົ່າທັງໝົດ)
+// ==========================================
+router.post('/otp/request', customerCtrl.requestOtpForCustomer);
+router.post('/create', verifyToken, uploadProfileImage.single('profile_image'), customerCtrl.createCustomer);
+router.post('/verify-login', customerCtrl.verifyOtpAndGetToken);
+router.get('/search', verifyToken, customerCtrl.getCustomerBySearch);
+router.get('/:id', verifyToken, customerCtrl.getCustomerById);
 
 export default router;

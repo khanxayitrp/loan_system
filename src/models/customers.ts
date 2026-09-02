@@ -25,6 +25,7 @@ export interface customersAttributes {
   first_name: string;
   last_name?: string;
   date_of_birth?: string;
+  gender?: 'Female' | 'Male'; // 🟢 ເພີ່ມໃໝ່
   phone: string;
   account_number?: string;
   membership_tier_id?: number;
@@ -50,7 +51,8 @@ export interface customersAttributes {
 
 export type customersPk = "id";
 export type customersId = customers[customersPk];
-export type customersOptionalAttributes = "id" | "identity_number" | "census_number" | "last_name" | "date_of_birth" | "account_number" | "membership_tier_id" | "membership_score" | "address" | "province_id" | "district_id" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "profile_image_url" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at";
+// 🟢 ອັບເດດ: ເພີ່ມ "gender" ເຂົ້າໃນ OptionalAttributes
+export type customersOptionalAttributes = "id" | "identity_number" | "census_number" | "last_name" | "date_of_birth" | "gender" | "account_number" | "membership_tier_id" | "membership_score" | "address" | "province_id" | "district_id" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "profile_image_url" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at";
 export type customersCreationAttributes = Optional<customersAttributes, customersOptionalAttributes>;
 
 export class customers extends Model<customersAttributes, customersCreationAttributes> implements customersAttributes {
@@ -60,6 +62,7 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   first_name!: string;
   last_name?: string;
   date_of_birth?: string;
+  gender?: 'Female' | 'Male'; // 🟢 ເພີ່ມໃໝ່
   phone!: string;
   account_number?: string;
   membership_tier_id?: number;
@@ -254,184 +257,189 @@ export class customers extends Model<customersAttributes, customersCreationAttri
 
   static initModel(sequelize: Sequelize.Sequelize): typeof customers {
     return customers.init({
-    id: {
-      autoIncrement: true,
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      primaryKey: true
-    },
-    identity_number: {
-      type: DataTypes.STRING(50),
-      allowNull: true,
-      unique: "identity_number"
-    },
-    census_number: {
-      type: DataTypes.STRING(50),
-      allowNull: true
-    },
-    first_name: {
-      type: DataTypes.STRING(100),
-      allowNull: false
-    },
-    last_name: {
-      type: DataTypes.STRING(100),
-      allowNull: true
-    },
-    date_of_birth: {
-      type: DataTypes.DATEONLY,
-      allowNull: true
-    },
-    phone: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-      unique: "phone"
-    },
-    account_number: {
-      type: DataTypes.STRING(50),
-      allowNull: true,
-      comment: "เลขบัญชี BCEL (สำหรับดึง Statement\/โอนเงินเข้า)"
-    },
-    membership_tier_id: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      comment: "ระดับสมาชิกปัจจุบัน",
-      references: {
-        model: 'membership_tiers',
-        key: 'id'
+      id: {
+        autoIncrement: true,
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        primaryKey: true
+      },
+      identity_number: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        unique: "identity_number"
+      },
+      census_number: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+      },
+      first_name: {
+        type: DataTypes.STRING(100),
+        allowNull: false
+      },
+      last_name: {
+        type: DataTypes.STRING(100),
+        allowNull: true
+      },
+      date_of_birth: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
+      },
+      // 🟢 ເພີ່ມໃໝ່ໃນ Database Init
+      gender: {
+        type: DataTypes.ENUM('Female', 'Male'),
+        allowNull: true
+      },
+      phone: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        unique: "phone"
+      },
+      account_number: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        comment: "เลขบัญชี BCEL (สำหรับดึง Statement\/โอนเงินเข้า)"
+      },
+      membership_tier_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "ระดับสมาชิกปัจจุบัน",
+        references: {
+          model: 'membership_tiers',
+          key: 'id'
+        }
+      },
+      membership_score: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+        comment: "คะแนนสะสมสำหรับคำนวณการเลื่อนระดับ"
+      },
+      address: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
+      province_id: {
+        type: DataTypes.STRING(2),
+        allowNull: true
+      },
+      district_id: {
+        type: DataTypes.STRING(4),
+        allowNull: true
+      },
+      age: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0
+      },
+      occupation: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+      },
+      income_per_month: {
+        type: DataTypes.DECIMAL(15, 2),
+        allowNull: true
+      },
+      other_debt: {
+        type: DataTypes.DECIMAL(15, 2),
+        allowNull: true
+      },
+      user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'users',
+          key: 'id'
+        }
+      },
+      profile_image_url: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        comment: "URL เก็บรูปโปรไฟล์ของ Member (อัปโหลดขึ้น MinIO\/S3)"
+      },
+      unit: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+      },
+      issue_place: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+      },
+      issue_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
+      },
+      kyc_status: {
+        type: DataTypes.ENUM('unverified', 'verified', 'expired', 'rejected'),
+        allowNull: true,
+        defaultValue: "unverified"
+      },
+      kyc_verified_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
+      income_verified_at: {
+        type: DataTypes.DATE,
+        allowNull: true
       }
-    },
-    membership_score: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      defaultValue: 0,
-      comment: "คะแนนสะสมสำหรับคำนวณการเลื่อนระดับ"
-    },
-    address: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
-    province_id: {
-      type: DataTypes.STRING(2),
-      allowNull: true
-    },
-    district_id: {
-      type: DataTypes.STRING(4),
-      allowNull: true
-    },
-    age: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      defaultValue: 0
-    },
-    occupation: {
-      type: DataTypes.STRING(255),
-      allowNull: true
-    },
-    income_per_month: {
-      type: DataTypes.DECIMAL(15,2),
-      allowNull: true
-    },
-    other_debt: {
-      type: DataTypes.DECIMAL(15,2),
-      allowNull: true
-    },
-    user_id: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id'
-      }
-    },
-    profile_image_url: {
-      type: DataTypes.STRING(500),
-      allowNull: true,
-      comment: "URL เก็บรูปโปรไฟล์ของ Member (อัปโหลดขึ้น MinIO\/S3)"
-    },
-    unit: {
-      type: DataTypes.STRING(20),
-      allowNull: true
-    },
-    issue_place: {
-      type: DataTypes.STRING(255),
-      allowNull: true
-    },
-    issue_date: {
-      type: DataTypes.DATEONLY,
-      allowNull: true
-    },
-    kyc_status: {
-      type: DataTypes.ENUM('unverified','verified','expired','rejected'),
-      allowNull: true,
-      defaultValue: "unverified"
-    },
-    kyc_verified_at: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
-    income_verified_at: {
-      type: DataTypes.DATE,
-      allowNull: true
-    }
-  }, {
-    sequelize,
-    tableName: 'customers',
-    timestamps: true,
-    indexes: [
-      {
-        name: "PRIMARY",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "id" },
-        ]
-      },
-      {
-        name: "phone",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "phone" },
-        ]
-      },
-      {
-        name: "identity_number",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "identity_number" },
-        ]
-      },
-      {
-        name: "user_id",
-        using: "BTREE",
-        fields: [
-          { name: "user_id" },
-        ]
-      },
-      {
-        name: "idx_fullname",
-        using: "BTREE",
-        fields: [
-          { name: "first_name" },
-          { name: "last_name" },
-        ]
-      },
-      {
-        name: "idx_kyc_status",
-        using: "BTREE",
-        fields: [
-          { name: "kyc_status" },
-        ]
-      },
-      {
-        name: "fk_customer_tier",
-        using: "BTREE",
-        fields: [
-          { name: "membership_tier_id" },
-        ]
-      },
-    ]
-  });
+    }, {
+      sequelize,
+      tableName: 'customers',
+      timestamps: true,
+      indexes: [
+        {
+          name: "PRIMARY",
+          unique: true,
+          using: "BTREE",
+          fields: [
+            { name: "id" },
+          ]
+        },
+        {
+          name: "phone",
+          unique: true,
+          using: "BTREE",
+          fields: [
+            { name: "phone" },
+          ]
+        },
+        {
+          name: "identity_number",
+          unique: true,
+          using: "BTREE",
+          fields: [
+            { name: "identity_number" },
+          ]
+        },
+        {
+          name: "user_id",
+          using: "BTREE",
+          fields: [
+            { name: "user_id" },
+          ]
+        },
+        {
+          name: "idx_fullname",
+          using: "BTREE",
+          fields: [
+            { name: "first_name" },
+            { name: "last_name" },
+          ]
+        },
+        {
+          name: "idx_kyc_status",
+          using: "BTREE",
+          fields: [
+            { name: "kyc_status" },
+          ]
+        },
+        {
+          name: "fk_customer_tier",
+          using: "BTREE",
+          fields: [
+            { name: "membership_tier_id" },
+          ]
+        },
+      ]
+    });
   }
 }

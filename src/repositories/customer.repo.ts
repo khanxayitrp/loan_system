@@ -1,7 +1,8 @@
 import { customers, customersAttributes, customersCreationAttributes } from '../models/customers';
 import { db } from '../models/init-models';
-import { logger } from '../utils/logger'; 
+import { logger } from '../utils/logger';
 import { Op, Sequelize, Transaction } from 'sequelize';
+import { KycStatus } from '../types/customer.types';
 
 // 🟢 1. Import Helper ของเราเข้ามา
 import { logAudit } from '../utils/auditLogger';
@@ -46,7 +47,7 @@ class CustomerRepository {
             if (!cleanCustomer.occupation || String(cleanCustomer.occupation).trim() === '') {
                 throw new Error('ກະລຸນາປ້ອນອາຊີບ (Occupation is required)');
             }
-            
+
             const income = Number(cleanCustomer.income_per_month);
             if (isNaN(income) || income <= 0) {
                 throw new Error('ລາຍຮັບຕໍ່ເດືອນຕ້ອງຫຼາຍກວ່າ 0 (Income per month must be greater than 0)');
@@ -86,27 +87,31 @@ class CustomerRepository {
             const mapData: any = {
                 identity_number: identityNumberToSave,
                 first_name: cleanCustomer.first_name,
-                last_name: cleanCustomer.last_name || '', 
+                last_name: cleanCustomer.last_name || '',
                 phone: cleanCustomer.phone,
+                // 🌟 ເພີ່ມການ Mapping ວັນເດືອນປີເກີດ ແລະ ເພດ 🌟
+                date_of_birth: cleanCustomer.date_of_birth || null,
+                gender: cleanCustomer.gender || null,
                 province_id: cleanCustomer.province_id,
                 district_id: cleanCustomer.district_id,
                 address: cleanCustomer.address,
-                age: cleanCustomer.age,
+                age: cleanCustomer.age || 0,
                 occupation: cleanCustomer.occupation,
                 income_per_month: cleanCustomer.income_per_month,
                 other_debt: cleanCustomer.other_debt || 0,
-                // 🌟 เพิ่มฟิลด์ใหม่
-                profile_image_url: (cleanCustomer as any).profile_image_url || null,
-                account_number: (cleanCustomer as any).account_number || null,
-                membership_tier_id: (cleanCustomer as any).membership_tier_id || null,
-                membership_score: (cleanCustomer as any).membership_score || 0,
+                // ເອົາ as any ອອກໄດ້ແລ້ວ ເພາະເຮົາເພີ່ມເຂົ້າໃນ Model ໄປກ່ອນໜ້ານີ້ແລ້ວ
+                profile_image_url: cleanCustomer.profile_image_url || null,
+                account_number: cleanCustomer.account_number || null,
+                membership_tier_id: cleanCustomer.membership_tier_id || null,
+                membership_score: cleanCustomer.membership_score || 0,
+                kyc_status: cleanCustomer.kyc_status || 'unverified'
             };
 
-            const newCustomer = await db.customers.create(mapData, { transaction: options.transaction });
+            const newCustomer = await db.customers.create(mapData, { transaction });
 
             // 🟢 5. ບັນທຶກ Audit Log (CREATE)
             const performedBy = (data as any).user_id || (data as any).performed_by || 1;
-            await logAudit('customers', newCustomer.id, 'CREATE', null, newCustomer.toJSON(), performedBy, options.transaction);
+            await logAudit('customers', newCustomer.id, 'CREATE', null, newCustomer.toJSON(), performedBy, transaction);
 
             logger.info(`Customer created with ID: ${newCustomer.id}`);
             return newCustomer;
@@ -115,6 +120,49 @@ class CustomerRepository {
             logger.error(`Error creating customer: ${(error as Error).message}`);
             throw error;
         }
+    }
+
+    // 🟢 ດຶງຂໍ້ມູນລູກຄ້າທັງໝົດດ້ວຍ Cursor-based Pagination
+    async findAllCustomers(
+        filters: { search?: string, status?: string, startDate?: string, endDate?: string },
+        options: { limit?: number, cursor?: number, transaction?: any } = {}
+    ): Promise<{ rows: customers[], count: number }> {
+
+        const whereClause: any = {};
+
+        // 🌟 Cursor Logic: ຖ້າມີ cursor ສົ່ງມາ, ໃຫ້ດຶງຂໍ້ມູນທີ່ id ນ້ອຍກວ່າ cursor (ເພາະລຽງ DESC)
+        if (options.cursor) {
+            whereClause.id = { [Op.lt]: options.cursor };
+        }
+
+        // ກັ່ນຕອງຕາມສະຖານະ KYC
+        if (filters.status) {
+            whereClause.kyc_status = filters.status;
+        }
+
+        // ກັ່ນຕອງຕາມວັນທີລົງທະບຽນ
+        if (filters.startDate && filters.endDate) {
+            whereClause.created_at = {
+                [Op.between]: [`${filters.startDate} 00:00:00`, `${filters.endDate} 23:59:59`]
+            };
+        }
+
+        // ຄົ້ນຫາຕາມຊື່, ນາມສະກຸນ, ເບີໂທ ຫຼື ບັດປະຈຳຕົວ
+        if (filters.search) {
+            whereClause[Op.or] = [
+                { first_name: { [Op.like]: `%${filters.search}%` } },
+                { last_name: { [Op.like]: `%${filters.search}%` } },
+                { phone: { [Op.like]: `%${filters.search}%` } },
+                { identity_number: { [Op.like]: `%${filters.search}%` } }
+            ];
+        }
+
+        return await db.customers.findAndCountAll({
+            where: whereClause,
+            limit: options.limit || 50,
+            order: [['id', 'DESC']], // 🌟 ລຽງຕາມ ID ຫຼ້າສຸດສະເໝີ
+            transaction: options.transaction
+        });
     }
 
     async findCustomerById(customerId: number, options: { transaction?: any, lock?: any } = {}): Promise<customers | null> {
@@ -128,9 +176,9 @@ class CustomerRepository {
     // 🟢 ຟັງຊັນໃໝ່: ຄົ້ນຫາລູກຄ້າດ້ວຍເລກບັນຊີທະນາຄານ
     async findCustomerByAccountNumber(accountNumber: string, options: { transaction?: any } = {}): Promise<customers | null> {
         if (!accountNumber || accountNumber.trim() === '') return null;
-        return await db.customers.findOne({ 
-            where: { account_number: accountNumber.trim() }, 
-            transaction: options.transaction 
+        return await db.customers.findOne({
+            where: { account_number: accountNumber.trim() },
+            transaction: options.transaction
         });
     }
 
@@ -156,9 +204,9 @@ class CustomerRepository {
     // 🌟 เพิ่มฟังก์ชันใหม่: สำหรับดึงข้อมูลลูกค้าพร้อมรายละเอียด Membership และวงเงิน (ใช้ตอน Login)
     async findCustomerWithDetailsByPhone(phone: string, options: { transaction?: any } = {}): Promise<customers | null> {
         if (!phone) return null;
-        
+
         const standardPhone = formatStandardPhoneNumber(phone);
-        return await db.customers.findOne({ 
+        return await db.customers.findOne({
             where: { phone: standardPhone },
             include: [
                 { model: db.membership_tiers, as: 'membership_tier' },
@@ -199,7 +247,7 @@ class CustomerRepository {
 
             let newIdentityNumber = data.identity_number;
             if (newIdentityNumber === '' || newIdentityNumber === 'ບໍ່ມີ') {
-                newIdentityNumber = null as any; 
+                newIdentityNumber = null as any;
             }
 
             const mapData: any = {
@@ -207,6 +255,12 @@ class CustomerRepository {
                 first_name: data.first_name !== undefined ? data.first_name : customer.first_name,
                 last_name: data.last_name !== undefined ? (data.last_name || '') : customer.last_name,
                 phone: newPhone !== undefined ? newPhone : customer.phone,
+
+                // 🌟 ເພີ່ມ Field ໃໝ່ທີ່ຕ້ອງການອັບເດດ 🌟
+                date_of_birth: data.date_of_birth !== undefined ? data.date_of_birth : customer.date_of_birth,
+                gender: data.gender !== undefined ? data.gender : customer.gender,
+                kyc_status: data.kyc_status !== undefined ? data.kyc_status : customer.kyc_status,
+
                 age: data.age !== undefined ? data.age : customer.age,
                 province_id: data.province_id !== undefined ? data.province_id : customer.province_id,
                 district_id: data.district_id !== undefined ? data.district_id : customer.district_id,
@@ -214,7 +268,8 @@ class CustomerRepository {
                 occupation: data.occupation !== undefined ? data.occupation : customer.occupation,
                 income_per_month: data.income_per_month !== undefined ? data.income_per_month : customer.income_per_month,
                 other_debt: data.other_debt !== undefined ? data.other_debt : customer.other_debt,
-                // 🌟 เพิ่มฟิลด์ใหม่ให้สามารถอัปเดตได้
+
+                // 🌟 ฟิลด์อื่นๆ ให้สามารถอัปเดตได้
                 profile_image_url: (data as any).profile_image_url !== undefined ? (data as any).profile_image_url : customer.profile_image_url,
                 account_number: (data as any).account_number !== undefined ? (data as any).account_number : customer.account_number,
                 membership_tier_id: (data as any).membership_tier_id !== undefined ? (data as any).membership_tier_id : customer.membership_tier_id,
@@ -233,6 +288,56 @@ class CustomerRepository {
             logger.error(`Error updating customer: ${(error as Error).message}`);
             throw error;
         }
+    }
+
+    // 🟢 ฟังก์ชันสำหรับอัปเดตสถานะ KYC แบบกลุ่ม พร้อมกฎ State Machine
+    async updateKycStatuses(
+        customerIds: number[],
+        targetStatus: KycStatus,
+        performedBy: number,
+        options: { transaction?: any } = {}
+    ): Promise<customers[]> {
+        const { transaction } = options;
+        const updatedCustomers: customers[] = [];
+
+        // 1. ดึงข้อมูลลูกค้าทั้งหมดที่อยู่ใน Array IDs
+        const customersList = await db.customers.findAll({
+            where: { id: { [Op.in]: customerIds } },
+            transaction,
+            lock: transaction?.LOCK.UPDATE
+        });
+
+        if (customersList.length !== customerIds.length) {
+            throw new Error('ບໍ່ພົບຂໍ້ມູນລູກຄ້າບາງລາຍການ (Some customers not found)');
+        }
+
+        // 2. วนลูปตรวจสอบกฎ (State Transition) และอัปเดต
+        for (const customer of customersList) {
+            const currentStatus = customer.kyc_status || 'unverified';
+            let isValidTransition = false;
+
+            // 🌟 State Machine Rules
+            if (targetStatus === 'verified' && currentStatus === 'unverified') isValidTransition = true;
+            if (targetStatus === 'rejected' && currentStatus === 'unverified') isValidTransition = true;
+            if (targetStatus === 'expired' && currentStatus === 'verified') isValidTransition = true;
+
+            if (!isValidTransition) {
+                throw new Error(`ຜິດພາດ: ບໍ່ສາມາດປ່ຽນສະຖານະຈາກ '${currentStatus}' ເປັນ '${targetStatus}' ສຳລັບລູກຄ້າ ID: ${customer.id}`);
+            }
+
+            const oldData = customer.toJSON();
+
+            // อัปเดตสถานะใหม่
+            customer.kyc_status = targetStatus;
+            await customer.save({ transaction });
+
+            // 🟢 บันทึก Audit Log
+            await logAudit('customers', customer.id, 'UPDATE', oldData, customer.toJSON(), performedBy, transaction);
+
+            updatedCustomers.push(customer);
+        }
+
+        return updatedCustomers;
     }
 }
 

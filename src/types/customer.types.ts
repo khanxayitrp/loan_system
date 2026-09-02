@@ -1,0 +1,1 @@
+export type KycStatus = 'unverified' | 'verified' | 'expired' | 'rejected';
