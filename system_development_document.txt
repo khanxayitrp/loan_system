@@ -1,14 +1,16 @@
 # เอกสารสรุประบบและแนวทางการพัฒนาระบบ (System Development Document)
 
-**ชื่อโครงการ:** Financial Loan & E-Commerce Platform (loan_system)
-**ประเภทระบบ:** Enterprise SaaS / Loan Management / E-Commerce / AI Platform
-**เวอร์ชันเอกสาร:** 1.0
+**ชื่อโครงการ:** Financial Loan & Membership Origination Platform (loan_system)
+**ประเภทระบบ:** Enterprise Financial SaaS / Loan Management / Membership Origination System
+**เวอร์ชันเอกสาร:** 2.0 (อัปเดตตามโครงสร้างปัจจุบัน: ระงับระบบ E-Commerce และขยายระบบสมัครสมาชิกขอวงเงิน)
 
 ---
 
 ## 1. ภาพรวมระบบ (System Overview)
 
-ระบบนี้เป็นแพลตฟอร์มการบริหารจัดการสินเชื่อ (Loan Management System) รวมกับแพลตฟอร์มอีคอมเมิร์ซ (E-Commerce Platform) ระดับองค์กร ออกแบบขึ้นเพื่อรองรับการทำงานของ สินเชื่อ, การประเมินความเสี่ยง, การสมัครสมาชิกองค์กร, การอนุมัติสัญญา, การรับชำระเงิน, การออกเอกสาร PDF สัญญา และการเชื่อมต่อกับระบบภายนอก เช่น Lao Telecom (SOAP/OTP API) และบริการ AI
+ระบบนี้เป็นแพลตฟอร์มการบริหารจัดการสินเชื่อ (Loan Management System) และระบบสมัครสมาชิกองค์กรเพื่ออนุมัติวงเงินสินเชื่อ (Membership & Credit Origination System) ระดับองค์กร มุ่งเน้นการลงทะเบียนสมัครสมาชิก, การประเมินความเสี่ยงและเครดิต, การอนุมัติวงเงิน, การทำสัญญาเงินกู้, การชำระคืนเงินกู้, การออกเอกสารสัญญา PDF และการเชื่อมต่อกับระบบภายนอก เช่น Lao Telecom (SOAP/OTP) และบริการ Redis Caching
+
+> **หมายเหตุสถานะฟีเจอร์:** ระบบ E-Commerce (ตะกร้าสินค้า, การสั่งซื้อสินค้าออนไลน์) ถูกระงับการใช้งานแล้ว (Paused/Deprecated) โดยระบบปรับจุดประสงค์หลักมาเน้นการสมัครสมาชิกขอวงเงินสินเชื่อ (Membership Origination) และการอนุมัติสินเชื่อเต็มรูปแบบ
 
 ---
 
@@ -16,18 +18,18 @@
 
 ### 2.1 Backend Technology Stack
 * **Language & Runtime:** Node.js, TypeScript (ES2022+)
-* **Framework:** Express.js (REST API, Modular Routing)
+* **Framework:** Express.js (REST API Structure)
 * **ORM & Database:** Sequelize ORM (TypeScript models), MySQL / MariaDB (Primary Database)
-* **Cache & Memory Management:** Redis (Caching, Rate Limiting storage, Session/OTP)
+* **Cache & Memory Management:** Redis (Caching Query Results, Rate Limiting, Session/OTP)
 * **Real-time Communication:** Socket.io
-* **Background Jobs & Tasks:** `node-cron` (Daily Tracking, Payment Reminders, Table Partitioning)
-* **API Documentation:** Swagger UI / OpenAPI 3.0 (`swagger-jsdoc`, `/api-docs`)
+* **Background Jobs & Tasks:** `node-cron` (Daily Debt Tracking, Payment Reminders, Database Partitioning)
+* **API Documentation:** Swagger UI / OpenAPI 3.0 (`swagger-jsdoc`, Path: `/api-docs`)
 
 ### 2.2 Security & System Operations
 * **Security:** Helmet, CORS, Express Rate Limit, Cookie Parser
-* **Authentication:** JWT Access Token & Refresh Token Rotation, Password Hashing via `bcryptjs`
-* **File Upload & PDF:** Multer, AWS S3 SDK (`@aws-sdk/client-s3`), Puppeteer, Handlebars, Sharp
-* **Integrations:** Lao Telecom SOAP Client (`soap`), Encryption utilities (`encrypt.jar` / `decrypt.jar`), Google Generative AI (`@google/generative-ai`)
+* **Authentication:** JWT Access Token & Refresh Token Rotation, Password Hashing (`bcryptjs`)
+* **File Upload & Document Rendering:** Multer, AWS S3 SDK (`@aws-sdk/client-s3`), Puppeteer, Handlebars, Sharp
+* **External Integrations:** Lao Telecom SOAP Client (`soap`), Custom Java Encryption Utilities (`encrypt.jar` / `decrypt.jar`), Google Generative AI (`@google/generative-ai`)
 
 ---
 
@@ -40,9 +42,9 @@
 ├── interfaces/         # TypeScript Interfaces และ Type Definitions
 ├── middlewares/        # Middlewares (Auth, Rate Limiting, Error Handling, Upload)
 ├── models/             # Sequelize Data Models และ init-models
-├── repositories/       # Data Access Layer
+├── repositories/       # Data Access Layer (Membership, Loan, Customer, User)
 ├── routes/             # API Route Definitions
-├── services/           # Business Logic, Integrations (LaoTelecom, Redis, PDF, OTP, Cron)
+├── services/           # Business Logic (Membership Origination, Loan, Redis, PDF, OTP, Cron)
 ├── templates/          # HTML Handlebars Templates สำหรับสร้างเอกสาร PDF
 ├── types/              # Type Definitions สอดคล้องกับ Domain
 ├── utils/              # Logger, Cryptography, Errors, Helpers
@@ -57,90 +59,99 @@
 ## 4. โมดูลหลักของระบบ (Core System Modules)
 
 ### 4.1 ระบบยืนยันตัวตนและการจัดการสิทธิ์ (Authentication & Authorization)
-* **User & Auth Management (`auth.routes.ts`, `user.routes.ts`):** รองรับระบบ Login, Logout, Refresh Token Rotation และ Token Blacklist
-* **Role-Based Access Control (`permission.routes.ts`):** กำหนดสิทธิ์ผู้ใช้งานตามฟีเจอร์ (Feature Permissions) และบทบาท (RBAC)
+* **User & Auth Management (`auth.routes.ts`, `user.routes.ts`):** ระบบ Login, Logout, Refresh Token Rotation และ Token Blacklist
+* **Role-Based Access Control (`permission.routes.ts`):** กำหนดสิทธิ์ผู้ใช้งานตามฟีเจอร์ (Feature Permissions) และบทบาทผู้ใช้งาน (RBAC)
 
-### 4.2 ระบบจัดการข้อมูลลูกค้าและประวัติเครดิต (Customer & CIB Profile)
-* **Customer Profile (`customer.routes.ts`):** จัดเก็บข้อมูลส่วนตัว, ที่อยู่ (`customerLocation.routes.ts`), ข้อมูลการทำงาน (`customer_work_info`)
-* **CIB Credit Profile (`customer_cib_profiles`, `customer_cib_debts`):** ดึงและวิเคราะห์ข้อมูลภาระหนี้ CIB จากระบบตรวจสอบสินเชื่อ
+### 4.2 ระบบสมัครสมาชิกขอวงเงินสินเชื่อ [ฟังก์ชันหลัก] (Membership Origination System)
+* **Multi-Channel Application Intake (`membership-origination.routes.ts`):**
+  * `STAFF`: พนักงานลงทะเบียนคำขอแทนลูกค้าผ่านระบบ Back-Office
+  * `PUBLIC_WEB`: ลูกค้าลงทะเบียนเองผ่านเว็บพอร์ทัล ยืนยันตัวตนด้วย OTP
+  * `SUPER_APP`: ลูกค้าลงทะเบียนผ่านแอปพลิเคชันมือถือ โดยใช้ JWT Token
+* **Application Processing & Duplicate Check:**
+  * ตรวจสอบคำขอซ้ำในสถานะที่ยังดำเนินการอยู่ (`DRAFT`, `SUBMITTED`, `ASSESSING`, `PENDING_MANAGER_REVIEW`, `VERIFIED`)
+  * สร้างรหัสคำขออัตโนมัติ (Format: `MAyyMMddXXXX`)
+* **Version Snapshotting (`membership_application_versions`):**
+  * บันทึก Snapshot ของข้อมูลลูกค้า, การทำงาน, สถานะการเงิน และวงเงินที่ขอ ในรูปแบบ JSON ทุกครั้งที่มีการสร้างหรือแก้ไขคำขอ
+* **Membership Workflow & Decision Engine:**
+  * การประเมินความเสี่ยง (`membership_assessments`), จัดระดับ tier (`membership_tiers`), และการบันทึกผลพิจารณาอนุมัติวงเงิน (`membership_decisions`)
 
-### 4.3 ระบบจัดการสินเชื่อและการอนุมัติ (Loan Application & Management)
-* **Loan Application (`loan-application.routes.ts`):** ยื่นคำขอสินเชื่อ, ตรวจสอบสถานะคำขอ
-* **Verification Process (`loan_basic_verifications`, `loan_call_verifications`, `loan_field_visits`):**
-  * Basic Verification: ตรวจสอบเอกสารเบื้องต้น
+### 4.3 ระบบจัดการข้อมูลลูกค้าและประวัติเครดิต (Customer & CIB Profile)
+* **Customer Master Data (`customer.routes.ts`):** ข้อมูลส่วนตัว, ที่อยู่ (`customerLocation.routes.ts`), ข้อมูลที่ทำงานและอาชีพ (`customer_work_info`)
+* **CIB Credit Profile (`customer_cib_profiles`, `customer_cib_debts`):** ข้อมูลภาระหนี้ CIB และประวัติเครดิตเพื่อนำมาประเมินสินเชื่อ
+
+### 4.4 ระบบจัดการสินเชื่อและอนุมัติสัญญา (Loan Management & Contract)
+* **Loan Application (`loan-application.routes.ts`):** ยื่นคำขอสินเชื่อต่อยอดจากวงเงินสมาชิก
+* **Verification Workflow (`loan_basic_verifications`, `loan_call_verifications`, `loan_field_visits`):**
+  * Basic Verification: ตรวจสอบเอกสาร
   * Call Verification: บันทึกข้อมูลการโทรสอบถาม
   * Field Visit: บันทึกข้อมูลการลงพื้นที่ตรวจสอบ
-* **Income Assessment & Scoring (`loan_income_assessments`, `credit_scoring_rules`):** ประเมินรายได้และคำนวณคะแนนความเสี่ยง
-* **Approval Workflow (`loan_approval_logs`):** บันทึกประวัติการพิจารณาอนุมัติคำขอสินเชื่ออย่างละเอียด
-* **Loan Contract & Restructuring (`loan_contract.routes.ts`, `loan-restructure.routes.ts`):** สร้างสัญญาเงินกู้, การปรับโครงสร้างหนี้, การขอเปลี่ยนแปลงเงื่อนไขสัญญา
+* **Approval & Contract (`loan_approval_logs`, `loan_contract.routes.ts`):** ประวัติการพิจารณาอนุมัติ และการสร้างสัญญาเงินกู้
+* **Restructuring (`loan-restructure.routes.ts`):** การปรับโครงสร้างหนี้และการขอเปลี่ยนแปลงเงื่อนไข
 
-### 4.4 ระบบสมาชิกและการลงทะเบียนวงเงิน (Membership Origination & Credit System)
-* **Membership Application (`membership-origination.routes.ts`):** การสมัครสมาชิกเพื่อขอวงเงินสินเชื่อ
-* **Credit Purpose (`credit-purpose.routes.ts`):** จัดการวัตถุประสงค์การกู้ยืม
-* **Credit Accounts & Ledger (`credit_accounts`, `credit_ledger`):** จัดการวงเงินสินเชื่อ, บันทึกการเคลื่อนไหวของวงเงิน (Ledger), แจ้งเตือนความเสี่ยง (`credit_risk_alerts`)
-
-### 4.5 ระบบอีคอมเมิร์ซและพันธมิตร (E-Commerce & Partner Network)
-* **Partners & Shops (`partner.routes.ts`):** จัดการข้อมูลร้านค้าพันธมิตร
-* **Products & Categories (`product.routes.ts`, `global_categories.routes.ts`):** จัดการสินค้า, ประเภทสินค้า, รูปภาพสินค้า (`product_gallery`), ตัวเลือกสินค้า (`product_variants`)
-* **Orders & Cart (`orders`, `carts`):** ตระกร้าสินค้า, คำสั่งซื้อสินค้าผ่อนชำระ
-* **Delivery Receipt (`delivery_receipt.routes.ts`):** ใบส่งมอบสินค้าและยืนยันการรับสินค้า
+### 4.5 ระบบวงเงินสินเชื่อและบันทึกบัญชี (Credit Accounts & Ledger)
+* **Credit Accounts (`credit_accounts`):** บัญชีวงเงินสินเชื่อของสมาชิก
+* **Credit Ledger & Alerts (`credit_ledger`, `credit_risk_alerts`):** บันทึกการเคลื่อนไหววงเงิน และแจ้งเตือนความเสี่ยงการใช้วงเงินเกินกำหนด
 
 ### 4.6 ระบบการชำระคืนและการเงิน (Repayments & Financial Operations)
-* **Repayment Schedule (`repayment.routes.ts`, `repayment_schedules`):** คำนวณตารางผ่อนชำระ (Amortization Builder) ทั้งแบบลดต้นลดดอกและแบบฟิกซ์
-* **Repayment Operations (`repayments`, `payment_transactions`):** บันทึกการรับชำระเงิน, ออกหลักฐานการชำระ, อัปเดตยอดคงเหลือ
+* **Repayment Schedule (`repayment.routes.ts`, `repayment_schedules`):** คำนวณตารางผ่อนชำระ (Amortization Builder)
+* **Repayment Operations (`repayments`, `payment_transactions`):** บันทึกการรับชำระเงิน, ออกหลักฐานการชำระ, และอัปเดตยอดคงเหลือ
 
 ### 4.7 ระบบ OTP และการเชื่อมต่อ Lao Telecom (OTP & Telecommunication)
-* **Lao Telecom SOAP Integration (`laotelecom.service.ts`):** เชื่อมต่อ SOAP Service ของ Lao Telecom สำหรับส่ง SMS OTP
-* **Encryption Layer (`ltc-encrypt.ts`, Java Jar Utils):** เข้ารหัสข้อมูลลับสำหรับการส่งผ่าน SOAP Webservice
-* **OTP Service (`otp.service.ts`, `otp.routes.ts`):** ส่ง OTP, ยืนยัน OTP, Resend, และเก็บสถานะลงใน Redis/In-Memory Storage
+* **Lao Telecom SOAP Integration (`laotelecom.service.ts`):** ส่ง SMS OTP ผ่าน SOAP Webservice ของ Lao Telecom
+* **Encryption Utilities (`ltc-encrypt.ts`, `encrypt.jar`):** เข้ารหัสข้อมูลลับก่อนส่งผ่าน SOAP Webservice
+* **OTP Service (`otp.service.ts`, `otp.routes.ts`):** บริการส่ง OTP, ยืนยัน OTP, Resend และจัดการสถานะบน Redis
 
 ### 4.8 ระบบออกเอกสารสัญญา PDF (PDF Generation)
-* **PDF Service (`pdf.service.ts`, `pdf.routes.ts`):** แปลง Handlebars Template เป็นสัญญา PDF โดยใช้ Puppeteer Rendering Engine
-* **Support Documents:** สัญญาเงินกู้, ใบรับสินค้า, หนังสือมอบอำนาจ, สัญญาค้ำประกัน
+* **PDF Service (`pdf.service.ts`, `pdf.routes.ts`):** แปลง Handlebars HTML Templates เป็น PDF ด้วย Puppeteer Rendering Engine
+* **เอกสารที่รองรับ:** สัญญาเงินกู้, หนังสือมอบอำนาจ, สัญญาค้ำประกัน, ใบอนุมัติวงเงินสมาชิก
 
 ### 4.9 ระบบงานเบื้องหลังอัตโนมัติ (Background Cron Jobs)
 * **Daily Tracking Service (`DailyTrackingService.ts`):** คำนวณยอดค้างชำระ, ดอกเบี้ย และสถานะหนี้รายวัน
-* **Reminder Cron Service (`ReminderCronService.ts`):** ส่งการแจ้งเตือนชำระเงินเมื่อใกล้ถึงกำหนด
-* **Partition Service (`partition.service.ts`):** บริหารจัดการการแบ่งพาร์ทิชันตารางในฐานข้อมูลอัตโนมัติ
+* **Reminder Cron Service (`ReminderCronService.ts`):** ส่งแจ้งเตือนชำระเงินล่วงหน้า
+* **Partition Service (`partition.service.ts`):** จัดการ Partition ของตารางฐานข้อมูลอัตโนมัติ
+
+### 4.10 [PAUSED/LEGACY] ระบบ E-Commerce และพันธมิตรร้านค้า
+> **สถานะ: หยุดการใช้งานชั่วคราว (Paused)**
+> โค้ดของโมดูล E-Commerce (`product.routes.ts`, `partner.routes.ts`, `orders`, `carts`) ยังคงถูกเก็บไว้เป็น Legacy Reference แต่ไม่ได้เป็น Business Logic หลักในการดำเนินงานปัจจุบัน
 
 ---
 
 ## 5. ตารางฐานข้อมูลหลัก (Core Database Tables Summary)
 
 1. **`users` / `user_permissions` / `features`:** จัดเก็บข้อมูลผู้ใช้งานระบบและสิทธิ์การเข้าถึง
-2. **`customers` / `customer_locations` / `customer_work_info`:** ข้อมูลลูกค้า
-3. **`customer_cib_profiles` / `customer_cib_debts`:** ประวัติและภาระหนี้ CIB
-4. **`membership_applications` / `membership_tiers` / `membership_decisions`:** ข้อมูลการสมัครและระดับสมาชิก
-5. **`credit_accounts` / `credit_limit_applications` / `credit_ledger`:** วงเงินสินเชื่อและบันทึกบัญชีวงเงิน
-6. **`loan_applications` / `loan_contract` / `loan_approval_logs`:** ข้อมูลการยื่นกู้ สัญญา และประวัติอนุมัติ
-7. **`loan_basic_verifications` / `loan_call_verifications` / `loan_field_visits`:** ข้อมูลการตรวจสอบ
+2. **`customers` / `customer_locations` / `customer_work_info`:** ข้อมูลลูกค้าและสถานที่ทำงาน
+3. **`membership_applications` / `membership_application_versions`:** ข้อมูลคำขอสมัครสมาชิกและ Version Snapshots
+4. **`membership_tiers` / `membership_assessments` / `membership_decisions`:** การประเมินระดับสมาชิกและผลอนุมัติวงเงิน
+5. **`credit_accounts` / `credit_limit_applications` / `credit_ledger`:** บัญชีวงเงินสินเชื่อและบันทึกบัญชี
+6. **`customer_cib_profiles` / `customer_cib_debts`:** ประวัติและภาระหนี้ CIB
+7. **`loan_applications` / `loan_contract` / `loan_approval_logs`:** คำขอกู้ สัญญา และประวัติอนุมัติ
 8. **`repayment_schedules` / `repayments` / `payment_transactions`:** ตารางผ่อนชำระและการชำระเงิน
-9. **`partners` / `products` / `product_variants` / `orders` / `delivery_receipts`:** ระบบพันธมิตรและสินค้า
-10. **`audit_logs` / `notifications`:** บันทึกการทำงานของระบบและการแจ้งเตือน
+9. **`audit_logs` / `notifications`:** บันทึกการทำงานของระบบและการแจ้งเตือน
+10. **`partners` / `products` / `orders` / `carts`:** *(Legacy/Paused)* ข้อมูลร้านค้าและสินค้า
 
 ---
 
 ## 6. เส้นทาง API หลัก (Main API Endpoints)
 
-* **`/api/auth`**: Endpoints ยืนยันตัวตน (`/login`, `/refresh`, `/logout`)
+* **`/api/auth`**: การยืนยันตัวตน (`/login`, `/refresh`, `/logout`)
 * **`/api/users` / `/api/permissions`**: จัดการผู้ใช้งานและสิทธิ์
-* **`/api/customer` / `/api/customer-locations`**: จัดการข้อมูลลูกค้าและตำแหน่ง
-* **`/api/membership` / `/api/membership-purposes`**: ระบบสมัครสมาชิกองค์กรและวงเงิน
-* **`/api/loan-application`**: การยื่นคำขอสินเชื่อและการประเมิน
+* **`/api/membership`**: ระบบสมัครสมาชิกขอวงเงิน (`/staff-apply`, `/public-apply`, `/applications`)
+* **`/api/membership-purposes`**: รายการวัตถุประสงค์การขอวงเงิน
+* **`/api/customer` / `/api/customer-locations`**: ข้อมูลลูกค้าและที่อยู่
+* **`/api/loan-application`**: คำขอสินเชื่อและการประเมิน
 * **`/api/loan-contract` / `/api/loan-restructure`**: สร้างสัญญาเงินกู้และการปรับโครงสร้างหนี้
-* **`/api/repayments`**: การคำนวณตารางชำระและรับชำระเงิน
-* **`/api/shops` / `/api/products` / `/api/productTypes`**: ระบบพันธมิตรร้านค้าและสินค้า
+* **`/api/repayments`**: คำนวณตารางชำระและรับชำระเงิน
 * **`/api/otp`**: ส่งและตรวจสอบรหัส OTP SMS
 * **`/api/pdf`**: สร้างเอกสารสัญญา PDF
-* **`/api/dashboard` / `/api/reports` / `/api/admin`**: รายงาน สถิติ และระบบผู้ดูแล
+* **`/api/dashboard` / `/api/reports` / `/api/admin`**: แดชบอร์ด รายงาน และระบบผู้ดูแล
 
 ---
 
 ## 7. ข้อกำหนดความปลอดภัยและการพัฒนา (Security & Engineering Guidelines)
 
-1. **Data Security & Privacy:** เข้ารหัสข้อมูลสำคัญ (PII), ห้ามพิมพ์ข้อมูลลับหรือ OTP ลงใน Console/Logs
-2. **Database Integrity:** การทำธุรกรรมทางการเงิน (Financial Operations) ต้องใช้งาน Database Transactions (`sequelize.transaction()`) เสมอ
-3. **API Design Standard:** ใช้คำตอบรูปแบบมาตรฐาน JSON
+1. **Data Security & Privacy:** เข้ารหัสข้อมูลสำคัญ (PII), ห้ามบันทึก OTP หรือข้อมูลส่วนตัวลงใน Logs
+2. **Database Transactions:** งานด้านการเงิน/คำขอสิทธิ์ ต้องใช้ `sequelize.transaction()` เพื่อรักษาความสมบูรณ์ของข้อมูล
+3. **API Design Standard:** รูปแบบ JSON ตอบกลับมาตรฐาน
    ```json
    {
      "success": true,
@@ -148,8 +159,8 @@
      "data": {}
    }
    ```
-4. **Backward Compatibility:** ห้ามเปลี่ยนชื่อฟิลด์ API Response เดิม เพื่อป้องกันผลกระทบกับแอปพลิเคชันมือถือหรือระบบภายนอก
-5. **Rate Limiting:** จำกัดจำนวนคำขอสำหรับ API ที่มีความเสี่ยง เช่น Auth Login (`authLimiter`) และ PDF/Heavy Operations (`heavyTaskLimiter`)
+4. **Backward Compatibility:** รักษาความคงที่ของ Response Fields เพื่อป้องกันแอปพลิเคชันขัดข้อง
+5. **Caching & Invalidation Strategy:** ใช้ Redis Cache สำหรับข้อมูลที่มีการดึงบ่อย และล้าง Cache ด้วย `redisService.delByPattern` เมื่อมี Mutation
 
 ---
 
