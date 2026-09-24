@@ -10,7 +10,7 @@ export interface repayment_schedulesAttributes {
   version?: number;
   total_principal: number;
   total_interest: number;
-  status?: 'draft' | 'approved' | 'cancelled' | 'restructured';
+  status?: 'draft' | 'approved' | 'cancelled' | 'restructured' | 'superseded';
   approved_by?: number;
   approved_at?: Date;
   pdf_url?: string;
@@ -29,7 +29,7 @@ export class repayment_schedules extends Model<repayment_schedulesAttributes, re
   version?: number;
   total_principal!: number;
   total_interest!: number;
-  status?: 'draft' | 'approved' | 'cancelled' | 'restructured';
+  status?: 'draft' | 'approved' | 'cancelled' | 'restructured' | 'superseded';
   approved_by?: number;
   approved_at?: Date;
   pdf_url?: string;
@@ -95,7 +95,7 @@ export class repayment_schedules extends Model<repayment_schedulesAttributes, re
       allowNull: false
     },
     status: {
-      type: DataTypes.ENUM('draft','approved','cancelled','restructured'),
+      type: DataTypes.ENUM('draft','approved','cancelled','restructured','superseded'),
       allowNull: true,
       defaultValue: "draft"
     },

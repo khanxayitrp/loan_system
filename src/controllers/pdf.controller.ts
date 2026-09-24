@@ -1008,44 +1008,69 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const product = loanData?.product || {};
         const partner = product?.partner || {};
         const workInfo = customer?.work_info?.[0] || customer?.customer_work_infos?.[0] || {};
-        const guarantor = loanData?.loan_guarantors?.[0] || null;
-        const guarantorWork = guarantor?.work_info?.[0] || guarantor?.work || {};
         const receipt = receiptData || loanData?.delivery_receipts?.[0] || {};
+        
+        // 🟢 1. ດຶງຂໍ້ມູນ Master ຈາກ loan_contracts
         const contract = loanData?.loan_contracts?.[0] || {};
 
-        // กรองเอา ref_type ออกมาและกันเหนียวด้วยการทำ lower case
-        const rawRefType = guarantor?.ref_type || guarantor?.ref_Type || '';
+        // 🟢 2. ບັງຄັບໃຫ້ Checkbox ອ້າງອີງຈາກ loan_contracts (Master) ເທົ່ານັ້ນ
+        const rawRefType = contract?.ref_Type || contract?.ref_type || '';
         const currentRefType = rawRefType.toLowerCase();
+
+        // 🟢 3. Smart Fallback Logic: ໃຫ້ນ້ຳໜັກ loan_guarantors ກ່ອນ, ຖ້າບໍ່ມີໃຫ້ໃຊ້ loan_contracts
+        let activeGuarantor: any = {};
+        const gList = loanData?.loan_guarantors || [];
+        
+        if (gList.length > 0 && gList[0]) {
+            // ມີຂໍ້ມູນໃນ loan_guarantors
+            activeGuarantor = {
+                name: gList[0].name,
+                phone: gList[0].phone,
+                identity_number: gList[0].identity_number,
+                date_of_birth: gList[0].date_of_birth,
+                address: gList[0].address,
+                district_id: gList[0].district_id,
+                province_id: gList[0].province_id,
+                relationship: gList[0].relationship,
+                work_company_name: gList[0].work_company_name,
+                work_salary: gList[0].work_salary,
+                // ຖ້າໃນອະນາຄົດມີ Field ທີ່ຢູ່ບ່ອນເຮັດວຽກຂອງຄົນຄ້ຳໃນ loan_guarantors ສາມາດເພີ່ມໃສ່ແຖວນີ້
+            };
+        } else {
+            // ບໍ່ມີຂໍ້ມູນໃນ loan_guarantors, ໃຫ້ໄປດຶງຈາກ loan_contracts ແທນ
+            activeGuarantor = {
+                name: contract?.ref_name || contract?.refName,
+                phone: contract?.ref_phone || contract?.refPhone,
+                identity_number: contract?.ref_id_pass_number || contract?.refIdPassNumber,
+                date_of_birth: contract?.ref_date_of_birth || contract?.refDateOfBirth,
+                address: contract?.ref_address || contract?.refAddress,
+                relationship: contract?.ref_relationship || contract?.refRelationship,
+                work_company_name: contract?.ref_company_name || contract?.refCompanyName,
+                work_salary: contract?.ref_income || contract?.refIncome,
+                // Location ຂອງບ່ອນເຮັດວຽກທີ່ເກັບໃນສັນຍາ
+                work_location: contract?.ref_company_location || contract?.refCompanyLocation
+            };
+        }
 
         const today = new Date();
 
         // =========================================================
-        // 🟢 1. ปรับ getVal ให้กำจัดข้อความว่า 'undefined'
+        // 🟢 ปรับ getVal ให้กำจัดข้อความว่า 'undefined'
         // =========================================================
         const getVal = (val: any, defaultStr = '________________') => {
-            // เช็คทั้งค่าว่าง null และ String คำว่า 'undefined'
-            if (
-                val === null ||
-                val === undefined ||
-                val === '' ||
-                String(val).trim().toLowerCase() === 'undefined'
-            ) {
+            if (val === null || val === undefined || val === '' || String(val).trim().toLowerCase() === 'undefined') {
                 return defaultStr;
             }
             return val;
         };
 
         // =========================================================
-        // 🟢 2. ปรับ parseAddress ให้ล้างคำว่า 'undefined' ออกจากข้อมูล
+        // 🟢 ปรับ parseAddress ให้ล้างคำว่า 'undefined' ออกจากข้อมูล
         // =========================================================
         const parseAddress = (addressStr: string | null | undefined) => {
             const defAddr = { village: '', district: '', province: '' };
+            if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined') return defAddr;
 
-            if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined') {
-                return defAddr;
-            }
-
-            // ฟังก์ชันช่วยทำความสะอาด ลบคำว่า 'undefined' ออกจากชิ้นส่วนที่โดนหั่น
             const clean = (p: string) => {
                 if (!p) return '';
                 const trimmed = p.trim();
@@ -1064,66 +1089,37 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             }
         };
 
-        // =========================================================
-        // 🟢 ແກ້ໄຂໃໝ່: ໃຊ້ fulladdress() ເພື່ອດຶງຂໍ້ມູນເປັນຊຸດດຽວກ່ອນ
-        // =========================================================
         const fullCusAddressStr = fulladdress(customer?.address, customer?.district_id, customer?.province_id) || customer?.address;
-
         const fullWorkAddressStr = fulladdress(workInfo?.address || workInfo?.location, workInfo?.district_id, workInfo?.province_id) || (workInfo?.address || workInfo?.location);
+        
+        // 🟢 ໃຊ້ຂໍ້ມູນຈາກ activeGuarantor ທີ່ຜ່ານການ Fallback ມາແລ້ວ
+        const fullGuaAddressStr = fulladdress(activeGuarantor.address, activeGuarantor.district_id, activeGuarantor.province_id) || activeGuarantor.address;
+        const fullGuaWorkAddressStr = fulladdress(activeGuarantor.work_location, activeGuarantor.work_district_id, activeGuarantor.work_province_id) || activeGuarantor.work_location;
 
-        const fullGuaAddressStr = fulladdress(guarantor?.address, guarantor?.district_id, guarantor?.province_id) || guarantor?.address;
-
-        const fullGuaWorkAddressStr = fulladdress(guarantorWork?.address || guarantor?.work_location, guarantor?.work_district_id, guarantor?.work_province_id) || (guarantorWork?.address || guarantorWork?.location);
-
-        // =========================================================
-        // 🟢 ຈາກນັ້ນນຳມາແຍກ ບ້ານ, ເມືອງ, ແຂວງ ດ້ວຍ parseAddress ອີກຄັ້ງ
-        // =========================================================
         const cusAddr = parseAddress(fullCusAddressStr);
         const workAddr = parseAddress(fullWorkAddressStr);
         const guaAddr = parseAddress(fullGuaAddressStr);
         const guaWorkAddr = parseAddress(fullGuaWorkAddressStr);
-
-        // const cusAddr = parseAddress(customer.address);
-        // const workAddr = parseAddress(workInfo.address || workInfo.location);
-        // const guaAddr = parseAddress(guarantor?.address);
-        // const guaWorkAddr = parseAddress(guarantorWork?.address || guarantorWork?.location);
 
         const price = Number(loanData?.total_amount || product.price || 0);
         const downPayment = Number(loanData?.down_payment || 0);
         const approvedAmount = price - downPayment;
         const term = Number(loanData?.loan_period || 0);
         const monthlyPay = Number(loanData?.monthly_pay || 0);
-
         const interestRate = Number(loanData?.interest_rate_at_apply || 0) / 100;
-
-        // 🟢 ต้องตรวจสอบประเภทดอกเบี้ย (แก้ชื่อตัวแปร interest_type ตาม DB ของคุณ)
-        const isEffectiveRate = loanData?.interest_type === 'effective'; // หรือตรวจจาก ID เช่น === 2
+        const isEffectiveRate = loanData?.interest_type === 'effective_rate';
 
         let totalInterest = 0;
-
         if (isEffectiveRate) {
-            // 🟡 คำนวณแบบลดต้นลดดอก (Effective Rate)
             if (interestRate > 0 && term > 0) {
-                // ใช้สูตร PMT เพื่อหาค่างวดต่อเดือนก่อน
                 const pmt = (approvedAmount * interestRate * Math.pow(1 + interestRate, term)) / (Math.pow(1 + interestRate, term) - 1);
-                // ดอกเบี้ยรวม = (ค่างวดต่อเดือน x จำนวนงวด) - เงินต้น
                 totalInterest = (pmt * term) - approvedAmount;
             }
         } else {
-            // 🟡 คำนวณแบบคงที่ (Flat Rate) - สูตรเดิมของคุณ
             totalInterest = approvedAmount * interestRate * term;
         }
-
-        // กันเหนียว
         if (totalInterest < 0) totalInterest = 0;
 
-        // const pType = String(product.productType_id || product.product_type?.name || product.type || '');
-        // const isGold = pType.toLowerCase().includes('gold') || pType.includes('ຄຳ') || pType === '1';
-        // const isMoto = pType.toLowerCase().includes('motor') || pType.includes('ລົດ') || pType === '2';
-        // const isGen = !isGold && !isMoto;
-        // =========================================================
-        // 🟢 ປັບປຸງໂລຈິກການກວດສອບປະເພດສິນຄ້າໃໝ່ (ຮອງຮັບ ID = 8 ແລະ ອ່ານຄ່າ type_name)
-        // =========================================================
         const typeName = String(product.productType?.type_name || product.product_type?.name || product.type || '').trim();
         const typeId = Number(product.productType_id || product.producttype_id || 0);
 
@@ -1132,11 +1128,8 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
         const isGen = !isGold && !isMoto;
 
         const data = {
-
-            // 🟢 ເພີ່ມສອງຕົວແປນີ້ໃສ່
             headerImagePath: headerDataUri,
             footerImagePath: footerDataUri,
-
             logoPath: logoDataUri,
             contractNumber: getVal(contract ? contract.loan_contract_number : receipt?.receipts_id),
             contractDay: String(today.getDate()).padStart(2, '0'),
@@ -1155,15 +1148,15 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             cusDistrict: getVal(cusAddr.district, '____________'),
             cusProvince: getVal(cusAddr.province, '____________'),
 
-            workName: getVal(workInfo.company_name || workInfo.companyName),
-            workVillage: getVal(workAddr.village, '____________'),
-            workDistrict: getVal(workAddr.district, '____________'),
-            workProvince: getVal(workAddr.province, '____________'),
-            workDepartment: getVal(workInfo.department),
-            workYears: getVal(workInfo.duration_years || workInfo.workYears, '___'),
-            workMonths: getVal(workInfo.duration_months || workInfo.workMonths, '___'),
-            workPosition: getVal(workInfo.position || customer.occupation),
-            workSalary: getVal(formatCurrency(workInfo.salary || customer.income_per_month)),
+            workName: getVal(workInfo?.company_name || workInfo?.companyName),
+            workVillage: getVal(workAddr?.village, '____________'),
+            workDistrict: getVal(workAddr?.district, '____________'),
+            workProvince: getVal(workAddr?.province, '____________'),
+            workDepartment: getVal(workInfo?.department),
+            workYears: getVal(workInfo?.duration_years || workInfo?.workYears, '___'),
+            workMonths: getVal(workInfo?.duration_months || workInfo?.workMonths, '___'),
+            workPosition: getVal(workInfo?.position || customer?.occupation),
+            workSalary: getVal(formatCurrency(workInfo?.salary || customer?.income_per_month)),
 
             prodDesc: getVal(product.product_name),
             prodType: getVal(isGold ? 'ສິນຄ້າຄຳ' : isMoto ? 'ສິນຄ້າລົດຈັກ' : 'ສິນຄ້າທົ່ວໄປ'),
@@ -1182,27 +1175,28 @@ export const generateDeliveryReceiptPDF = async (req: Request, res: Response) =>
             shopName: getVal(partner.shop_name),
             shopBranch: getVal(partner.branch || 'ສຳນັກງານໃຫຍ່'),
 
-            // 🟢 อัปเดตตรรกะใหม่สำหรับ Checkbox ตรงนี้
+            // 🟢 ໃຊ້ Master ຈາກ loan_contracts
             hasGuarantor: currentRefType === 'guarantor' ? '✔' : '',
             hasReference: currentRefType === 'reference' ? '✔' : '',
 
-            guaName: getVal(guarantor ? `${guarantor.name || ''}`.trim() : null),
-            guaDob: getVal(formatDate(guarantor?.date_of_birth)),
-            guaPhone: getVal(guarantor?.phone),
-            guaIdCard: getVal(guarantor?.identity_number),
-            guaVillage: getVal(guaAddr.village, '____________'),
-            guaDistrict: getVal(guaAddr.district, '____________'),
-            guaProvince: getVal(guaAddr.province, '____________'),
+            // 🟢 ໃຊ້ຂໍ້ມູນທີ່ລວມຮ່າງແລ້ວ (activeGuarantor) ເຮັດໃຫ້ໂຄ້ດສະອາດຂຶ້ນ
+            guaName: getVal(activeGuarantor.name),
+            guaDob: getVal(formatDate(activeGuarantor.date_of_birth)),
+            guaPhone: getVal(activeGuarantor.phone),
+            guaIdCard: getVal(activeGuarantor.identity_number),
+            guaVillage: getVal(guaAddr?.village, '____________'),
+            guaDistrict: getVal(guaAddr?.district, '____________'),
+            guaProvince: getVal(guaAddr?.province, '____________'),
 
-            guaWorkName: getVal(guarantor.work_company_name),
-            guaWorkVillage: getVal(guaWorkAddr.village, '____________'),
-            guaWorkDistrict: getVal(guaWorkAddr.district, '____________'),
-            guaWorkProvince: getVal(guaWorkAddr.province, '____________'),
-            guaIncome: getVal(formatCurrency(guarantorWork.work_salary || guarantor?.work_salary)),
-            guaRelation: getVal(guarantor?.relationship),
+            guaWorkName: getVal(activeGuarantor.work_company_name),
+            guaWorkVillage: getVal(guaWorkAddr?.village, '____________'),
+            guaWorkDistrict: getVal(guaWorkAddr?.district, '____________'),
+            guaWorkProvince: getVal(guaWorkAddr?.province, '____________'),
+            guaIncome: getVal(formatCurrency(activeGuarantor.work_salary)),
+            guaRelation: getVal(activeGuarantor.relationship),
 
-            approveChecked: receipt.status === 'approved' ? '✔' : '',
-            rejectChecked: receipt.status === 'rejected' ? '✔' : ''
+            approveChecked: receipt?.status === 'approved' ? '✔' : '',
+            rejectChecked: receipt?.status === 'rejected' ? '✔' : ''
         };
 
         const templateCompiled = handlebars.compile(htmlContent);

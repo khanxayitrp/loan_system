@@ -13,11 +13,12 @@ export interface product_variantsAttributes {
   price: number;
   stock_quantity: number;
   image_url?: string;
+  is_active?: number; // 🌟 ເພີ່ມແຖວນີ້ເຂົ້າໄປສຳຄັນທີ່ສຸດ (ແກ້ Error) 🌟
 }
 
 export type product_variantsPk = "id";
 export type product_variantsId = product_variants[product_variantsPk];
-export type product_variantsOptionalAttributes = "id" | "system_sku" | "merchant_sku" | "color" | "size_or_capacity" | "weight_gram" | "stock_quantity" | "image_url";
+export type product_variantsOptionalAttributes = "id" | "system_sku" | "merchant_sku" | "color" | "size_or_capacity" | "weight_gram" | "stock_quantity" | "image_url" | "is_active";
 export type product_variantsCreationAttributes = Optional<product_variantsAttributes, product_variantsOptionalAttributes>;
 
 export class product_variants extends Model<product_variantsAttributes, product_variantsCreationAttributes> implements product_variantsAttributes {
@@ -31,6 +32,7 @@ export class product_variants extends Model<product_variantsAttributes, product_
   price!: number;
   stock_quantity!: number;
   image_url?: string;
+  is_active?: number; // 🌟 ເພີ່ມແຖວນີ້ເຂົ້າໄປສຳຄັນທີ່ສຸດ (ແກ້ Error) 🌟
 
   // product_variants belongsTo products via product_id
   product!: products;
@@ -90,6 +92,11 @@ export class product_variants extends Model<product_variantsAttributes, product_
     image_url: {
       type: DataTypes.STRING(255),
       allowNull: true
+    },
+    is_active: {
+      type: DataTypes.TINYINT,
+      allowNull: false,
+      defaultValue: 1
     }
   }, {
     sequelize,

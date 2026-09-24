@@ -10,6 +10,7 @@ export interface customer_work_infoAttributes {
   province_id?: string;
   district_id?: string;
   phone?: string;
+  employment_type?: string; // 🌟 ຖ້າເພີ່ມຖັນແລ້ວໃຫ້ເປີດໃຊ້ແຖວນີ້
   business_type?: string;
   business_detail?: string;
   duration_years?: number;
@@ -22,7 +23,7 @@ export interface customer_work_infoAttributes {
 
 export type customer_work_infoPk = "id";
 export type customer_work_infoId = customer_work_info[customer_work_infoPk];
-export type customer_work_infoOptionalAttributes = "id" | "company_name" | "address" | "province_id" | "district_id" | "phone" | "business_type" | "business_detail" | "duration_years" | "duration_months" | "department" | "position" | "salary" | "created_at";
+export type customer_work_infoOptionalAttributes = "id" | "company_name" | "address" | "province_id" | "district_id" | "phone" | "employment_type" | "business_type" | "business_detail" | "duration_years" | "duration_months" | "department" | "position" | "salary" | "created_at";
 export type customer_work_infoCreationAttributes = Optional<customer_work_infoAttributes, customer_work_infoOptionalAttributes>;
 
 export class customer_work_info extends Model<customer_work_infoAttributes, customer_work_infoCreationAttributes> implements customer_work_infoAttributes {
@@ -33,6 +34,7 @@ export class customer_work_info extends Model<customer_work_infoAttributes, cust
   province_id?: string;
   district_id?: string;
   phone?: string;
+  employment_type?: string; // 🌟 ຖ້າເພີ່ມຖັນແລ້ວໃຫ້ເປີດໃຊ້ແຖວນີ້
   business_type?: string;
   business_detail?: string;
   duration_years?: number;
@@ -82,6 +84,10 @@ export class customer_work_info extends Model<customer_work_infoAttributes, cust
     },
     phone: {
       type: DataTypes.STRING(20),
+      allowNull: true
+    },
+    employment_type: {
+      type: DataTypes.STRING(50),
       allowNull: true
     },
     business_type: {

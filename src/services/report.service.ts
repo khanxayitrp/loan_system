@@ -38,11 +38,30 @@ class ReportService {
             const loans = await db.loan_applications.findAll({
                 where: whereClause,
                 include: [
+                    // 🟢 1. Join Log ຄົນປະເມີນ (ຍັງຄົງເດີມ)
+                    {
+                        model: db.loan_approval_logs,
+                        as: 'loan_approval_logs',
+                        required: false,
+                        where: { action: 'verified_basic' },
+                        separate: true,
+                        limit: 1,
+                        order: [['performed_at', 'ASC']],
+                        attributes: ['action', 'performed_at', 'performed_by'],
+                        include: [
+                            {
+                                model: db.users,
+                                as: 'performed_by_user',
+                                attributes: ['id', 'username', 'full_name'],
+                                required: false
+                            }
+                        ]
+                    },
+                    // 🟢 2. Join ລູກຄ້າ (ຍັງຄົງເດີມ)
                     {
                         model: db.customers,
                         as: 'customer',
                         required: false,
-                        // 🟢 ຂໍ້ສັງເກດ: ຕ້ອງລຶບ 'gender' ແລະ 'age' ອອກຈາກບ່ອນນີ້!
                         attributes: ['id', 'first_name', 'last_name', 'phone', 'address', 'date_of_birth'],
                         include: [
                             {
@@ -53,12 +72,23 @@ class ReportService {
                             }
                         ]
                     },
+                    // 🟢 3. Join ສິນຄ້າ ແລະ ຊ້ອນ Join ຮ້ານຄ້າ (ແກ້ໄຂຈຸດນີ້)
                     {
                         model: db.products,
                         as: 'product',
                         required: false,
-                        attributes: ['id', 'productType_id', 'product_name']
+                        attributes: ['id', 'productType_id', 'product_name'],
+                        include: [
+                            // 👉 ຍ້າຍ partners ເຂົ້າາມາໄວ້ໃນ include ຂອງ products!
+                            {
+                                model: db.partners,
+                                as: 'partner', // ⚠️ ກວດເບິ່ງໃນ init-models ຖ້າ Error ໃຫ້ປ່ຽນຕາມທີ່ປະກາດໄວ້ໃນນັ້ນ
+                                attributes: ['shop_name'],
+                                required: false
+                            }
+                        ]
                     },
+                    // 🟢 4. Join ອື່ນໆ (ຍັງຄົງເດີມ)
                     {
                         model: db.users,
                         as: 'requester',
@@ -83,7 +113,6 @@ class ReportService {
                         model: db.loan_contract,
                         as: 'loan_contracts',
                         required: false,
-                        // 🟢 ດຶງເອົາ ເລກທີ່ສັນຍາ ແລະ ເພດ ມາຈາກຕາຕະລາງນີ້ແທນ
                         attributes: ['loan_contract_number', 'cus_sex']
                     }
                 ],

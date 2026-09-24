@@ -131,7 +131,7 @@ class RepaymentRepository {
                 interest_amount: Number(row.interest),
                 total_due: Number(row.total_amount),
                 remaining_principal: Number(row.remaining_balance),
-                payment_status: 'unpaid',
+                payment_status: 'unpaid' as 'unpaid', // 🟢 แก้ Error TS2345: บอก TypeScript ว่าเป็นค่า Enum แน่นอน
                 paid_principal: 0,
                 paid_interest: 0
             }));
@@ -151,57 +151,72 @@ class RepaymentRepository {
             throw error;
         }
     }
-    async findRepaymentsByApplicationId(applicationId: number): Promise<repayments[]> {
-        return await db.repayments.findAll({
-            where: { application_id: applicationId, },
-            include: [
-                {
-                    model: db.repayment_schedules,
-                    as: 'schedule',
-                    attributes: ['id', 'version', 'status'],
-                    // 🟢 ເພີ່ມເງື່ອນໄຂ where ໄວ້ທາງໃນ include
-                    // where: { status: 'approved' }
-                }
-            ],
-        });
+    async findRepaymentsByApplicationId(
+    applicationId: number, 
+    // 🌟 Best Practice: ใช้ Parameter แบบมี Default Value ป้องกันโค้ดเก่าพัง
+    allowedStatuses: string[] = ['approved', 'draft', 'restructured'] 
+): Promise<any[]> {
+    
+    // 🌟 1. ค้นหาตาราง Header ที่เป็นเวอร์ชันล่าสุด ตามสถานะที่อนุญาต
+    const latestSchedule = await db.repayment_schedules.findOne({
+        where: { 
+            application_id: applicationId, 
+            status: { [Op.in]: allowedStatuses } // 👈 ค้นหาจาก Array สถานะ
+        },
+        order: [['version', 'DESC']]
+    });
+
+    // ถ้าไม่มีตารางที่ตรงกับสถานะ ให้ส่งค่าว่างกลับไป
+    if (!latestSchedule) {
+        return [];
     }
 
+    // 🌟 2. ดึงเฉพาะรายการงวด ที่ผูกกับ schedule_id ของเวอร์ชันล่าสุด
+    return await db.repayments.findAll({
+        where: { schedule_id: latestSchedule.id },
+        include: [
+            {
+                model: db.repayment_schedules,
+                as: 'schedule',
+                attributes: ['id', 'version', 'status']
+            }
+        ],
+        order: [['installment_no', 'ASC']]
+    });
+}
     async calculateEarlyPayoff(applicationId: number): Promise<{ remaining_principal: number; calculated_interest: number; total_penalty: number; total_payoff_amount: number } | null> {
+        // 🌟 1. หาตารางเวอร์ชันล่าสุดก่อน เพื่อไม่ให้ยอดของตารางเก่าที่ถูก Superseded หลุดมารวม
+        const activeSchedule = await db.repayment_schedules.findOne({
+            where: { application_id: applicationId, status: 'approved' },
+            order: [['version', 'DESC']]
+        });
 
-        // 1. ດຶງສະເພາະງວດທີ່ "ຍັງບໍ່ທັນຈ່າຍ" ຫຼື "ຊັກຊ້າ" ອອກມາ ແລະ ລຽງລຳດັບງວດກ່ອນ-ຫຼັງ
+        if (!activeSchedule) return null;
+
+        // 🌟 2. ดึงเฉพาะงวดของ Schedule ล่าสุดเท่านั้น
         const unpaidSchedules = await db.repayments.findAll({
             where: {
-                application_id: applicationId,
-                payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } // 🟢 ດຶງສະເພາະງວດທີ່ຍັງຄ້າງ
+                schedule_id: activeSchedule.id, // ใช้ schedule_id ป้องกันยอดเบิ้ล
+                payment_status: { [Op.in]: ['unpaid', 'overdue', 'partial'] } 
             },
-            order: [['installment_no', 'ASC']], // ລຽງຈາກງວດປະຈຸບັນ ໄປຫາງວດອະນາຄົດ
+            order: [['installment_no', 'ASC']], 
             raw: true
         });
 
-        if (!unpaidSchedules || unpaidSchedules.length === 0) {
-            return null; // ປິດບັນຊີແລ້ວ ຫຼື ບໍ່ມີຕາຕະລາງ
-        }
+        if (!unpaidSchedules || unpaidSchedules.length === 0) return null;
 
         let total_principal = 0;
         let total_interest = 0;
         let total_penalty = 0;
 
-        // 2. ວົນ Loop ເພື່ອບວກຕົວເລກຕາມໂລຈິກ
         unpaidSchedules.forEach((sch, index) => {
-            // ຕົ້ນທຶນ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ
             total_principal += Number(sch.principal_amount) || 0;
-
-            // ຄ່າປັບໃໝ: ບວກເອົາທຸກງວດທີ່ເຫຼືອ (ຖ້າມີ)
             total_penalty += Number(sch.penalty) || 0;
-
-            // 🟢 ດອກເບ້ຍ (Option 2): ຄິດໄລ່ດອກເບ້ຍເຕັມເດືອນ ສະເພາະ "ງວດປະຈຸບັນ" (index === 0)
-            // ສ່ວນງວດອະນາຄົດ (index > 0) ຈະຖືວ່າໄດ້ຮັບການ "ຍົກເວັ້ນດອກເບ້ຍ (0 ກີບ)" ອັດຕະໂນມັດ
             if (index === 0) {
                 total_interest += Number(sch.interest_amount) || 0;
             }
         });
 
-        // 3. ຄຳນວນຍອດປິດບັນຊີລວມ
         const total_payoff_amount = total_principal + total_interest + total_penalty;
 
         return {
@@ -426,7 +441,7 @@ class RepaymentRepository {
 
                 await repayments[i].update({
                     due_date: localDateString,
-                    payment_status: 'unpaid'
+                    payment_status: 'unpaid' as 'unpaid' // 🟢 ບອກ TypeScript ໃຫ້ຮັບຮອງ Enum
                 }, { transaction });
 
                 // ເກັບຂໍ້ມູນຫຼັງແກ້ໄຂ

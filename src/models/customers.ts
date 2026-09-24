@@ -25,7 +25,7 @@ export interface customersAttributes {
   first_name: string;
   last_name?: string;
   date_of_birth?: string;
-  gender?: 'Female' | 'Male'; // 🟢 ເພີ່ມໃໝ່
+  gender?: 'Female' | 'Male';
   phone: string;
   account_number?: string;
   membership_tier_id?: number;
@@ -47,12 +47,17 @@ export interface customersAttributes {
   kyc_status?: 'unverified' | 'verified' | 'expired' | 'rejected';
   kyc_verified_at?: Date;
   income_verified_at?: Date;
+
+  // 🟢 เພີ່ມ Fields ໃໝ່ທີ່ນີ້
+  member_code?: string;
+  card_issue_at?: string;
+  card_expire_at?: string;
 }
 
 export type customersPk = "id";
 export type customersId = customers[customersPk];
-// 🟢 ອັບເດດ: ເພີ່ມ "gender" ເຂົ້າໃນ OptionalAttributes
-export type customersOptionalAttributes = "id" | "identity_number" | "census_number" | "last_name" | "date_of_birth" | "gender" | "account_number" | "membership_tier_id" | "membership_score" | "address" | "province_id" | "district_id" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "profile_image_url" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at";
+// 🟢 ເພີ່ມ Fields ໃໝ່ລົງໃນ OptionalAttributes
+export type customersOptionalAttributes = "id" | "identity_number" | "census_number" | "last_name" | "date_of_birth" | "gender" | "account_number" | "membership_tier_id" | "membership_score" | "address" | "province_id" | "district_id" | "age" | "occupation" | "income_per_month" | "other_debt" | "user_id" | "profile_image_url" | "created_at" | "updated_at" | "unit" | "issue_place" | "issue_date" | "kyc_status" | "kyc_verified_at" | "income_verified_at" | "member_code" | "card_issue_at" | "card_expire_at";
 export type customersCreationAttributes = Optional<customersAttributes, customersOptionalAttributes>;
 
 export class customers extends Model<customersAttributes, customersCreationAttributes> implements customersAttributes {
@@ -62,7 +67,7 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   first_name!: string;
   last_name?: string;
   date_of_birth?: string;
-  gender?: 'Female' | 'Male'; // 🟢 ເພີ່ມໃໝ່
+  gender?: 'Female' | 'Male';
   phone!: string;
   account_number?: string;
   membership_tier_id?: number;
@@ -84,6 +89,11 @@ export class customers extends Model<customersAttributes, customersCreationAttri
   kyc_status?: 'unverified' | 'verified' | 'expired' | 'rejected';
   kyc_verified_at?: Date;
   income_verified_at?: Date;
+
+  // 🟢 ປະກາດ Properties ໃໝ່
+  member_code?: string;
+  card_issue_at?: string;
+  card_expire_at?: string;
 
   // customers hasOne carts via customer_id
   cart!: carts;
@@ -380,6 +390,21 @@ export class customers extends Model<customersAttributes, customersCreationAttri
       income_verified_at: {
         type: DataTypes.DATE,
         allowNull: true
+      },
+      // 🟢 Database Configuration ສຳລັບ Fields ໃໝ່
+      member_code: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        unique: "member_code",
+        comment: "INS-[Prov][Dist]-[YYYY]-[Random6]"
+      },
+      card_issue_at: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
+      },
+      card_expire_at: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
       }
     }, {
       sequelize,
@@ -408,6 +433,14 @@ export class customers extends Model<customersAttributes, customersCreationAttri
           using: "BTREE",
           fields: [
             { name: "identity_number" },
+          ]
+        },
+        {
+          name: "member_code",
+          unique: true,
+          using: "BTREE",
+          fields: [
+            { name: "member_code" },
           ]
         },
         {

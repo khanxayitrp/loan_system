@@ -183,6 +183,18 @@ router.patch(
  */
 router.patch('/:id', verifyToken, productController.deActivatedOneProduct);
 
+// 🌟 ເພີ່ມ Route ໃໝ່: ສຳລັບການເປີດ/ປິດ ສະຖານະຂອງ Variant ສະເພາະຕົວ
+/**
+ * @swagger
+ * /products/variants/{variantId}/status:
+ *   patch:
+ *     summary: Update status of a specific product variant
+ *     tags: [Product]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/variants/:variantId/status', verifyToken, productController.updateVariantStatus);
+
 /**
  * @swagger
  * /products/all:

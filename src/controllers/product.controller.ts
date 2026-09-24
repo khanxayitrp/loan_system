@@ -391,18 +391,19 @@ class ProductController {
         }
     }
 
-
     // =======================================================
     // 🟢 5. ดึงข้อมูล (Get By ID & All)
     // =======================================================
     public async getProductById(req: Request, res: Response, next: NextFunction) {
         try {
             const productId = parseInt(req.params.id, 10);
-            const cacheKey = `cache:products:detail:${productId}`;
+            const { for_admin } = req.query; // 🌟 ຮັບຄ່າ for_admin
+            
+            const cacheKey = `cache:products:detail:${productId}:admin:${for_admin}`;
             const cached = await redisService.get(cacheKey);
             if (cached) return res.status(200).json({ success: true, data: JSON.parse(cached) });
 
-            const product = await productRepo.findProductById(productId);
+            const product = await productRepo.findProductById(productId, { for_admin: for_admin === 'true' });
             if (!product) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນສິນຄ້າ');
 
             await redisService.set(cacheKey, JSON.stringify(product), 3600);
@@ -412,22 +413,20 @@ class ProductController {
 
     public async getAllProduct(req: Request, res: Response, next: NextFunction) {
         try {
-            console.log('✅ เข้ามาถึง ProductController แล้ว', req.query)
             const validationErrors = ProductController.validateQueryParams(req.query);
             if (validationErrors.length > 0) throw new ValidationError(validationErrors.join(', '));
 
-            const { search, searchText, status, type, limit, page, getAllData, shop_id } = req.query;
+            const { search, searchText, status, type, limit, page, getAllData, shop_id, for_admin } = req.query;
 
-            // 🟢 แก้ไขการเช็คค่าว่างเพื่อป้องกัน Number("") กลายเป็น 0
             const options = {
                 search: (search || searchText) as string,
                 limit: Number(limit),
                 page: Number(page),
                 getAllData: getAllData === 'true',
-                // เช็คให้ชัวร์ว่าไม่ใช่ค่าว่างก่อนนำไปแปลงเป็น Number
                 shop_id: (shop_id !== undefined && shop_id !== '') ? Number(shop_id) : undefined,
                 is_active: (status !== undefined && status !== '') ? Number(status) : undefined,
-                productType_id: (type !== undefined && type !== '') ? Number(type) : undefined
+                productType_id: (type !== undefined && type !== '') ? Number(type) : undefined,
+                for_admin: for_admin === 'true' // 🌟 ຮັບຄ່າ for_admin
             };
 
             const cacheKey = `cache:products:list:${JSON.stringify(options)}`;
@@ -493,7 +492,7 @@ class ProductController {
                 const baseSystemSku = product.system_sku;
 
                 for (const v of variants) {
-                    const variantPayload = {
+                    const variantPayload: any = {
                         product_id: productId,
                         merchant_sku: v.merchant_sku || null,
                         color: v.color || null,
@@ -513,13 +512,18 @@ class ProductController {
 
                         if (existingVariant) {
                             const oldVariantData = existingVariant.toJSON();
+                            // 🌟 ถ้าระบุ is_active มาให้ใช้อันใหม่ ถ้าไม่ระบุใช้ค่าเดิม
+                            variantPayload.is_active = v.is_active !== undefined ? Number(v.is_active) : existingVariant.is_active;
+
                             await existingVariant.update(variantPayload, { transaction: t });
-                            incomingIds.push(existingVariant.id); // จดจำ ID ที่ถูกอัปเดตไว้
+                            incomingIds.push(existingVariant.id);
 
                             // บันทึก Audit Log
                             await logAudit('product_variants', existingVariant.id, 'UPDATE', oldVariantData, variantPayload, userId, t);
                         }
                     } else {
+                        // 🌟 สร้างใหม่ ให้ is_active ตามที่ส่งมา ถ้าไม่ส่งมาค่าเริ่มต้นคือ 1
+                        variantPayload.is_active = v.is_active !== undefined ? Number(v.is_active) : 1;
                         // 🛠️ 4.2 ไม่มี ID แสดงว่าเพิ่มตัวเลือกมาใหม่ -> สร้างใหม่ (CREATE)
                         const variantCode = `${v.color || ''}${v.size_or_capacity || ''}`;
                         const variantSku = variantCode
@@ -639,7 +643,7 @@ class ProductController {
 
             const variants = await db.product_variants.findAll({
                 where: { product_id: productId },
-                attributes: ['id', 'system_sku', 'merchant_sku', 'color', 'size_or_capacity', 'price', 'stock_quantity', 'weight_gram', 'image_url'],
+                attributes: ['id', 'system_sku', 'merchant_sku', 'color', 'size_or_capacity', 'price', 'stock_quantity', 'weight_gram', 'image_url', 'is_active'],
                 order: [
                     ['color', 'ASC'],
                     ['size_or_capacity', 'ASC']
@@ -656,6 +660,52 @@ class ProductController {
         } catch (error) {
             console.error('🔥 Get Variants Error:', error);
             next(error); // โยนให้ Error Handler จัดการ
+        }
+    }
+
+    // =======================================================
+    // 🌟 10. Update Variant Status (ເປີດ/ປິດ ສະເພາະ Variant)
+    // =======================================================
+    public async updateVariantStatus(req: Request, res: Response, next: NextFunction) {
+        const t = await db.sequelize.transaction();
+        try {
+            const variantId = parseInt(req.params.variantId, 10);
+            const { is_active } = req.body;
+            const userId = req.userPayload?.userId;
+
+            if (is_active === undefined) throw new ValidationError('ກະລຸນາລະບຸສະຖານະ is_active');
+            if (!userId) throw new UnauthorizedError('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນດຳເນີນການຕໍ່');
+
+            // 1. ຄົ້ນຫາ Variant 
+            const variant = await db.product_variants.findByPk(variantId, { transaction: t });
+            if (!variant) throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນ Variant');
+
+            // 2. ກວດສອບສິດ (ຕ້ອງເປັນສິນຄ້າຂອງ Partner ຄົນນີ້)
+            const product = await db.products.findByPk(variant.product_id, { transaction: t });
+            const partner = await db.partners.findOne({ where: { user_id: userId }, transaction: t });
+            if (!product || !partner || product.partner_id !== partner.id) {
+                throw new UnauthorizedError('ທ່ານບໍ່ມີສິດແກ້ໄຂ Variant ນີ້');
+            }
+
+            const oldData = variant.toJSON();
+            const updateData = { is_active: Number(is_active) };
+
+            // 3. ອັບເດດ
+            await variant.update(updateData, { transaction: t });
+            
+            // 4. ບັນທຶກ Audit Log
+            await logAudit('product_variants', variant.id, 'UPDATE', oldData, updateData, userId, t);
+
+            await t.commit();
+            await redisService.delByPattern('cache:products:*');
+
+            return res.status(200).json({ 
+                success: true, 
+                message: is_active === 1 ? 'ເປີດໃຊ້ງານຕົວເລືອກສິນຄ້າສຳເລັດ' : 'ປິດການໃຊ້ງານຕົວເລືອກສິນຄ້າສຳເລັດ' 
+            });
+        } catch (error) {
+            await t.rollback();
+            next(error);
         }
     }
 

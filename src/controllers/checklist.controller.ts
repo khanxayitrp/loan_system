@@ -127,7 +127,7 @@ class ChecklistController {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
             const data = req.body;
-            const calledBy = (req as any).user?.id || 1;
+            const calledBy = (req as any).userPayload?.user_id || 1;
 
             if (!loan_id || isNaN(loan_id)) throw new BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
 
@@ -168,7 +168,7 @@ class ChecklistController {
         try {
             const loan_id = parseInt(req.params.loanId, 10);
             const data = req.body;
-            const visited_by = (req as any).user?.id || 1;
+            const visited_by = (req as any).userPayload?.user_id || 1;
 
             if (!loan_id || isNaN(loan_id)) throw new BadRequestError('loan_id ບໍ່ຖືກຕ້ອງ');
             if (!data) throw new BadRequestError('data is required');

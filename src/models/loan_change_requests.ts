@@ -7,7 +7,7 @@ export interface loan_change_requestsAttributes {
   application_id: number;
   requested_by: number;
   reference_doc: string;
-  change_type: 'FULL_OVERRIDE' | 'CHANGE_PARTNER' | 'CHANGE_PRODUCT' | 'CANCEL_ONLY' | 'CANCEL_AND_RECREATE' | 'CHANGE_PAYMENT_DATE';
+  change_type: 'FULL_OVERRIDE' | 'CHANGE_PARTNER' | 'CHANGE_PRODUCT' | 'CANCEL_ONLY' | 'CANCEL_AND_RECREATE' | 'CHANGE_PAYMENT_DATE' | 'CHANGE_CUSTOMER_INFO' | 'CHANGE_WORK_INFO' | 'CHANGE_GUARANTOR_INFO';
   old_data: object;
   new_data: object;
   reason: string;
@@ -28,7 +28,7 @@ export class loan_change_requests extends Model<loan_change_requestsAttributes, 
   application_id!: number;
   requested_by!: number;
   reference_doc!: string;
-  change_type!: 'FULL_OVERRIDE' | 'CHANGE_PARTNER' | 'CHANGE_PRODUCT' | 'CANCEL_ONLY' | 'CANCEL_AND_RECREATE' | 'CHANGE_PAYMENT_DATE';
+  change_type!: 'FULL_OVERRIDE' | 'CHANGE_PARTNER' | 'CHANGE_PRODUCT' | 'CANCEL_ONLY' | 'CANCEL_AND_RECREATE' | 'CHANGE_PAYMENT_DATE' | 'CHANGE_CUSTOMER_INFO' | 'CHANGE_WORK_INFO' | 'CHANGE_GUARANTOR_INFO';
   old_data!: object;
   new_data!: object;
   reason!: string;
@@ -77,7 +77,7 @@ export class loan_change_requests extends Model<loan_change_requestsAttributes, 
       comment: "เลขที่เอกสารอนุมัติ (Change\/Cancel Form No)"
     },
     change_type: {
-      type: DataTypes.ENUM('FULL_OVERRIDE','CHANGE_PARTNER','CHANGE_PRODUCT','CANCEL_ONLY','CANCEL_AND_RECREATE','CHANGE_PAYMENT_DATE'),
+      type: DataTypes.ENUM('FULL_OVERRIDE','CHANGE_PARTNER','CHANGE_PRODUCT','CANCEL_ONLY','CANCEL_AND_RECREATE','CHANGE_PAYMENT_DATE', 'CHANGE_CUSTOMER_INFO','CHANGE_WORK_INFO','CHANGE_GUARANTOR_INFO'),
       allowNull: false,
       comment: "ประเภทของการแก้ไข"
     },

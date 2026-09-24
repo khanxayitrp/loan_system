@@ -5,8 +5,9 @@ import { Router } from 'express';
 import { verifyCustomerToken } from '../middlewares/auth.middleware';
 import authController from '../controllers/auth.controller';
 import { checkLoanOwnership, allowViewDocument } from '../middlewares/customer.middleware';
-import { uploadDocument } from '../middlewares/upload.middleware';
+import { uploadDocument, uploadProfileImage } from '../middlewares/upload.middleware';
 import uploadController from '../controllers/upload.controller';
+import * as originationCtrl from '../controllers/membership-origination.controller';
 import LoanContractController from '../controllers/loan_contract.controller';
 import { getCustomerLoanContractPDF } from '../controllers/pdf.controller';
 import { getAllLoanByCustomerId, getLoanbyCusIDandLoanID, cancelLoanApplicationbyCustomer, createFromSuperAppWebview } from '../controllers/loan-application.controller';
@@ -45,6 +46,48 @@ router.post('/superapp-login', authController.superAppWebviewLogin);
 
 // ลูกค้าทุกคนต้องมี Token (Login แล้ว)
 router.use(verifyCustomerToken);
+
+// 1. ດຶງຂໍ້ມູນ Profile & ໃບຄຳຂໍຂອງຕົນເອງ
+router.get('/membership/my-profile', originationCtrl.getMyLatestApplication);
+
+// 📱 สำหรับลูกค้าเข้าผ่าน Super App (มี Customer Token)
+/**
+ * @swagger
+ * /portal/membership/apply:
+ *   post:
+ *     summary: ລູກຄ້າຍື່ນຄຳຂໍສະໝັກສະມາຊິກ ແລະ ວົງເງິນ
+ *     tags: [Customer Portal]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post(
+  '/membership/apply', 
+  uploadProfileImage.single('profile_image'), 
+  originationCtrl.applyFromSuperApp
+);
+
+/**
+ * @swagger
+ * /portal/membership/application/{id}:
+ *   put:
+ *     summary: ລູກຄ້າອັບເດດຄຳຂໍສະໝັກສິນເຊື່ອ (Super App)
+ *     description: ອັບເດດຂໍ້ມູນໃບຄຳຂໍສິນເຊື່ອສຳລັບລູກຄ້າທີ່ເຂົ້າສູ່ລະບົບແລ້ວ (ຕ້ອງເປັນໃບຄຳຂໍຂອງຕົນເອງ)
+ *     tags: [Customer Portal]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID ຂອງໃບຄຳຂໍ (Application ID)
+ */
+router.put(
+  '/membership/application/:id', 
+  uploadProfileImage.single('profile_image'), 
+  originationCtrl.updateApplicationFromSuperApp
+);
 
 /**
  * @swagger

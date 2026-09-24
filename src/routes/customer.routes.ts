@@ -35,6 +35,18 @@ router.get('/', verifyToken, customerCtrl.getAllCustomers);
  */
 router.patch('/kyc/status', verifyToken, customerCtrl.updateKycStatus);
 
+// 🌟 ເພີ່ມ Route ໃໝ່ສຳລັບການດຶງຂໍ້ມູນພິມບັດສະມາຊິກ (ຕ້ອງວາງກ່ອນ /:id)
+/**
+ * @swagger
+ * /customer/{id}/card:
+ *   get:
+ *     summary: Get specific customer info for printing Member Card
+ *     tags: [Customer]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/:id/card', verifyToken, customerCtrl.getCustomerCardInfo);
+
 /**
  * @swagger
  * /customer/{id}:

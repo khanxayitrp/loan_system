@@ -668,48 +668,40 @@ export const createRepaymentSchedule = async (req: Request, res: Response, next:
   }
 }
 
+// ในไฟล์ RepaymentController.ts (ฟังก์ชันที่แก้ไปก่อนหน้านี้)
 export const getRepaymentSchedule = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const application_id = parseInt(req.params.application_id);
+    try {
+        const application_id = parseInt(req.params.application_id);
+        const bypassCache = req.query.no_cache === 'true';
+        const cacheKey = `cache:repayment_schedule:${application_id}`;
 
-    if (isNaN(application_id)) throw new BadRequestError('Invalid application_id format');
+        if (!bypassCache) {
+            const cachedData = await redisService.get(cacheKey);
+            if (cachedData) {
+                const parsedData = JSON.parse(cachedData);
+                if (Array.isArray(parsedData) && parsedData.length > 0) {
+                    return res.status(200).json({ success: true, message: 'From Cache', data: parsedData });
+                }
+            }
+        }
 
-    // =========================================================
-    // 🟢 1. ກວດສອບຂໍ້ມູນໃນ Redis Cache ກ່ອນ
-    // =========================================================
-    const cacheKey = `cache:repayment_schedule:${application_id}`;
-    const cachedSchedule = await redisService.get(cacheKey);
+        // 🌟 3. เรียกใช้ Repo ปกติ ระบบจะค้นหาทั้ง draft และ approved ให้อัตโนมัติ
+        const schedule = await repaymentRepo.findRepaymentsByApplicationId(application_id);
+        const hasData = Array.isArray(schedule) && schedule.length > 0;
 
-    if (cachedSchedule) {
-      console.log(`[Cache Hit] Fetching Repayment Schedule ${application_id} from Redis.`);
-      return res.status(200).json({
-        success: true,
-        message: 'Repayment schedule fetched (From Cache)',
-        data: JSON.parse(cachedSchedule)
-      });
+        if (hasData) {
+            await redisService.set(cacheKey, JSON.stringify(schedule), 900);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'ດຶງຂໍ້ມູນຕາຕະລາງຜ່ອນຊຳລະສຳເລັັດ',
+            data: schedule || []
+        });
+
+    } catch (error) {
+        next(error);
     }
-
-    // =========================================================
-    // 🔴 2. ຖ້າບໍ່ພົບໃນ Cache ໃຫ້ດຶງຈາກ Database
-    // =========================================================
-    console.log(`[Cache Miss] Fetching Repayment Schedule ${application_id} from MySQL.`);
-    const schedule = await repaymentRepo.findRepaymentsByApplicationId(application_id);
-
-    if (!schedule) throw new NotFoundError('Schedule not found');
-
-    // =========================================================
-    // 🟢 3. ບັນທຶກຂໍ້ມູນທີ່ໄດ້ລົງໃນ Redis (ຕັ້ງອາຍຸໄວ້ 15 ນາທີ ຫຼື 900 ວິນາທີ)
-    // =========================================================
-    await redisService.set(cacheKey, JSON.stringify(schedule), 900);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Repayment schedule fetched',
-      data: schedule
-    });
-  } catch (error) {
-    next(error);
-  }
 }
 
 // =======================================================

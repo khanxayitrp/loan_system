@@ -253,6 +253,47 @@ export const getCustomerById = async (req: Request, res: Response, next: NextFun
   }
 };
 
+// 🟢 ເພີ່ມຟັງຊັນໃໝ່: ດຶງຂໍ້ມູນສຳລັບພິມບັດສະມາຊິກ (DTO Pattern) 
+export const getCustomerCardInfo = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || isNaN(Number(id))) {
+      throw new BadRequestError('ID ລູກຄ້າບໍ່ຖືກຕ້ອງ');
+    }
+
+    const customer = await db.customers.findByPk(Number(id), {
+      attributes: [
+        'id',
+        'member_code',
+        'first_name',
+        'last_name',
+        'gender',
+        'date_of_birth',
+        'profile_image_url',
+        'card_issue_at',
+        'card_expire_at'
+      ],
+      include: [
+        { model: db.membership_tiers, as: 'membership_tier', attributes: ['tier_name'] },
+        { model: db.customer_credits, as: 'customer_credit', attributes: ['credit_limit'] }
+      ]
+    });
+
+    if (!customer) {
+      throw new NotFoundError('ບໍ່ພົບຂໍ້ມູນລູກຄ້າ (Customer not found)');
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'ດຶງຂໍ້ມູນບັດສະມາຊິກສຳເລັດ',
+      data: customer
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getCustomerBySearch = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { phone, first_name, last_name } = req.query;

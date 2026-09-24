@@ -301,6 +301,68 @@ class LoanContractService {
                     transaction: t
                 }
             );
+            // ==========================================
+            // 🌟 3. CASCADING UPDATES ໄປຫາ LOAN_GUARANTORS (ສຳລັບ Create/Update ໃນໜ້າສັນຍາ)
+            // ==========================================
+            // ກວດສອບວ່າສັນຍານີ້ມີການລະບຸ ຜູ້ຄ້ຳປະກັນ ຫຼື ຜູ້ອ້າງອີງ ບໍ່
+            const currentRefType = loanContractData.ref_Type || existingContract?.ref_Type || '';
+            
+            if (currentRefType) {
+                // 🟢 Helper function ເພື່ອປ້ອງກັນຄ່າ undefined (Data Sanitization)
+                const getSafeValue = (newVal: any, oldVal: any, defaultVal: any = null) => {
+                    if (newVal !== undefined && newVal !== null) return newVal;
+                    if (oldVal !== undefined && oldVal !== null) return oldVal;
+                    return defaultVal;
+                };
+
+                const syncRefType = getSafeValue(loanContractData.ref_Type, existingContract?.ref_Type, '');
+                const syncRefName = getSafeValue(loanContractData.ref_name, existingContract?.ref_name, '');
+                
+                // ຖ້າມີຊື່ຄົນຄ້ຳປະກັນ/ອ້າງອີງ ຈຶ່ງທຳການ Sync
+                if (syncRefName && syncRefName !== 'ບໍ່ມີ' && syncRefName !== 'ບໍ່ລະບຸ') {
+                    
+                    const guarantorPayload: any = {
+                        application_id: data.loan_id,
+                        ref_type: syncRefType,
+                        name: syncRefName,
+                        identity_number: getSafeValue(loanContractData.ref_id_pass_number, existingContract?.ref_id_pass_number, ''),
+                        phone: getSafeValue(loanContractData.ref_phone, existingContract?.ref_phone, ''),
+                        address: getSafeValue(loanContractData.ref_address, existingContract?.ref_address, ''),
+                        province_id: getSafeValue(loanContractData.ref_province_id, existingContract?.ref_province_id),
+                        district_id: getSafeValue(loanContractData.ref_district_id, existingContract?.ref_district_id),
+                        occupation: getSafeValue(loanContractData.ref_occupation, existingContract?.ref_occupation, ''),
+                        relationship: getSafeValue(loanContractData.ref_relationship, existingContract?.ref_relationship, ''),
+                        work_company_name: getSafeValue(loanContractData.ref_company_name, existingContract?.ref_company_name, ''),
+                        work_position: getSafeValue(loanContractData.ref_position, existingContract?.ref_position, ''),
+                        work_salary: getSafeValue(loanContractData.ref_income, existingContract?.ref_income, 0),
+                        date_of_birth: getSafeValue(loanContractData.ref_date_of_birth, existingContract?.ref_date_of_birth),
+                        work_location: getSafeValue(loanContractData.ref_company_location, existingContract?.ref_company_location, ''),
+                        work_province_id: null, // ສາມາດເພີ່ມ Mapping ໃສ່ພາຍຫຼັງຖ້າມີ Field ເຫຼົ່ານີ້ສົ່ງມາ
+                        work_district_id: null, 
+                        work_phone: null 
+                    };
+
+                    // ຄົ້ນຫາວ່າເຄີຍມີການບັນທຶກຜູ້ຄ້ຳປະກັນສຳລັບ Loan ນີ້ແລ້ວຫຼືຍັງ
+                    const existingGuarantor = await db.loan_guarantors.findOne({
+                        where: { application_id: data.loan_id },
+                        transaction: t,
+                        lock: t.LOCK.UPDATE
+                    });
+
+                    if (existingGuarantor) {
+                        // ຖ້າມີແລ້ວ ໃຫ້ Update ຂໍ້ມູນໃຫ້ກົງກັບສັນຍາ
+                        const oldGuaData = existingGuarantor.toJSON();
+                        await existingGuarantor.update(guarantorPayload, { transaction: t });
+                        await logAudit('loan_guarantors', existingGuarantor.id, 'UPDATE', oldGuaData, guarantorPayload, performedBy, t);
+                        logger.info(`Synced reference info to loan_guarantors for Loan ID: ${data.loan_id}`);
+                    } else {
+                        // ຖ້າຍັງບໍ່ມີ ໃຫ້ Create ໃໝ່
+                        const newGuarantor = await db.loan_guarantors.create(guarantorPayload, { transaction: t });
+                        await logAudit('loan_guarantors', newGuarantor.id, 'CREATE', null, guarantorPayload, performedBy, t);
+                        logger.info(`Created new reference info in loan_guarantors for Loan ID: ${data.loan_id}`);
+                    }
+                }
+            }
 
             await t.commit();
             console.log('✅ Loan Contract created/updated successfully:', loan_contract.id);
@@ -472,6 +534,61 @@ class LoanContractService {
                 }
             }
             // ==========================================
+// ==========================================
+            // 🌟 3. CASCADING UPDATES ໄປຫາ LOAN_GUARANTORS (ສຳລັບ Update)
+            // ==========================================
+            // ກວດສອບວ່າສັນຍານີ້ມີການລະບຸ ຜູ້ຄ້ຳປະກັນ ຫຼື ຜູ້ອ້າງອີງ ບໍ່ (ດຶງຈາກ Payload ໃໝ່ ຫຼື ຂໍ້ມູນເກົ່າ)
+            const currentRefType = (updateData.ref_Type !== undefined ? updateData.ref_Type : existingContract.ref_Type) || '';
+            
+            if (currentRefType) {
+                const syncRefType = updateData.ref_Type !== undefined ? updateData.ref_Type : existingContract.ref_Type;
+                const syncRefName = updateData.ref_name !== undefined ? updateData.ref_name : existingContract.ref_name;
+                
+                // ຖ້າມີຊື່ຄົນຄ້ຳປະກັນ/ອ້າງອີງ ຈຶ່ງທຳການ Sync
+                if (syncRefName && syncRefName !== 'ບໍ່ມີ' && syncRefName !== 'ບໍ່ລະບຸ') {
+                    
+                    const guarantorPayload: any = {
+                        application_id: updateData.loan_id,
+                        ref_type: syncRefType,
+                        name: syncRefName,
+                        identity_number: updateData.ref_id_pass_number !== undefined ? updateData.ref_id_pass_number : existingContract.ref_id_pass_number,
+                        phone: updateData.refPhone !== undefined ? updateData.refPhone : existingContract.ref_phone,
+                        address: updateData.refAddress !== undefined ? updateData.refAddress : existingContract.ref_address,
+                        province_id: updateData.refProvinceId !== undefined ? updateData.refProvinceId : existingContract.ref_province_id,
+                        district_id: updateData.refDistrictId !== undefined ? updateData.refDistrictId : existingContract.ref_district_id,
+                        occupation: updateData.refOccupation !== undefined ? updateData.refOccupation : existingContract.ref_occupation,
+                        relationship: updateData.refRelationship !== undefined ? updateData.refRelationship : existingContract.ref_relationship,
+                        work_company_name: updateData.refCompanyName !== undefined ? updateData.refCompanyName : existingContract.ref_company_name,
+                        work_position: updateData.refPosition !== undefined ? updateData.refPosition : existingContract.ref_position,
+                        work_salary: updateData.refIncome !== undefined ? updateData.refIncome : existingContract.ref_income,
+                        date_of_birth: updateData.refDateOfBirth !== undefined ? updateData.refDateOfBirth : existingContract.ref_date_of_birth,
+                        work_location: updateData.refCompanyLocation !== undefined ? updateData.refCompanyLocation : existingContract.ref_company_location,
+                        work_province_id: updateData.ref_company_province_id !== undefined ? updateData.ref_company_province_id : null, 
+                        work_district_id: updateData.ref_company_district_id !== undefined ? updateData.ref_company_district_id : null,
+                        work_phone: updateData.refCompanyPhone !== undefined ? updateData.refCompanyPhone : null
+                    };
+
+                    // ຄົ້ນຫາວ່າເຄີຍມີການບັນທຶກຜູ້ຄ້ຳປະກັນສຳລັບ Loan ນີ້ແລ້ວຫຼືຍັງ
+                    const existingGuarantor = await db.loan_guarantors.findOne({
+                        where: { application_id: updateData.loan_id },
+                        transaction: t,
+                        lock: t.LOCK.UPDATE
+                    });
+
+                    if (existingGuarantor) {
+                        // ຖ້າມີແລ້ວ ໃຫ້ Update ຂໍ້ມູນໃຫ້ກົງກັບສັນຍາ
+                        const oldGuaData = existingGuarantor.toJSON();
+                        await existingGuarantor.update(guarantorPayload, { transaction: t });
+                        await logAudit('loan_guarantors', existingGuarantor.id, 'UPDATE', oldGuaData, guarantorPayload, performedBy, t);
+                        logger.info(`Synced reference info to loan_guarantors for Loan ID: ${updateData.loan_id}`);
+                    } else {
+                        // ຖ້າຍັງບໍ່ມີ ໃຫ້ Create ໃໝ່
+                        const newGuarantor = await db.loan_guarantors.create(guarantorPayload, { transaction: t });
+                        await logAudit('loan_guarantors', newGuarantor.id, 'CREATE', null, guarantorPayload, performedBy, t);
+                        logger.info(`Created new reference info in loan_guarantors for Loan ID: ${updateData.loan_id}`);
+                    }
+                }
+            }
 
             await t.commit();
 

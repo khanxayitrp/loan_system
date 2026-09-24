@@ -35,7 +35,7 @@ const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
 class App {
     public app: express.Application;
     private corsOptions: cors.CorsOptions = {
-        origin: ["http://localhost:5173","http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.118:5173'], // Replace with your allowed origins
+        origin: ["http://localhost:5173","http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:8000", 'http://192.168.101.118:5173', "https://loan.inseemicrofinances.com"], // Replace with your allowed origins
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token","Accept", "Origin", "X-Requested-With"],
         credentials: true,

@@ -289,7 +289,7 @@ class LoanApplicationRepository {
                 {
                     model: db.loan_contract,
                     as: 'loan_contracts',
-                    attributes: ['id', 'loan_contract_number', 'cus_income', 'cus_income_other']
+                    attributes: ['id', 'loan_contract_number', 'cus_income', 'cus_income_other', 'ref_Type', 'ref_name', 'ref_date_of_birth', 'ref_phone','ref_sex', 'ref_address', 'ref_relationship', 'ref_company_name', 'ref_position', 'ref_income', 'ref_company_workYear', 'ref_occupation', 'ref_company_emp_number', 'ref_company_businessType', 'ref_company_location', 'created_at']
                 },
                 {
                     model: db.document_signatures,
@@ -608,8 +608,13 @@ class LoanApplicationRepository {
             const customer = await db.customers.findByPk(customerId, { transaction, lock: transaction.LOCK.UPDATE });
             if (!customer) throw new NotFoundError('ບໍ່ພົບລູກຄ້າ');
 
+            // --- ຈັດການຄ່າຫວ່າງ (Empty String ປ່ຽນເປັນ Null) ສຳລັບ Unique Fields ---
+            
+            // 1. Account Number
             let newAccountNumber = data.account_number;
-            if (newAccountNumber === undefined || newAccountNumber === '') {
+            if (newAccountNumber === undefined) {
+                 newAccountNumber = customer.account_number;
+            } else if (newAccountNumber === '') {
                  newAccountNumber = null;
             }
 
@@ -629,13 +634,46 @@ class LoanApplicationRepository {
                 }
             }
 
+            // 2. Identity Number (ແກ້ໄຂ Error Duplicate '')
+            let newIdentityNumber = data.identity_number;
+            if (newIdentityNumber === undefined) {
+                newIdentityNumber = customer.identity_number;
+            } else if (newIdentityNumber === '') {
+                newIdentityNumber = null;
+            }
+
+            if (newIdentityNumber !== null) {
+                const existIdentity = await db.customers.findOne({
+                    where: {
+                        identity_number: newIdentityNumber,
+                        id: { [Op.ne]: customer.id }
+                    },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+
+                if (existIdentity) {
+                    throw new BadRequestError('ເລກບັດປະຈຳຕົວນີ້ມີໃນລະບົບແລ້ວ ກະລຸນາກວດສອບຄືນໃໝ່');
+                }
+            }
+
+            // 3. Census Number
+            let newCensusNumber = data.census_number;
+            if (newCensusNumber === undefined) {
+                newCensusNumber = customer.census_number;
+            } else if (newCensusNumber === '') {
+                newCensusNumber = null;
+            }
+
+            // Map ຂໍ້ມູນລູກຄ້າທັງໝົດ
             const custData = {
-                identity_number: data.identity_number !== undefined ? data.identity_number : customer.identity_number,
-                census_number: data.census_number !== undefined ? data.census_number : customer.census_number,
+                identity_number: newIdentityNumber,
+                census_number: newCensusNumber,
                 first_name: data.first_name !== undefined ? data.first_name : customer.first_name,
                 last_name: data.last_name !== undefined ? data.last_name : customer.last_name,
+                gender: data.gender !== undefined ? data.gender : customer.gender,
                 phone: data.phone !== undefined ? data.phone : customer.phone,
-                account_number: newAccountNumber !== undefined ? newAccountNumber : customer.account_number,
+                account_number: newAccountNumber,
                 address: data.address !== undefined ? data.address : customer.address,
                 province_id: data.province_id !== undefined ? data.province_id : customer.province_id,
                 district_id: data.district_id !== undefined ? data.district_id : customer.district_id,
@@ -647,11 +685,56 @@ class LoanApplicationRepository {
                 unit: data.unit !== undefined ? data.unit : customer.unit,
                 issue_place: data.issue_place !== undefined ? data.issue_place : customer.issue_place,
                 issue_date: data.issue_date !== undefined ? data.issue_date : customer.issue_date,
+                profile_image_url: data.profile_image_url !== undefined ? data.profile_image_url : customer.profile_image_url,
+                member_code: data.member_code !== undefined ? data.member_code : customer.member_code,
+                card_issue_at: data.card_issue_at !== undefined ? data.card_issue_at : customer.card_issue_at,
+                card_expire_at: data.card_expire_at !== undefined ? data.card_expire_at : customer.card_expire_at,
             };
 
             const oldCustomerData = customer.toJSON();
             await customer.update(custData, { transaction });
             await logAudit('customers', customer.id, 'UPDATE', oldCustomerData, custData, performedBy, transaction);
+
+            // ==========================================
+            // 🟢 4.5. ອັບເດດຂໍ້ມູນບ່ອນເຮັດວຽກ (Customer Work Info) - ພາກສ່ວນທີ່ເພີ່ມໃໝ່
+            // ==========================================
+            if (data.work_company_name !== undefined || data.work_position !== undefined || data.work_salary !== undefined) {
+                const workInfoPayload: any = {
+                    customer_id: customer.id,
+                    company_name: data.work_company_name,
+                    business_type: data.work_business_type,
+                    business_detail: data.work_business_detail,
+                    position: data.work_position,
+                    department: data.work_department,
+                    phone: data.work_phone,
+                    duration_years: data.work_duration_years,
+                    duration_months: data.work_duration_months,
+                    salary: data.work_salary,
+                    address: data.work_address,
+                    province_id: data.work_province_id,
+                    district_id: data.work_district_id,
+                };
+
+                // ອະນາໄມຄ່າ undefined ອອກໄປກ່ອນບັນທຶກ
+                Object.keys(workInfoPayload).forEach(key => workInfoPayload[key] === undefined && delete workInfoPayload[key]);
+
+                const existingWorkInfo = await db.customer_work_info.findOne({
+                    where: { customer_id: customer.id },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+
+                if (existingWorkInfo) {
+                    const oldWorkData = existingWorkInfo.toJSON();
+                    await existingWorkInfo.update(workInfoPayload, { transaction });
+                    await logAudit('customer_work_info', existingWorkInfo.id, 'UPDATE', oldWorkData, workInfoPayload, performedBy, transaction);
+                    logger.info(`Updated work info for customer: ${customer.id}`);
+                } else {
+                    const newWorkInfo = await db.customer_work_info.create(workInfoPayload, { transaction });
+                    await logAudit('customer_work_info', newWorkInfo.id, 'CREATE', null, newWorkInfo.toJSON(), performedBy, transaction);
+                    logger.info(`Created new work info for customer: ${customer.id}`);
+                }
+            }
 
             // ==========================================
             // 5. ອັບເດດຂໍ້ມູນສິນເຊື່ອ
@@ -660,16 +743,9 @@ class LoanApplicationRepository {
             const updatedLoan = await loanApplication.update(mapData, { transaction });
             await logAudit('loan_applications', loanApplication.id, 'UPDATE', oldLoanData, mapData, performedBy, transaction);
 
-            if (requiresReapproval && requiresReviewStatuses.includes(oldLoanData.status || '')) {
-                // ສົມມຸດວ່າມີຟັງຊັນ logApprovalAction ຢູ່ໃນ class ຫຼຶ import ມາ
-                // await this.logApprovalAction(loanApplicationId, 'returned_for_edit', ...);
-            }
-
             // ==========================================
-            // 🌟 6. Cascading Updates: ອັບເດດຕາຕະລາງ Checklist (ຖ້າມີຂໍ້ມູນຢູ່ແລ້ວ)
+            // 🌟 6. Cascading Updates: ອັບເດດຕາຕະລາງ Checklist
             // ==========================================
-            
-            // 6.1: Sync ກັບ loan_basic_verifications
             const basicVerif = await db.loan_basic_verifications.findOne({
                 where: { application_id: loanApplicationId },
                 transaction,
@@ -701,7 +777,6 @@ class LoanApplicationRepository {
                 }
             }
 
-            // 6.2: Sync ກັບ loan_income_assessments (ແກ້ໄຂເລື່ອງ DSR ແລະ Total Income ຕາມ Best Practice)
             const incomeAsses = await db.loan_income_assessments.findOne({
                 where: { application_id: loanApplicationId },
                 transaction,

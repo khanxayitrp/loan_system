@@ -6,44 +6,6 @@ import { logAudit } from '../utils/auditLogger';
 
 class ProductRepository {
 
-    // ==========================================
-    // 🟢 HELPER FUNCTION: ສຳລັບບັນທຶກ Audit Log
-    // ==========================================
-    // private async logAudit(
-    //     tableName: string,
-    //     recordId: number,
-    //     action: 'CREATE' | 'UPDATE' | 'DELETE',
-    //     oldValues: any,
-    //     newValues: any,
-    //     performedBy: number,
-    //     t?: Transaction
-    // ) {
-    //     let changedColumns: any = undefined;
-
-    //     if (action === 'UPDATE' && oldValues && newValues) {
-    //         const changes: string[] = [];
-    //         for (const key in newValues) {
-    //             if (newValues[key] !== undefined && oldValues[key] != newValues[key]) {
-    //                 changes.push(key);
-    //             }
-    //         }
-    //         if (changes.length === 0) return;
-    //         changedColumns = changes;
-    //     }
-
-    //     const logOptions = t ? { transaction: t } : {};
-
-    //     await db.audit_logs.create({
-    //         table_name: tableName,
-    //         record_id: recordId,
-    //         action: action,
-    //         old_values: oldValues || undefined,
-    //         new_values: newValues || undefined,
-    //         changed_columns: changedColumns,
-    //         performed_by: performedBy
-    //     }, logOptions);
-    // }
-
     async createProduct(data: any): Promise<products> {
         const t = await db.sequelize.transaction();
         try {
@@ -62,11 +24,10 @@ class ProductRepository {
                 throw new Error('Product with ID already exists');
             }
 
-            // 🟢 อัปเดต MapData ให้ตรงกับตารางจริงใน Database 100%
             const mapData: any = {
                 partner_id: cleanProduct.partner_id,
                 productType_id: cleanProduct.productType_id,
-                global_category_id: cleanProduct.global_category_id || null, // เพิ่ม
+                global_category_id: cleanProduct.global_category_id || null, 
                 product_name: cleanProduct.product_name,
                 description: cleanProduct.description || null,
                 brand: cleanProduct.brand || null,
@@ -74,16 +35,15 @@ class ProductRepository {
                 price: cleanProduct.price,
                 image_url: cleanProduct.image_url || null,
                 is_active: cleanProduct.is_active !== undefined ? cleanProduct.is_active : 1,
-                system_sku: cleanProduct.system_sku || null, // เพิ่ม (ปกติ Gen จาก Controller)
-                merchant_sku: cleanProduct.merchant_sku || null, // เพิ่ม
-                stock_quantity: cleanProduct.stock_quantity || 0, // เพิ่ม
-                reserved_stock: cleanProduct.reserved_stock || 0, // เพิ่ม
-                allowed_loan_type: cleanProduct.allowed_loan_type || 'both' // เพิ่ม
+                system_sku: cleanProduct.system_sku || null, 
+                merchant_sku: cleanProduct.merchant_sku || null, 
+                stock_quantity: cleanProduct.stock_quantity || 0, 
+                reserved_stock: cleanProduct.reserved_stock || 0, 
+                allowed_loan_type: cleanProduct.allowed_loan_type || 'both' 
             };
 
             const newProduct = await db.products.create(mapData, { transaction: t });
 
-            // 🟢 ບັນທຶກ Audit Log (CREATE)
             const performedBy = data.user_id || data.performed_by || 1;
             await logAudit('products', newProduct.id, 'CREATE', null, newProduct.toJSON(), performedBy, t);
 
@@ -97,7 +57,22 @@ class ProductRepository {
         }
     }
 
-    async findProductById(productId: number, options?: { transaction?: Transaction, lock?: any }): Promise<products | null> {
+    // 🌟 ເພີ່ມ Option for_admin ເຂົ້າໄປ
+    async findProductById(productId: number, options?: { transaction?: Transaction, lock?: any, for_admin?: boolean }): Promise<products | null> {
+        
+        // 🌟 ແຍກ Include ຂອງ Variant ເພື່ອຈັດການເງື່ອນໄຂ
+        const variantInclude: any = {
+            model: db.product_variants,
+            as: 'product_variants',
+            required: false,
+            attributes: ['id', 'merchant_sku', 'color', 'size_or_capacity', 'weight_gram', 'price', 'stock_quantity', 'image_url', 'is_active']
+        };
+
+        // 🌟 ຖ້າບໍ່ແມ່ນ Admin (ລູກຄ້າ), ໃຫ້ດຶງສະເພາະ Variant ທີ່ Active = 1
+        if (!options?.for_admin) {
+            variantInclude.where = { is_active: 1 };
+        }
+
         return await db.products.findByPk(productId, {
             transaction: options?.transaction,
             lock: options?.lock,
@@ -122,11 +97,7 @@ class ProductRepository {
                     as: 'global_category',
                     attributes: ['id', 'category_name', 'prefix_code']
                 },
-                {
-                    model: db.product_variants,
-                    as: 'product_variants',
-                    attributes: ['id', 'merchant_sku', 'color', 'size_or_capacity', 'weight_gram', 'price', 'stock_quantity', 'image_url']
-                }
+                variantInclude // 🌟 ນຳໃຊ້ Variant Include ທີ່ຕັ້ງຄ່າແລ້ວ
             ]
         });
     }
@@ -154,7 +125,8 @@ class ProductRepository {
         try {
             const product = await this.findProductById(productId, {
                 transaction: t,
-                lock: t.LOCK.UPDATE, // 🟢 เพิ่ม Lock เพื่อ
+                lock: t.LOCK.UPDATE,
+                for_admin: true // 🌟 ຕອນອັບເດດໃຫ້ເຫັນຂໍ້ມູນທັງໝົດ
             });
             if (!product) {
                 logger.error(`Product with ID: ${productId} not found`);
@@ -170,17 +142,21 @@ class ProductRepository {
             }
 
             const oldData = product.toJSON();
-
-            // ກອງເອົາແຕ່ຂໍ້ມູນທີ່ຈະອັບເດດແທ້ໆ
             const updateData: any = {};
             const allowedFields = [
                 'productType_id', 'global_category_id', 'product_name',
                 'description', 'brand', 'model', 'price', 'image_url',
-                'merchant_sku', 'stock_quantity', 'reserved_stock', 'allowed_loan_type'
+                'merchant_sku', 'stock_quantity', 'reserved_stock', 'allowed_loan_type', 'is_active'
             ];
+
             for (const field of allowedFields) {
                 if (data[field] !== undefined) {
-                    updateData[field] = data[field];
+                    // 🌟 ປ່ຽນຄ່າ String ວ່າງເປົ່າເປັນ null ເພື່ອປ້ອງກັນ Duplicate Entry Error (Unique Constraint)
+                    if (data[field] === '') {
+                        updateData[field] = null;
+                    } else {
+                        updateData[field] = data[field];
+                    }
                 }
             }
 
@@ -189,7 +165,6 @@ class ProductRepository {
                 transaction: t
             });
 
-            // 🟢 ບັນທຶກ Audit Log (UPDATE)
             const performedBy = data.user_id || data.performed_by || 1;
             await logAudit('products', productId, 'UPDATE', oldData, updateData, performedBy, t);
 
@@ -206,7 +181,7 @@ class ProductRepository {
     async deActivatedOneProduct(productId: number, partnerId: number, status: number, performedBy: number = 1): Promise<boolean> {
         const t = await db.sequelize.transaction();
         try {
-            const product = await this.findProductById(productId);
+            const product = await this.findProductById(productId, { for_admin: true });
             if (!product) {
                 logger.error(`Product with ID: ${productId} not found for deletion`);
                 await t.rollback();
@@ -224,22 +199,14 @@ class ProductRepository {
             const oldData = product.toJSON();
             const updateData = { is_active: status };
 
-            console.log("========================")
-            console.log(oldData)
-            console.log("========================")
-            console.log(updateData)
-            console.log("========================")
-
-            // อัปเดตผ่าน Model โดยตรง
             await db.products.update(
-                { is_active: status }, // สิ่งที่ต้องการแก้
+                { is_active: status },
                 {
-                    where: { id: productId }, // เงื่อนไข
+                    where: { id: productId },
                     transaction: t
                 }
             );
 
-            // 🟢 ບັນທຶກ Audit Log (UPDATE - Switch Status)
             await logAudit('products', productId, 'UPDATE', oldData, updateData, performedBy, t);
 
             await t.commit();
@@ -255,7 +222,6 @@ class ProductRepository {
     async updateMultipleProductStatus(productIds: number[], partnerId: number, status: number, performedBy: number = 1): Promise<number> {
         const t = await db.sequelize.transaction();
         try {
-            // 1. ຫາ partner_id ຕົວຈິງຈາກ user_id
             const partner = await db.partners.findOne({ where: { user_id: partnerId }, transaction: t });
             if (!partner) {
                 logger.error(`Partner not found for user ID: ${partnerId}`);
@@ -263,7 +229,6 @@ class ProductRepository {
                 throw new Error('Unauthorized');
             }
 
-            // 🟢 ດຶງຂໍ້ມູນເກົ່າທັງໝົດທີ່ກຳລັງຈະຖືກປ່ຽນສະຖານະ ເພື່ອມາເກັບ Log
             const productsToUpdate = await db.products.findAll({
                 where: {
                     id: { [Op.in]: productIds },
@@ -272,7 +237,6 @@ class ProductRepository {
                 transaction: t
             });
 
-            // 2. ອັບເດດສະຖານະພ້ອມກັນຫຼາຍລາຍການ 
             const [updateCount] = await db.products.update(
                 { is_active: status },
                 {
@@ -284,7 +248,6 @@ class ProductRepository {
                 }
             );
 
-            // 🟢 ບັນທຶກ Audit Log ສຳລັບແຕ່ລະສິນຄ້າທີ່ຖືກປ່ຽນສະຖານະ (Loop ເກັບ Log)
             for (const prod of productsToUpdate) {
                 const oldData = prod.toJSON();
                 await logAudit('products', prod.id, 'UPDATE', oldData, { is_active: status }, performedBy, t);
@@ -301,6 +264,7 @@ class ProductRepository {
         }
     }
 
+    // 🌟 ເພີ່ມ Option for_admin ເຂົ້າໄປ
     async findAllActiveProducts(options: {
         search?: string,
         searchText?: string,
@@ -309,9 +273,10 @@ class ProductRepository {
         getAllData?: boolean,
         shop_id?: number,
         is_active?: number,
-        productType_id?: number
+        productType_id?: number,
+        for_admin?: boolean // 🌟 Option ໃໝ່
     }) {
-        const { search, searchText, limit, page, getAllData = false, shop_id, is_active, productType_id } = options;
+        const { search, searchText, limit, page, getAllData = false, shop_id, is_active, productType_id, for_admin = false } = options;
 
         const actualSearch = search || searchText;
         const parsedLimit = limit && limit > 0 ? Math.min(limit, 100) : 10;
@@ -326,8 +291,11 @@ class ProductRepository {
             whereClause.partner_id = shop_id;
         }
 
+        // 🌟 ຖ້າລະບຸສະຖານະມາ ໃຫ້ໃຊ້ຕາມນັ້ນ. ແຕ່ຖ້າບໍ່ລະບຸ ແລະ ບໍ່ແມ່ນ Admin ໃຫ້ບັງຄັບດຶງແຕ່ອັນ Active
         if (is_active !== undefined && !isNaN(is_active)) {
             whereClause.is_active = Number(is_active);
+        } else if (!for_admin) {
+            whereClause.is_active = 1; // ລູກຄ້າເຫັນສະເພາະອັນເປີດຂາຍ
         }
 
         if (productType_id !== undefined && !isNaN(productType_id)) {
@@ -343,6 +311,18 @@ class ProductRepository {
             ];
         }
 
+        // 🌟 ແຍກເງື່ອນໄຂ Variant Include
+        const variantInclude: any = {
+            model: db.product_variants,
+            as: 'product_variants',
+            required: false,
+            attributes: ['id', 'price', 'stock_quantity', 'image_url', 'is_active']
+        };
+
+        if (!for_admin) {
+            variantInclude.where = { is_active: 1 }; // ຖ້າບໍ່ແມ່ນ Admin ໃຫ້ດຶງແຕ່ Variant ທີ່ Active
+        }
+
         const result = await db.products.findAndCountAll({
             where: whereClause,
             include: [
@@ -355,11 +335,13 @@ class ProductRepository {
                     model: db.partners,
                     as: 'partner',
                     attributes: ['id', 'shop_name']
-                }
+                },
+                variantInclude // 🌟 ນຳໃຊ້ Include ທີ່ຈັດການແລ້ວ
             ],
             limit: queryLimit,
             offset,
             order: [['created_at', 'DESC']],
+            distinct: true // 🌟 ປ້ອງກັນການນັບຈຳນວນ Total ສິນຄ້າຜິດພາດ
         });
 
         if (getAllData) {
@@ -442,7 +424,6 @@ class ProductRepository {
         try {
             const partner = await db.partners.findOne({ where: { user_id: partnerId }, transaction: t })
 
-            // 🟢 ດຶງຂໍ້ມູນເກົ່າທັງໝົດທີ່ກຳລັງຈະຖືກປ່ຽນສະຖານະ ເພື່ອມາເກັບ Log
             const productsToUpdate = await db.products.findAll({
                 where: { partner_id: partner!.dataValues.id },
                 transaction: t
@@ -459,7 +440,6 @@ class ProductRepository {
                 { where: { partner_id: partner!.dataValues.id }, transaction: t }
             );
 
-            // 🟢 ບັນທຶກ Audit Log ສຳລັບແຕ່ລະສິນຄ້າທີ່ຖືກປ່ຽນສະຖານະ (Loop ເກັບ Log)
             for (const prod of productsToUpdate) {
                 const oldData = prod.toJSON();
                 await logAudit('products', prod.id, 'UPDATE', oldData, { is_active: 0 }, performedBy, t);

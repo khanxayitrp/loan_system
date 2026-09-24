@@ -16,7 +16,24 @@ export class AdminController {
                 include: [
                     { model: db.products, as: 'product', include: ['partner'] },
                     { model: db.product_variants, as: 'variant' },
-                    { model: db.customers, as: 'customer' }
+                    { 
+                        model: db.customers, 
+                        as: 'customer',
+                        include: [
+                            // 🌟 1. ດຶງຂໍ້ມູນບ່ອນເຮັດວຽກຂອງລູກຄ້າມາພ້ອມ
+                            { 
+                                model: db.customer_work_info, 
+                                as: 'customer_work_infos', // ໝາຍເຫດ: ຖ້າ error ຊື່ alias ໃຫ້ປ່ຽນເປັນ 'customer_work_info' ຕາມ init-models ຂອງທ່ານ
+                                required: false 
+                            }
+                        ]
+                    },
+                    // 🌟 2. ດຶງຂໍ້ມູນຜູ້ຄ້ຳປະກັນມາພ້ອມ
+                    { 
+                        model: db.loan_guarantors, 
+                        as: 'loan_guarantors', // ໝາຍເຫດ: ຖ້າ error ໃຫ້ລອງປ່ຽນເປັນ 'guarantors'
+                        required: false 
+                    }
                 ]
             });
             
@@ -26,13 +43,18 @@ export class AdminController {
             const loanData: any = loan.toJSON();
             loanData.partner_name = loanData.product?.partner?.shop_name || 'N/A';
 
+            // 🌟 3. ຈັດການຊື່ Key ໃຫ້ກົງກັບ Frontend ເພື່ອປ້ອງກັນບັນຫາ Alias ຂອງ Sequelize
+            if (loanData.loan_guarantors) {
+                loanData.guarantors = loanData.loan_guarantors;
+            }
+
             // ==========================================
-            // 🌟 ແກ້ໄຂແລ້ວ: ດຶງຂໍ້ມູນຕາຕະລາງຜ່ອນຊຳລະ ທີ່ເປັນ 'approved' ຫຼື 'draft' ຫຼ້າສຸດ
+            // ດຶງຂໍ້ມູນຕາຕະລາງຜ່ອນຊຳລະ ທີ່ເປັນ 'approved' ຫຼື 'draft' ຫຼ້າສຸດ
             // ==========================================
             const activeSchedule = await db.repayment_schedules.findOne({
                 where: { 
                     application_id: loan.id, 
-                    status: { [Op.in]: ['approved', 'draft'] } // <-- 🌟 ແກ້ໄຂຈຸດນີ້ 
+                    status: { [Op.in]: ['approved', 'draft'] } 
                 },
                 order: [['version', 'DESC'], ['id', 'DESC']]
             });

@@ -7,10 +7,34 @@ import { cart_items as _cart_items } from "./cart_items";
 import type { cart_itemsAttributes, cart_itemsCreationAttributes } from "./cart_items";
 import { carts as _carts } from "./carts";
 import type { cartsAttributes, cartsCreationAttributes } from "./carts";
+import { credit_account_requests as _credit_account_requests } from "./credit_account_requests";
+import type { credit_account_requestsAttributes, credit_account_requestsCreationAttributes } from "./credit_account_requests";
+import { credit_accounts as _credit_accounts } from "./credit_accounts";
+import type { credit_accountsAttributes, credit_accountsCreationAttributes } from "./credit_accounts";
+import { credit_assessments as _credit_assessments } from "./credit_assessments";
+import type { credit_assessmentsAttributes, credit_assessmentsCreationAttributes } from "./credit_assessments";
+import { credit_behavior_events as _credit_behavior_events } from "./credit_behavior_events";
+import type { credit_behavior_eventsAttributes, credit_behavior_eventsCreationAttributes } from "./credit_behavior_events";
+import { credit_ledger as _credit_ledger } from "./credit_ledger";
+import type { credit_ledgerAttributes, credit_ledgerCreationAttributes } from "./credit_ledger";
 import { credit_ledgers as _credit_ledgers } from "./credit_ledgers";
 import type { credit_ledgersAttributes, credit_ledgersCreationAttributes } from "./credit_ledgers";
+import { credit_limit_applications as _credit_limit_applications } from "./credit_limit_applications";
+import type { credit_limit_applicationsAttributes, credit_limit_applicationsCreationAttributes } from "./credit_limit_applications";
+import { credit_reservations as _credit_reservations } from "./credit_reservations";
+import type { credit_reservationsAttributes, credit_reservationsCreationAttributes } from "./credit_reservations";
+import { credit_risk_alerts as _credit_risk_alerts } from "./credit_risk_alerts";
+import type { credit_risk_alertsAttributes, credit_risk_alertsCreationAttributes } from "./credit_risk_alerts";
+import { credit_score_snapshots as _credit_score_snapshots } from "./credit_score_snapshots";
+import type { credit_score_snapshotsAttributes, credit_score_snapshotsCreationAttributes } from "./credit_score_snapshots";
+import { credit_scoring_rules as _credit_scoring_rules } from "./credit_scoring_rules";
+import type { credit_scoring_rulesAttributes, credit_scoring_rulesCreationAttributes } from "./credit_scoring_rules";
 import { cus_requestform as _cus_requestform } from "./cus_requestform";
 import type { cus_requestformAttributes, cus_requestformCreationAttributes } from "./cus_requestform";
+import { customer_cib_debts as _customer_cib_debts } from "./customer_cib_debts";
+import type { customer_cib_debtsAttributes, customer_cib_debtsCreationAttributes } from "./customer_cib_debts";
+import { customer_cib_profiles as _customer_cib_profiles } from "./customer_cib_profiles";
+import type { customer_cib_profilesAttributes, customer_cib_profilesCreationAttributes } from "./customer_cib_profiles";
 import { customer_credits as _customer_credits } from "./customer_credits";
 import type { customer_creditsAttributes, customer_creditsCreationAttributes } from "./customer_credits";
 import { customer_documents as _customer_documents } from "./customer_documents";
@@ -59,10 +83,26 @@ import { loan_income_assessments as _loan_income_assessments } from "./loan_inco
 import type { loan_income_assessmentsAttributes, loan_income_assessmentsCreationAttributes } from "./loan_income_assessments";
 import { loan_payments as _loan_payments } from "./loan_payments";
 import type { loan_paymentsAttributes, loan_paymentsCreationAttributes } from "./loan_payments";
+import { member_cards as _member_cards } from "./member_cards";
+import type { member_cardsAttributes, member_cardsCreationAttributes } from "./member_cards";
+import { membership_application_versions as _membership_application_versions } from "./membership_application_versions";
+import type { membership_application_versionsAttributes, membership_application_versionsCreationAttributes } from "./membership_application_versions";
+import { membership_applications as _membership_applications } from "./membership_applications";
+import type { membership_applicationsAttributes, membership_applicationsCreationAttributes } from "./membership_applications";
+import { membership_approval_documents as _membership_approval_documents } from "./membership_approval_documents";
+import type { membership_approval_documentsAttributes, membership_approval_documentsCreationAttributes } from "./membership_approval_documents";
+import { membership_assessments as _membership_assessments } from "./membership_assessments";
+import type { membership_assessmentsAttributes, membership_assessmentsCreationAttributes } from "./membership_assessments";
+import { membership_credit_purposes as _membership_credit_purposes } from "./membership_credit_purposes";
+import type { membership_credit_purposesAttributes, membership_credit_purposesCreationAttributes } from "./membership_credit_purposes";
+import { membership_decisions as _membership_decisions } from "./membership_decisions";
+import type { membership_decisionsAttributes, membership_decisionsCreationAttributes } from "./membership_decisions";
 import { membership_history as _membership_history } from "./membership_history";
 import type { membership_historyAttributes, membership_historyCreationAttributes } from "./membership_history";
 import { membership_tiers as _membership_tiers } from "./membership_tiers";
 import type { membership_tiersAttributes, membership_tiersCreationAttributes } from "./membership_tiers";
+import { membership_workflow_logs as _membership_workflow_logs } from "./membership_workflow_logs";
+import type { membership_workflow_logsAttributes, membership_workflow_logsCreationAttributes } from "./membership_workflow_logs";
 import { notifications as _notifications } from "./notifications";
 import type { notificationsAttributes, notificationsCreationAttributes } from "./notifications";
 import { order_items as _order_items } from "./order_items";
@@ -113,8 +153,20 @@ export {
   _audit_logs as audit_logs,
   _cart_items as cart_items,
   _carts as carts,
+  _credit_account_requests as credit_account_requests,
+  _credit_accounts as credit_accounts,
+  _credit_assessments as credit_assessments,
+  _credit_behavior_events as credit_behavior_events,
+  _credit_ledger as credit_ledger,
   _credit_ledgers as credit_ledgers,
+  _credit_limit_applications as credit_limit_applications,
+  _credit_reservations as credit_reservations,
+  _credit_risk_alerts as credit_risk_alerts,
+  _credit_score_snapshots as credit_score_snapshots,
+  _credit_scoring_rules as credit_scoring_rules,
   _cus_requestform as cus_requestform,
+  _customer_cib_debts as customer_cib_debts,
+  _customer_cib_profiles as customer_cib_profiles,
   _customer_credits as customer_credits,
   _customer_documents as customer_documents,
   _customer_locations as customer_locations,
@@ -139,8 +191,16 @@ export {
   _loan_guarantors as loan_guarantors,
   _loan_income_assessments as loan_income_assessments,
   _loan_payments as loan_payments,
+  _member_cards as member_cards,
+  _membership_application_versions as membership_application_versions,
+  _membership_applications as membership_applications,
+  _membership_approval_documents as membership_approval_documents,
+  _membership_assessments as membership_assessments,
+  _membership_credit_purposes as membership_credit_purposes,
+  _membership_decisions as membership_decisions,
   _membership_history as membership_history,
   _membership_tiers as membership_tiers,
+  _membership_workflow_logs as membership_workflow_logs,
   _notifications as notifications,
   _order_items as order_items,
   _orders as orders,
@@ -174,10 +234,34 @@ export type {
   cart_itemsCreationAttributes,
   cartsAttributes,
   cartsCreationAttributes,
+  credit_account_requestsAttributes,
+  credit_account_requestsCreationAttributes,
+  credit_accountsAttributes,
+  credit_accountsCreationAttributes,
+  credit_assessmentsAttributes,
+  credit_assessmentsCreationAttributes,
+  credit_behavior_eventsAttributes,
+  credit_behavior_eventsCreationAttributes,
+  credit_ledgerAttributes,
+  credit_ledgerCreationAttributes,
   credit_ledgersAttributes,
   credit_ledgersCreationAttributes,
+  credit_limit_applicationsAttributes,
+  credit_limit_applicationsCreationAttributes,
+  credit_reservationsAttributes,
+  credit_reservationsCreationAttributes,
+  credit_risk_alertsAttributes,
+  credit_risk_alertsCreationAttributes,
+  credit_score_snapshotsAttributes,
+  credit_score_snapshotsCreationAttributes,
+  credit_scoring_rulesAttributes,
+  credit_scoring_rulesCreationAttributes,
   cus_requestformAttributes,
   cus_requestformCreationAttributes,
+  customer_cib_debtsAttributes,
+  customer_cib_debtsCreationAttributes,
+  customer_cib_profilesAttributes,
+  customer_cib_profilesCreationAttributes,
   customer_creditsAttributes,
   customer_creditsCreationAttributes,
   customer_documentsAttributes,
@@ -226,10 +310,26 @@ export type {
   loan_income_assessmentsCreationAttributes,
   loan_paymentsAttributes,
   loan_paymentsCreationAttributes,
+  member_cardsAttributes,
+  member_cardsCreationAttributes,
+  membership_application_versionsAttributes,
+  membership_application_versionsCreationAttributes,
+  membership_applicationsAttributes,
+  membership_applicationsCreationAttributes,
+  membership_approval_documentsAttributes,
+  membership_approval_documentsCreationAttributes,
+  membership_assessmentsAttributes,
+  membership_assessmentsCreationAttributes,
+  membership_credit_purposesAttributes,
+  membership_credit_purposesCreationAttributes,
+  membership_decisionsAttributes,
+  membership_decisionsCreationAttributes,
   membership_historyAttributes,
   membership_historyCreationAttributes,
   membership_tiersAttributes,
   membership_tiersCreationAttributes,
+  membership_workflow_logsAttributes,
+  membership_workflow_logsCreationAttributes,
   notificationsAttributes,
   notificationsCreationAttributes,
   order_itemsAttributes,
@@ -279,8 +379,20 @@ export function initModels(sequelize: Sequelize) {
   const audit_logs = _audit_logs.initModel(sequelize);
   const cart_items = _cart_items.initModel(sequelize);
   const carts = _carts.initModel(sequelize);
+  const credit_account_requests = _credit_account_requests.initModel(sequelize);
+  const credit_accounts = _credit_accounts.initModel(sequelize);
+  const credit_assessments = _credit_assessments.initModel(sequelize);
+  const credit_behavior_events = _credit_behavior_events.initModel(sequelize);
+  const credit_ledger = _credit_ledger.initModel(sequelize);
   const credit_ledgers = _credit_ledgers.initModel(sequelize);
+  const credit_limit_applications = _credit_limit_applications.initModel(sequelize);
+  const credit_reservations = _credit_reservations.initModel(sequelize);
+  const credit_risk_alerts = _credit_risk_alerts.initModel(sequelize);
+  const credit_score_snapshots = _credit_score_snapshots.initModel(sequelize);
+  const credit_scoring_rules = _credit_scoring_rules.initModel(sequelize);
   const cus_requestform = _cus_requestform.initModel(sequelize);
+  const customer_cib_debts = _customer_cib_debts.initModel(sequelize);
+  const customer_cib_profiles = _customer_cib_profiles.initModel(sequelize);
   const customer_credits = _customer_credits.initModel(sequelize);
   const customer_documents = _customer_documents.initModel(sequelize);
   const customer_locations = _customer_locations.initModel(sequelize);
@@ -305,8 +417,16 @@ export function initModels(sequelize: Sequelize) {
   const loan_guarantors = _loan_guarantors.initModel(sequelize);
   const loan_income_assessments = _loan_income_assessments.initModel(sequelize);
   const loan_payments = _loan_payments.initModel(sequelize);
+  const member_cards = _member_cards.initModel(sequelize);
+  const membership_application_versions = _membership_application_versions.initModel(sequelize);
+  const membership_applications = _membership_applications.initModel(sequelize);
+  const membership_approval_documents = _membership_approval_documents.initModel(sequelize);
+  const membership_assessments = _membership_assessments.initModel(sequelize);
+  const membership_credit_purposes = _membership_credit_purposes.initModel(sequelize);
+  const membership_decisions = _membership_decisions.initModel(sequelize);
   const membership_history = _membership_history.initModel(sequelize);
   const membership_tiers = _membership_tiers.initModel(sequelize);
+  const membership_workflow_logs = _membership_workflow_logs.initModel(sequelize);
   const notifications = _notifications.initModel(sequelize);
   const order_items = _order_items.initModel(sequelize);
   const orders = _orders.initModel(sequelize);
@@ -333,12 +453,48 @@ export function initModels(sequelize: Sequelize) {
   users.belongsToMany(features, { as: 'feature_id_features', through: user_permissions, foreignKey: "user_id", otherKey: "feature_id" });
   cart_items.belongsTo(carts, { as: "cart", foreignKey: "cart_id"});
   carts.hasMany(cart_items, { as: "cart_items", foreignKey: "cart_id"});
+  credit_account_requests.belongsTo(credit_accounts, { as: "credit_account", foreignKey: "credit_account_id"});
+  credit_accounts.hasMany(credit_account_requests, { as: "credit_account_requests", foreignKey: "credit_account_id"});
+  credit_behavior_events.belongsTo(credit_accounts, { as: "credit_account", foreignKey: "credit_account_id"});
+  credit_accounts.hasMany(credit_behavior_events, { as: "credit_behavior_events", foreignKey: "credit_account_id"});
+  credit_ledger.belongsTo(credit_accounts, { as: "credit_account", foreignKey: "credit_account_id"});
+  credit_accounts.hasMany(credit_ledger, { as: "credit_ledgers", foreignKey: "credit_account_id"});
+  credit_reservations.belongsTo(credit_accounts, { as: "credit_account", foreignKey: "credit_account_id"});
+  credit_accounts.hasMany(credit_reservations, { as: "credit_reservations", foreignKey: "credit_account_id"});
+  credit_risk_alerts.belongsTo(credit_accounts, { as: "credit_account", foreignKey: "credit_account_id"});
+  credit_accounts.hasMany(credit_risk_alerts, { as: "credit_risk_alerts", foreignKey: "credit_account_id"});
+  member_cards.belongsTo(credit_accounts, { as: "credit_account", foreignKey: "credit_account_id"});
+  credit_accounts.hasMany(member_cards, { as: "member_cards", foreignKey: "credit_account_id"});
+  credit_assessments.belongsTo(credit_limit_applications, { as: "credit_limit_app", foreignKey: "credit_limit_app_id"});
+  credit_limit_applications.hasMany(credit_assessments, { as: "credit_assessments", foreignKey: "credit_limit_app_id"});
+  credit_assessments.belongsTo(customer_cib_profiles, { as: "cib_profile", foreignKey: "cib_profile_id"});
+  customer_cib_profiles.hasMany(credit_assessments, { as: "credit_assessments", foreignKey: "cib_profile_id"});
+  customer_cib_debts.belongsTo(customer_cib_profiles, { as: "cib_profile", foreignKey: "cib_profile_id"});
+  customer_cib_profiles.hasMany(customer_cib_debts, { as: "customer_cib_debts", foreignKey: "cib_profile_id"});
+  membership_assessments.belongsTo(customer_cib_profiles, { as: "cib_profile", foreignKey: "cib_profile_id"});
+  customer_cib_profiles.hasMany(membership_assessments, { as: "membership_assessments", foreignKey: "cib_profile_id"});
   carts.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasOne(carts, { as: "cart", foreignKey: "customer_id"});
+  credit_account_requests.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(credit_account_requests, { as: "credit_account_requests", foreignKey: "customer_id"});
+  credit_accounts.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasOne(credit_accounts, { as: "credit_account", foreignKey: "customer_id"});
+  credit_behavior_events.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(credit_behavior_events, { as: "credit_behavior_events", foreignKey: "customer_id"});
   credit_ledgers.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(credit_ledgers, { as: "credit_ledgers", foreignKey: "customer_id"});
+  credit_limit_applications.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(credit_limit_applications, { as: "credit_limit_applications", foreignKey: "customer_id"});
+  credit_reservations.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(credit_reservations, { as: "credit_reservations", foreignKey: "customer_id"});
+  credit_risk_alerts.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(credit_risk_alerts, { as: "credit_risk_alerts", foreignKey: "customer_id"});
+  credit_score_snapshots.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(credit_score_snapshots, { as: "credit_score_snapshots", foreignKey: "customer_id"});
   cus_requestform.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(cus_requestform, { as: "cus_requestforms", foreignKey: "customer_id"});
+  customer_cib_profiles.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(customer_cib_profiles, { as: "customer_cib_profiles", foreignKey: "customer_id"});
   customer_credits.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasOne(customer_credits, { as: "customer_credit", foreignKey: "customer_id"});
   customer_documents.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
@@ -353,6 +509,10 @@ export function initModels(sequelize: Sequelize) {
   customers.hasMany(customer_work_info, { as: "customer_work_infos", foreignKey: "customer_id"});
   loan_applications.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(loan_applications, { as: "loan_applications", foreignKey: "customer_id"});
+  member_cards.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(member_cards, { as: "member_cards", foreignKey: "customer_id"});
+  membership_applications.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
+  customers.hasMany(membership_applications, { as: "membership_applications", foreignKey: "customer_id"});
   membership_history.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
   customers.hasMany(membership_history, { as: "membership_histories", foreignKey: "customer_id"});
   orders.belongsTo(customers, { as: "customer", foreignKey: "customer_id"});
@@ -407,8 +567,36 @@ export function initModels(sequelize: Sequelize) {
   loan_applications.hasMany(repayments, { as: "repayments", foreignKey: "application_id"});
   loan_approval_logs.belongsTo(loan_approval_logs, { as: "reply_to", foreignKey: "reply_to_id"});
   loan_approval_logs.hasMany(loan_approval_logs, { as: "loan_approval_logs", foreignKey: "reply_to_id"});
+  credit_account_requests.belongsTo(member_cards, { as: "member_card", foreignKey: "member_card_id"});
+  member_cards.hasMany(credit_account_requests, { as: "credit_account_requests", foreignKey: "member_card_id"});
+  membership_assessments.belongsTo(membership_application_versions, { as: "application_version", foreignKey: "application_version_id"});
+  membership_application_versions.hasMany(membership_assessments, { as: "membership_assessments", foreignKey: "application_version_id"});
+  member_cards.belongsTo(membership_applications, { as: "membership_application", foreignKey: "membership_application_id"});
+  membership_applications.hasMany(member_cards, { as: "member_cards", foreignKey: "membership_application_id"});
+  membership_application_versions.belongsTo(membership_applications, { as: "membership_application", foreignKey: "membership_application_id"});
+  membership_applications.hasMany(membership_application_versions, { as: "membership_application_versions", foreignKey: "membership_application_id"});
+  membership_approval_documents.belongsTo(membership_applications, { as: "membership_application", foreignKey: "membership_application_id"});
+  membership_applications.hasMany(membership_approval_documents, { as: "membership_approval_documents", foreignKey: "membership_application_id"});
+  membership_assessments.belongsTo(membership_applications, { as: "membership_application", foreignKey: "membership_application_id"});
+  membership_applications.hasMany(membership_assessments, { as: "membership_assessments", foreignKey: "membership_application_id"});
+  membership_decisions.belongsTo(membership_applications, { as: "membership_application", foreignKey: "membership_application_id"});
+  membership_applications.hasMany(membership_decisions, { as: "membership_decisions", foreignKey: "membership_application_id"});
+  membership_workflow_logs.belongsTo(membership_applications, { as: "membership_application", foreignKey: "membership_application_id"});
+  membership_applications.hasMany(membership_workflow_logs, { as: "membership_workflow_logs", foreignKey: "membership_application_id"});
+  membership_approval_documents.belongsTo(membership_assessments, { as: "assessment", foreignKey: "assessment_id"});
+  membership_assessments.hasMany(membership_approval_documents, { as: "membership_approval_documents", foreignKey: "assessment_id"});
+  membership_decisions.belongsTo(membership_assessments, { as: "assessment", foreignKey: "assessment_id"});
+  membership_assessments.hasMany(membership_decisions, { as: "membership_decisions", foreignKey: "assessment_id"});
+  membership_applications.belongsTo(membership_credit_purposes, { as: "purpose", foreignKey: "purpose_id"});
+  membership_credit_purposes.hasMany(membership_applications, { as: "membership_applications", foreignKey: "purpose_id"});
+  membership_approval_documents.belongsTo(membership_decisions, { as: "decision", foreignKey: "decision_id"});
+  membership_decisions.hasMany(membership_approval_documents, { as: "membership_approval_documents", foreignKey: "decision_id"});
   customers.belongsTo(membership_tiers, { as: "membership_tier", foreignKey: "membership_tier_id"});
   membership_tiers.hasMany(customers, { as: "customers", foreignKey: "membership_tier_id"});
+  membership_assessments.belongsTo(membership_tiers, { as: "recommended_tier", foreignKey: "recommended_tier_id"});
+  membership_tiers.hasMany(membership_assessments, { as: "membership_assessments", foreignKey: "recommended_tier_id"});
+  membership_decisions.belongsTo(membership_tiers, { as: "approved_tier", foreignKey: "approved_tier_id"});
+  membership_tiers.hasMany(membership_decisions, { as: "membership_decisions", foreignKey: "approved_tier_id"});
   loan_applications.belongsTo(orders, { as: "order", foreignKey: "order_id"});
   orders.hasMany(loan_applications, { as: "loan_applications", foreignKey: "order_id"});
   order_items.belongsTo(orders, { as: "order", foreignKey: "order_id"});
@@ -455,10 +643,30 @@ export function initModels(sequelize: Sequelize) {
   repayments.hasMany(payment_transactions, { as: "payment_transactions", foreignKey: "schedule_id"});
   application_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by"});
   users.hasMany(application_documents, { as: "application_documents", foreignKey: "uploaded_by"});
+  credit_account_requests.belongsTo(users, { as: "approved_by_user", foreignKey: "approved_by"});
+  users.hasMany(credit_account_requests, { as: "credit_account_requests", foreignKey: "approved_by"});
+  credit_account_requests.belongsTo(users, { as: "checked_by_user", foreignKey: "checked_by"});
+  users.hasMany(credit_account_requests, { as: "checked_by_credit_account_requests", foreignKey: "checked_by"});
+  credit_account_requests.belongsTo(users, { as: "executed_by_user", foreignKey: "executed_by"});
+  users.hasMany(credit_account_requests, { as: "executed_by_credit_account_requests", foreignKey: "executed_by"});
+  credit_account_requests.belongsTo(users, { as: "requested_by_user", foreignKey: "requested_by"});
+  users.hasMany(credit_account_requests, { as: "requested_by_credit_account_requests", foreignKey: "requested_by"});
+  credit_assessments.belongsTo(users, { as: "approved_by_user", foreignKey: "approved_by"});
+  users.hasMany(credit_assessments, { as: "credit_assessments", foreignKey: "approved_by"});
+  credit_assessments.belongsTo(users, { as: "assessed_by_user", foreignKey: "assessed_by"});
+  users.hasMany(credit_assessments, { as: "assessed_by_credit_assessments", foreignKey: "assessed_by"});
+  credit_risk_alerts.belongsTo(users, { as: "assigned_to_user", foreignKey: "assigned_to"});
+  users.hasMany(credit_risk_alerts, { as: "credit_risk_alerts", foreignKey: "assigned_to"});
+  credit_risk_alerts.belongsTo(users, { as: "resolved_by_user", foreignKey: "resolved_by"});
+  users.hasMany(credit_risk_alerts, { as: "resolved_by_credit_risk_alerts", foreignKey: "resolved_by"});
+  credit_scoring_rules.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
+  users.hasMany(credit_scoring_rules, { as: "credit_scoring_rules", foreignKey: "created_by"});
   cus_requestform.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
   users.hasMany(cus_requestform, { as: "cus_requestforms", foreignKey: "created_by"});
   cus_requestform.belongsTo(users, { as: "updated_by_user", foreignKey: "updated_by"});
   users.hasMany(cus_requestform, { as: "updated_by_cus_requestforms", foreignKey: "updated_by"});
+  customer_cib_profiles.belongsTo(users, { as: "checked_by_user", foreignKey: "checked_by"});
+  users.hasMany(customer_cib_profiles, { as: "customer_cib_profiles", foreignKey: "checked_by"});
   customer_documents.belongsTo(users, { as: "uploaded_by_user", foreignKey: "uploaded_by"});
   users.hasMany(customer_documents, { as: "customer_documents", foreignKey: "uploaded_by"});
   customers.belongsTo(users, { as: "user", foreignKey: "user_id"});
@@ -487,6 +695,24 @@ export function initModels(sequelize: Sequelize) {
   users.hasMany(loan_field_visits, { as: "loan_field_visits", foreignKey: "visited_by"});
   loan_income_assessments.belongsTo(users, { as: "assessed_by_user", foreignKey: "assessed_by"});
   users.hasMany(loan_income_assessments, { as: "loan_income_assessments", foreignKey: "assessed_by"});
+  member_cards.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
+  users.hasMany(member_cards, { as: "member_cards", foreignKey: "created_by"});
+  membership_application_versions.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
+  users.hasMany(membership_application_versions, { as: "membership_application_versions", foreignKey: "created_by"});
+  membership_applications.belongsTo(users, { as: "created_by_user", foreignKey: "created_by"});
+  users.hasMany(membership_applications, { as: "membership_applications", foreignKey: "created_by"});
+  membership_applications.belongsTo(users, { as: "updated_by_user", foreignKey: "updated_by"});
+  users.hasMany(membership_applications, { as: "updated_by_membership_applications", foreignKey: "updated_by"});
+  membership_approval_documents.belongsTo(users, { as: "generated_by_user", foreignKey: "generated_by"});
+  users.hasMany(membership_approval_documents, { as: "membership_approval_documents", foreignKey: "generated_by"});
+  membership_assessments.belongsTo(users, { as: "assessed_by_user", foreignKey: "assessed_by"});
+  users.hasMany(membership_assessments, { as: "membership_assessments", foreignKey: "assessed_by"});
+  membership_decisions.belongsTo(users, { as: "decided_by_user", foreignKey: "decided_by"});
+  users.hasMany(membership_decisions, { as: "membership_decisions", foreignKey: "decided_by"});
+  membership_decisions.belongsTo(users, { as: "requested_by_user", foreignKey: "requested_by"});
+  users.hasMany(membership_decisions, { as: "requested_by_membership_decisions", foreignKey: "requested_by"});
+  membership_workflow_logs.belongsTo(users, { as: "performed_by_user", foreignKey: "performed_by"});
+  users.hasMany(membership_workflow_logs, { as: "membership_workflow_logs", foreignKey: "performed_by"});
   partners.belongsTo(users, { as: "user", foreignKey: "user_id"});
   users.hasMany(partners, { as: "partners", foreignKey: "user_id"});
   payment_transactions.belongsTo(users, { as: "recorded_by_user", foreignKey: "recorded_by"});
@@ -510,8 +736,20 @@ export function initModels(sequelize: Sequelize) {
     audit_logs: audit_logs,
     cart_items: cart_items,
     carts: carts,
+    credit_account_requests: credit_account_requests,
+    credit_accounts: credit_accounts,
+    credit_assessments: credit_assessments,
+    credit_behavior_events: credit_behavior_events,
+    credit_ledger: credit_ledger,
     credit_ledgers: credit_ledgers,
+    credit_limit_applications: credit_limit_applications,
+    credit_reservations: credit_reservations,
+    credit_risk_alerts: credit_risk_alerts,
+    credit_score_snapshots: credit_score_snapshots,
+    credit_scoring_rules: credit_scoring_rules,
     cus_requestform: cus_requestform,
+    customer_cib_debts: customer_cib_debts,
+    customer_cib_profiles: customer_cib_profiles,
     customer_credits: customer_credits,
     customer_documents: customer_documents,
     customer_locations: customer_locations,
@@ -536,8 +774,16 @@ export function initModels(sequelize: Sequelize) {
     loan_guarantors: loan_guarantors,
     loan_income_assessments: loan_income_assessments,
     loan_payments: loan_payments,
+    member_cards: member_cards,
+    membership_application_versions: membership_application_versions,
+    membership_applications: membership_applications,
+    membership_approval_documents: membership_approval_documents,
+    membership_assessments: membership_assessments,
+    membership_credit_purposes: membership_credit_purposes,
+    membership_decisions: membership_decisions,
     membership_history: membership_history,
     membership_tiers: membership_tiers,
+    membership_workflow_logs: membership_workflow_logs,
     notifications: notifications,
     order_items: order_items,
     orders: orders,

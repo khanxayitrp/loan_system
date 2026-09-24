@@ -7,6 +7,7 @@ import { KycStatus } from '../types/customer.types';
 // 🟢 1. Import Helper ของเราเข้ามา
 import { logAudit } from '../utils/auditLogger';
 import { formatStandardPhoneNumber } from '../utils/formatters';
+import { ValidationError, BadRequestError, ConflictError } from '../utils/errors';
 
 class CustomerRepository {
     async createCustomer(data: customersCreationAttributes, options: { transaction?: any } = {}): Promise<customers> {
@@ -30,27 +31,27 @@ class CustomerRepository {
             // 🟢 2. ກວດສອບຄວາມຖືກຕ້ອງຂອງຂໍ້ມູນ (Validation)
             // ==========================================
             if (!cleanCustomer.first_name || String(cleanCustomer.first_name).trim() === '') {
-                throw new Error('ກະລຸນາປ້ອນຊື່ແທ້ (First name is required)');
+                throw new BadRequestError('ກະລຸນາປ້ອນຊື່ແທ້ (First name is required)');
             }
             if (!cleanCustomer.phone || String(cleanCustomer.phone).trim() === '') {
                 throw new Error('ກະລຸນາປ້ອນເບີໂທລະສັບ (Phone number is required)');
             }
             if (!cleanCustomer.province_id || String(cleanCustomer.province_id).trim() === '') {
-                throw new Error('ກະລຸນາເລືອກແຂວງ (Province ID is required)');
+                throw new BadRequestError('ກະລຸນາເລືອກແຂວງ (Province ID is required)');
             }
             if (!cleanCustomer.district_id || String(cleanCustomer.district_id).trim() === '') {
                 throw new Error('ກະລຸນາເລືອກເມືອງ (District ID is required)');
             }
             if (!cleanCustomer.address || String(cleanCustomer.address).trim() === '') {
-                throw new Error('ກະລຸນາປ້ອນທີ່ຢູ່ (Address is required)');
+                throw new BadRequestError('ກະລຸນາປ້ອນທີ່ຢູ່ (Address is required)');
             }
             if (!cleanCustomer.occupation || String(cleanCustomer.occupation).trim() === '') {
-                throw new Error('ກະລຸນາປ້ອນອາຊີບ (Occupation is required)');
+                throw new BadRequestError('ກະລຸນາປ້ອນອາຊີບ (Occupation is required)');
             }
 
             const income = Number(cleanCustomer.income_per_month);
             if (isNaN(income) || income <= 0) {
-                throw new Error('ລາຍຮັບຕໍ່ເດືອນຕ້ອງຫຼາຍກວ່າ 0 (Income per month must be greater than 0)');
+                throw new BadRequestError('ລາຍຮັບຕໍ່ເດືອນຕ້ອງຫຼາຍກວ່າ 0 (Income per month must be greater than 0)');
             }
             cleanCustomer.income_per_month = income;
 
@@ -65,7 +66,7 @@ class CustomerRepository {
 
             if (existPhone) {
                 logger.error(`Phone number already exists: ${cleanCustomer.phone}`);
-                throw new Error('ເບີໂທລະສັບນີ້ມີໃນລະບົບແລ້ວ ກະລຸນາກວດສອບຄືນໃໝ່');
+                throw new ConflictError('ເບີໂທລະສັບນີ້ມີໃນລະບົບແລ້ວ ກະລຸນາກວດສອບຄືນໃໝ່');
             }
 
             if (identityNumberToSave !== null) {
@@ -77,7 +78,7 @@ class CustomerRepository {
 
                 if (existCustomer) {
                     logger.error(`Identity number already exists: ${identityNumberToSave}`);
-                    throw new Error('ເລກບັດປະຈຳຕົວນີ້ມີໃນລະບົບແລ້ວ ກະລຸນາກວດສອບຄືນໃໝ່');
+                    throw new ConflictError('ເລກບັດປະຈຳຕົວນີ້ມີໃນລະບົບແລ້ວ ກະລຸນາກວດສອບຄືນໃໝ່');
                 }
             }
 
@@ -329,6 +330,74 @@ class CustomerRepository {
 
             // อัปเดตสถานะใหม่
             customer.kyc_status = targetStatus;
+
+            // ====================================================
+            // 🌟 ຖ້າອະນຸມັດຜ່ານ (Verified) ໃຫ້ສ້າງ Member Code, ວັນທີ, ແລະ ວົງເງິນ
+            // ====================================================
+            if (targetStatus === 'verified' && currentStatus === 'unverified') {
+                const yyyy = new Date().getFullYear().toString(); // ເຊັ່ນ 2026
+
+                // 🟢 ຈັດການ locationCode: ໃຊ້ district_id ຖ້າມີ 3 ຫຼັກໃຫ້ຕື່ມ 0 ດ້ານໜ້າ, ຖ້າມີ 4 ຫຼັກກໍໃຊ້ໄດ້ເລີຍ
+                const locationCode = customer.district_id
+                    ? String(customer.district_id).padStart(4, '0')
+                    : '0000'; // Fallback ກໍລະນີບໍ່ມີຂໍ້ມູນ
+
+                const prefix = `INS-${locationCode}-${yyyy}-`; // ຕົວຢ່າງ: INS-0801-2026- ຫຼື INS-0101-2026-
+
+                // 🟢 1: ດຶງລະຫັດທີ່ເຄີຍຖືກສ້າງໄປແລ້ວໃນ Prefix ດຽວກັນ ພ້ອມລັອກຕາຕະລາງ (Pessimistic Locking)
+                const existingRecords = await db.customers.findAll({
+                    where: {
+                        member_code: {
+                            [Op.like]: `${prefix}%`
+                        }
+                    },
+                    attributes: ['member_code'],
+                    transaction,
+                    lock: transaction?.LOCK.UPDATE // Lock ປ້ອງກັນ Transaction ອື່ນມາແຍ່ງລະຫັດ
+                });
+
+                // 🟢 2: ນຳລະຫັດທີ່ຫາເຈີເຂົ້າ Set ເພື່ອຄວາມໄວໃນການເຊັກຊ້ຳ (O(1))
+                const existingCodes = new Set(existingRecords.map(record => record.member_code));
+
+                let random6: string;
+                let newMemberCode: string;
+
+                // 🟢 3: ສຸ່ມລະຫັດ 6 ຫຼັກ ຖ້າຊ້ຳໃຫ້ສຸ່ມໃໝ່ທັນທີພາຍໃນລູບ (Do-While)
+                do {
+                    // ສຸ່ມໂຕເລກ 6 ຫຼັກ ແບບປອດໄພ (100000 - 999999)
+                    random6 = Math.floor(100000 + Math.random() * 900000).toString();
+                    newMemberCode = `${prefix}${random6}`;
+                } while (existingCodes.has(newMemberCode));
+
+                customer.member_code = newMemberCode;
+
+                // 🟢 4: ກຳນົດວັນອອກບັດ ແລະ ວັນໝົດອາຍຸ (ອາຍຸ 5 ປີ)
+                const now = new Date();
+                const expire = new Date();
+                expire.setFullYear(now.getFullYear() + 5);
+
+                customer.card_issue_at = now.toISOString().split('T')[0] as any;
+                customer.card_expire_at = expire.toISOString().split('T')[0] as any;
+
+                // 🟢 5: ສ້າງ Credit Limit ພື້ນຖານ 1,000,000 
+                const existCredit = await db.customer_credits.findOne({
+                    where: { customer_id: customer.id },
+                    transaction,
+                    lock: transaction?.LOCK.UPDATE
+                });
+
+                if (!existCredit) {
+                    await db.customer_credits.create({
+                        customer_id: customer.id,
+                        credit_limit: 1000000.00,
+                        cash_advance_limit: 300000.00, // 30% ຂອງວົງເງິນ
+                        used_cash_advance: 0,
+                        available_balance: 1000000.00,
+                        status: 'active'
+                    }, { transaction });
+                }
+            }
+
             await customer.save({ transaction });
 
             // 🟢 บันทึก Audit Log

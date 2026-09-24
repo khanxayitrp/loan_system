@@ -26,6 +26,9 @@ import loanRestructureRouter from './loan-restructure.routes';
 import dashboardRouter from './dashboard.routes';
 import adminRouter from './admin.routes'
 import reportRouter from './report.routes'
+import publicRouter from './public.routes';
+import purposeRouter from './credit-purpose.routes';
+import membershipRouter from './membership-origination.routes';
 
 const router = express.Router();
 
@@ -83,5 +86,11 @@ router.use('/dashboard', dashboardRouter);
 router.use('/admin', adminRouter)
 
 router.use('/reports', reportRouter)
+
+router.use('/public', publicRouter); // 🌐 Public Verification Routes (ไม่ต้องมี verifyToken)
+
+router.use('/membership-purposes', purposeRouter); // 🏦 Credit Purpose Routes
+
+router.use('/membership', membershipRouter); // 🏦 Membership Origination Routes
 
 export default router;

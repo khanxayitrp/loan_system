@@ -183,8 +183,11 @@ import { logger } from '../utils/logger';
 import pdfParse = require('pdf-parse');
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+// 🟢 ດຶງ Keys ທັງໝົດມາໄວ້ເປັນ Array (ກັ່ນຕອງຄ່າທີ່ຫວ່າງເປົ່າອອກ)
+const API_KEYS = [
+    process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2
+].filter(Boolean) as string[];
 
 export function mapDaysToStatus(days: number): string {
     if (days === 0) return 'no_delay';
@@ -196,8 +199,8 @@ export function mapDaysToStatus(days: number): string {
 
 export async function parseCIBPDF(buffer: Buffer): Promise<any> {
     try {
-        if (!apiKey) {
-            throw new Error('ກະລຸນາເພີ່ມ GEMINI_API_KEY ໃນໄຟລ໌ .env ເພື່ອໃຊ້ງານ AI Parser.');
+        if (API_KEYS.length === 0) {
+            throw new Error('ກະລຸນາເພີ່ມ GEMINI_API_KEY_1 ຫຼື GEMINI_API_KEY ໃນໄຟລ໌ .env ເພື່ອໃຊ້ງານ AI Parser.');
         }
 
         const data = await pdfParse(buffer);
@@ -206,11 +209,6 @@ export async function parseCIBPDF(buffer: Buffer): Promise<any> {
         if (!text || text.trim().length === 0) {
             throw new Error('ໄຟລ໌ PDF ບໍ່ມີຂໍ້ຄວາມ (ອາດເປັນພາບສະແກນ)');
         }
-
-        // 🟢 ປ່ຽນມາໃຊ້ 'gemini-pro' ເຊິ່ງຮອງຮັບທຸກ API Key ແລະ ທຸກພື້ນທີ່ 100%
-        // const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        // const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
         const prompt = `
             ເຈົ້າເປັນຜູ້ຊ່ຽວຊານດ້ານການວິເຄາະຂໍ້ມູນສິນເຊື່ອ. ຈົ່ງສະກັດຂໍ້ມູນບັນຊີເງິນກູ້ທັງໝົດຈາກຂໍ້ຄວາມລາຍງານ CIB ຂອງລາວລຸ່ມນີ້.
@@ -234,10 +232,48 @@ export async function parseCIBPDF(buffer: Buffer): Promise<any> {
             ${text}
         `;
 
-        const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
+        let responseText = '';
+        let lastError: any = null;
 
-        // ອະນາໄມຂໍ້ຄວາມເຜື່ອ AI ຍັງແຖມ Markdown ມາໃຫ້
+        // 🟢 ລະບົບ Auto-Failover: ລອງ Key ທີ 1 ກ່ອນ ຖ້າຕິດ Limit ຈະສະຫຼັບໄປ Key ທີ 2 ທັນທີ
+        for (let i = 0; i < API_KEYS.length; i++) {
+            const currentApiKey = API_KEYS[i];
+            try {
+                const genAI = new GoogleGenerativeAI(currentApiKey);
+
+                // ໃຊ້ Model ID ທີ່ຖືກຕ້ອງຕາມ Google AI Studio (Free Tier)
+                const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
+
+                const result = await model.generateContent(prompt);
+                responseText = result.response.text();
+
+                if (responseText) {
+                    break; // ຖ້າສຳເລັດແລ້ວ ໃຫ້ອອກຈາກ Loop
+                }
+            } catch (err: any) {
+                lastError = err;
+
+                // ກວດສອບວ່າເປັນ Error ເລື່ອງ Rate Limit ຫຼື ໂຄຕ້າເຕັມ (Error 429) ຫຼື ບໍ່
+                const isRateLimit = err.status === 429 ||
+                    err.message?.includes('429') ||
+                    err.message?.includes('RESOURCE_EXHAUSTED') ||
+                    err.message?.includes('Quota exceeded');
+
+                if (isRateLimit && i < API_KEYS.length - 1) {
+                    logger.warn(`⚠️ API Key ຕົວທີ ${i + 1} ຕິດ Rate Limit (429)! ກຳລັງສະຫຼັບໄປໃຊ້ Key ຕົວທີ ${i + 2}...`);
+                    continue; // ຍ້າຍໄປລອງ Key ຖັດໄປ
+                } else {
+                    // ຖ້າເປັນ Error ອື່ນໆທີ່ບໍ່ແມ່ນເລື່ອງ Limit ໃຫ້ສົ່ງ Error ອອກໄປເລີຍ
+                    throw err;
+                }
+            }
+        }
+
+        if (!responseText && lastError) {
+            throw lastError;
+        }
+
+        // ອະນາໄມຂໍ້ຄວາມເຜື່ອ AI ແຖມ Markdown
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
 
         let extractedLoans: any[] = [];
@@ -286,8 +322,6 @@ export async function parseCIBPDF(buffer: Buffer): Promise<any> {
                 actual_outstanding_balance: l.actualOutstandingBalance
             })),
             cib_status: worstStatus,
-            // is_existing_customer: loans.length > 0,
-            // existing_customer_status: loans.some(l => l.status === 'active') ? 'active' : 'closed',
             remark: `ສະກັດຈາກ PDF ໂດຍ AI (ພົບ ${loans.length} ບັນຊີ)`,
         };
 
