@@ -535,40 +535,54 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
         htmlContent = htmlContent.replace('{{fontPath}}', fontUrl);
         const templateCompiled = handlebars.compile(htmlContent);
         const customer = formData?.customer || {};
-        // const product = formData?.product || {};
-        // const partner = product?.partner || {};
         const workInfo = formData?.work || customer?.work?.[0] || {};
         const guarantor = formData?.guarantor || null;
         const guarantorWork = formData?.guarantorWork || guarantor?.work || {};
         const today = new Date();
 
         // =========================================================
-        // 🟢 1. ปรับ getVal ให้กำจัดข้อความว่า 'undefined'
+        // 🌟 1. Gatekeeper Logic: ปรับให้รองรับค่า Boolean จาก Frontend
         // =========================================================
-        const getVal = (val: any, defaultStr = '_________') => {
-            // เช็คทั้งค่าว่าง null และ String คำว่า 'undefined'
+        const rawRefType = formData?.ref_Type || '';
+        const currentRefType = String(rawRefType).toLowerCase();
+        
+        // 🟢 เปลี่ยนมาอ่านค่าจาก Boolean ที่หน้าบ้านส่งมาโดยตรง (เพราะหน้าบ้านสะอาดแล้ว)
+        // หรือถ้าหน้าบ้านส่งเป็น ref_Type มาก็ยังรองรับอยู่
+        const isActualGuarantor = formData?.hasGuarantor === true || currentRefType === 'guarantor';
+        const isActualReference = formData?.hasReference === true || currentRefType === 'reference';
+        const hasValidRef = isActualGuarantor || isActualReference;
+
+        // =========================================================
+        // 🌟 2. Data Sanitizer: กำจัดคำว่า "ບໍ່ມີ", "ບໍ່ລະບຸ" ให้กลายเป็น null
+        // =========================================================
+        const cleanDirtyString = (val: any) => {
+            // ถ้าไม่มีคนค้ำประกันเลย บังคับคืนค่า null ทันที
+            if (!hasValidRef) return null;
+
+            const strVal = String(val).trim().toLowerCase();
             if (
-                val === null ||
-                val === undefined ||
-                val === '' ||
-                String(val).trim().toLowerCase() === 'undefined'
+                val === null || val === undefined || val === '' ||
+                strVal === 'undefined' || strVal === 'ບໍ່ມີ' || 
+                strVal === 'ບໍ່ລະບຸ' || strVal === '0' || val === 0
             ) {
+                return null;
+            }
+            return val;
+        };
+
+        const getVal = (val: any, defaultStr = '_________') => {
+            if (val === null || val === undefined || val === '' || String(val).trim().toLowerCase() === 'undefined') {
                 return defaultStr;
             }
             return val;
         };
 
-        // =========================================================
-        // 🟢 2. ปรับ parseAddress ให้ล้างคำว่า 'undefined' ออกจากข้อมูล
-        // =========================================================
         const parseAddress = (addressStr: string | null | undefined) => {
             const defAddr = { village: '', district: '', province: '' };
-
-            if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined') {
+            if (!addressStr || String(addressStr).trim().toLowerCase() === 'undefined' || String(addressStr).trim() === 'ບໍ່ມີ') {
                 return defAddr;
             }
 
-            // ฟังก์ชันช่วยทำความสะอาด ลบคำว่า 'undefined' ออกจากชิ้นส่วนที่โดนหั่น
             const clean = (p: string) => {
                 if (!p) return '';
                 const trimmed = p.trim();
@@ -587,20 +601,16 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             }
         };
 
-        // =========================================================
-        // 🟢 ແກ້ໄຂໃໝ່: ໃຊ້ fulladdress() ເພື່ອດຶງຂໍ້ມູນເປັນຊຸດດຽວກ່ອນ
-        // =========================================================
         const fullCusAddressStr = fulladdress(customer?.address?.village, customer?.address?.district_id, customer?.address?.province_id) || customer?.address;
-
         const fullWorkAddressStr = fulladdress(workInfo?.address?.village, workInfo?.address?.district_id, workInfo?.address?.province_id) || (workInfo?.address || workInfo?.location);
+        
+        // 🟢 ทำความสะอาดข้อมูล Address ของคนค้ำประกันก่อน
+        const safeGuaAddress = cleanDirtyString(guarantor?.address?.village || guarantor?.address);
+        const fullGuaAddressStr = safeGuaAddress ? (fulladdress(guarantor?.address?.village, guarantor?.address?.district_id, guarantor?.address?.province_id) || guarantor?.address) : null;
 
-        const fullGuaAddressStr = fulladdress(guarantor?.address?.village, guarantor?.address?.district_id, guarantor?.address?.province_id) || guarantor?.address;
+        const safeGuaWorkAddress = cleanDirtyString(guarantorWork?.address?.village || guarantorWork?.address || guarantorWork?.location);
+        const fullGuaWorkAddressStr = safeGuaWorkAddress ? (fulladdress(guarantorWork?.address?.village, guarantorWork?.address?.district_id, guarantorWork?.address?.province_id) || (guarantorWork?.address || guarantorWork?.location)) : null;
 
-        const fullGuaWorkAddressStr = fulladdress(guarantorWork?.address?.village, guarantorWork?.address?.district_id, guarantorWork?.address?.province_id) || (guarantorWork?.address || guarantorWork?.location);
-
-        // =========================================================
-        // 🟢 ຈາກນັ້ນນຳມາແຍກ ບ້ານ, ເມືອງ, ແຂວງ ດ້ວຍ parseAddress ອີກຄັ້ງ
-        // =========================================================
         const cusAddr = parseAddress(fullCusAddressStr);
         const workAddr = parseAddress(fullWorkAddressStr);
         const guaAddr = parseAddress(fullGuaAddressStr);
@@ -610,7 +620,7 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             headerImagePath: headerDataUri,
             footerImagePath: footerDataUri,
 
-            contractNumber: formData.contractNumber || '________________',
+            contractNumber: formData.contractNumber || '___________',
             contractDay: formData.contractDate?.day || '___',
             contractMonth: formData.contractDate?.month || '___',
             contractYear: formData.contractDate?.year || '______',
@@ -619,42 +629,36 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             checkGeneral: formData.productType?.general ? 'checked' : '',
             checkMotorcycle: formData.productType?.motorcycle ? 'checked' : '',
 
-            cusName: formData.customer?.fullname || '________________',
+            cusName: formData.customer?.fullname || '___________',
             cusDob: formatDate(formData.customer?.dob),
-            cusPhone: formData.customer?.phone || '________________',
+            cusPhone: formData.customer?.phone || '___________',
             cusGender: mapGender(formData.customer?.gender),
             cusMarital: mapMaritalStatus(formData.customer?.maritalStatus),
-            cusOccupation: formData.customer?.occupation || '________________',
-            cusIdCard: formData.customer?.idCard || '________________',
+            cusOccupation: formData.customer?.occupation || '___________',
+            cusIdCard: formData.customer?.idCard || '___________',
             cusIdIssueDate: formatDate(formData.customer?.idCardIssueDate),
-            cusCensus: formData.customer?.censusBook || '________________',
+            cusCensus: formData.customer?.censusBook || '___________',
             cusIdExpiryDate: formatDate(formData.customer?.idCardExpiryDate),
             censusBookIssueDate: formatDate(formData.customer?.censusBookIssueDate),
-            cusIssuePlace: formData.customer?.censusAuthorizeBy || '________________',
+            cusIssuePlace: formData.customer?.censusAuthorizeBy || '___________',
             cusHouseNo: formData.customer?.houseNumber || '_____',
             cusUnit: formData.customer?.unit || '_____',
-            cusVillage: getVal(cusAddr.village, '____________'),
-            cusDistrict: getVal(cusAddr.district, '____________'),
-            cusProvince: getVal(cusAddr.province, '____________'),
+            cusVillage: getVal(cusAddr.village, '___________'),
+            cusDistrict: getVal(cusAddr.district, '___________'),
+            cusProvince: getVal(cusAddr.province, '___________'),
 
-            // cusVillage: formData.customer?.address?.village || '________________',
-            // cusDistrict: formData.customer?.address?.district || '________________',
-            // cusProvince: formData.customer?.address?.province || '________________',
             cusLivedYears: formData.customer?.residenceYears || '___',
-            cusLiveWith: formData.customer?.liveWith || '________________',
+            cusLiveWith: formData.customer?.liveWith || '___________',
             cusResStatus: mapResidenceStatus(formData.customer?.residenceStatus),
 
-            workName: formData.work?.companyName || '________________',
-            workPhone: formData.work?.phone || '________________', // 🟢 ເພີ່ມເບີໂທບ່ອນເຮັດວຽກຂອງລູກຄ້າ
-            workType: formData.work?.businessType || '________________',
-            workBusinessDetail: formData.work?.businessDetail || '________________',
-            workVillage: getVal(workAddr.village, '____________'),
-            workDistrict: getVal(workAddr.district, '____________'),
-            workProvince: getVal(workAddr.province, '____________'),
+            workName: formData.work?.companyName || '___________',
+            workPhone: formData.work?.phone || '___________', 
+            workType: formData.work?.businessType || '___________',
+            workBusinessDetail: formData.work?.businessDetail || '___________',
+            workVillage: getVal(workAddr.village, '___________'),
+            workDistrict: getVal(workAddr.district, '___________'),
+            workProvince: getVal(workAddr.province, '___________'),
 
-            // workVillage: formData.work?.address?.village || '________________',
-            // workDistrict: formData.work?.address?.district || '________________',
-            // workProvince: formData.work?.address?.province || '________________',
             workYears: formData.work?.workYears || '___',
             workMonths: formData.work?.workMonths || '___',
             workPosition: formData.work?.position || '________________',
@@ -663,12 +667,12 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             workSalaryDay: formData.work?.salaryDay || '___',
             workTotalEmp: formData.work?.totalEmployees || '___',
             workOtherIncome: formatCurrency(formData.work?.otherIncome),
-            workOtherSource: formData.work?.otherIncomeSource || '________________',
+            workOtherSource: formData.work?.otherIncomeSource || '___________',
 
-            prodDesc: formData.product?.description || '________________',
-            prodType: formData.product?.type || '________________',
-            prodBrand: formData.product?.brand || '________________',
-            prodModel: formData.product?.model || '________________',
+            prodDesc: formData.product?.description || '___________',
+            prodType: formData.product?.type || '___________',
+            prodBrand: formData.product?.brand || '___________',
+            prodModel: formData.product?.model || '___________',
             prodPrice: formatCurrency(formData.product?.price),
             prodDown: formatCurrency(formData.product?.downPayment),
             prodApprove: formatCurrency(formData.product?.approvedAmount),
@@ -681,64 +685,60 @@ export const generateLoanContractPDF = async (req: Request, res: Response) => {
             prodPayDay: formData.product?.paymentDay || '___',
 
             isMotorcycle: formData.productType?.motorcycle,
-            motorId: formData.product?.motorcycle?.motorId || '________________',
-            motorColor: formData.product?.motorcycle?.motorColor || '________________',
-            tankNum: formData.product?.motorcycle?.tankNumber || '________________',
+            motorId: formData.product?.motorcycle?.motorId || '___________',
+            motorColor: formData.product?.motorcycle?.motorColor || '___________',
+            tankNum: formData.product?.motorcycle?.tankNumber || '___________',
             motorIns: formatCurrency(formData.product?.motorcycle?.insurance),
             motorWarranty: formData.product?.motorcycle?.motorWarranty || '___',
 
-            shopName: formData.shop?.name || '________________',
-            shopBranch: formData.shop?.branch || '________________',
-            shopCode: formData.shop?.code || '________________',
+            shopName: formData.shop?.name || '___________',
+            shopBranch: formData.shop?.branch || '___________',
+            shopCode: formData.shop?.code || '___________',
 
-            hasGuarantor: formData.hasGuarantor || formData.hasReference,
-            checkGuarantor: formData.hasGuarantor ? 'checked' : '',
-            checkReference: formData.hasReference ? 'checked' : '',
+            // 🌟 3. ใช้ Master Source of Truth ควบคุม Checkbox
+            hasGuarantor: hasValidRef,
+            checkGuarantor: isActualGuarantor ? 'checked' : '',
+            checkReference: isActualReference ? 'checked' : '',
 
-            guaName: formData.guarantor?.fullname || '________________',
-            guaDob: formatDate(formData.guarantor?.dob),
-            guaPhone: formData.guarantor?.phone || '________________',
-            guaGender: mapGender(formData.guarantor?.gender),
-            guaMarital: mapMaritalStatus(formData.guarantor?.maritalStatus),
-            guaOccupation: formData.guarantor?.occupation || '________________',
-            guaRelation: formData.guarantor?.relationship || '________________',
-            guaIdCard: formData.guarantor?.idCard || '________________',
-            guaIdIssueDate: formatDate(formData.guarantor?.idCardIssueDate),
-            guaCensus: formData.guarantor?.censusBook || '________________',
-            guaCensusIssue: formatDate(formData.guarantor?.censusBookIssueDate),
-            guaIssuePlace: formData.guarantor?.censusAuthorizeBy || '________________',
-            guaHouseNo: formData.guarantor?.houseNumber || '_____',
-            guaUnit: formData.guarantor?.unit || '_____',
+            // 🌟 4. หุ้มด้วย cleanDirtyString() เพื่อล้างคำว่า "ບໍ່ມີ" ทิ้งให้หมด
+            guaName: getVal(cleanDirtyString(guarantor?.fullname), '___________'),
+            guaDob: formatDate(cleanDirtyString(guarantor?.dob)),
+            guaPhone: getVal(cleanDirtyString(guarantor?.phone), '___________'),
+            guaGender: mapGender(cleanDirtyString(guarantor?.gender)),
+            guaMarital: mapMaritalStatus(cleanDirtyString(guarantor?.maritalStatus)),
+            guaOccupation: getVal(cleanDirtyString(guarantor?.occupation), '___________'),
+            guaRelation: getVal(cleanDirtyString(guarantor?.relationship), '___________'),
+            guaIdCard: getVal(cleanDirtyString(guarantor?.idCard), '___________'),
+            guaIdIssueDate: formatDate(cleanDirtyString(guarantor?.idCardIssueDate)),
+            guaCensus: getVal(cleanDirtyString(guarantor?.censusBook), '___________'),
+            guaCensusIssue: formatDate(cleanDirtyString(guarantor?.censusBookIssueDate)),
+            guaIssuePlace: getVal(cleanDirtyString(guarantor?.censusAuthorizeBy), '___________'),
+            guaHouseNo: getVal(cleanDirtyString(guarantor?.houseNumber), '_____'),
+            guaUnit: getVal(cleanDirtyString(guarantor?.unit), '_____'),
 
-            guaVillage: getVal(guaAddr.village, '____________'),
-            guaDistrict: getVal(guaAddr.district, '____________'),
-            guaProvince: getVal(guaAddr.province, '____________'),
+            guaVillage: getVal(guaAddr.village, '___________'),
+            guaDistrict: getVal(guaAddr.district, '___________'),
+            guaProvince: getVal(guaAddr.province, '___________'),
 
-            // guaVillage: formData.guarantor?.address?.village || '________________',
-            // guaDistrict: formData.guarantor?.address?.district || '________________',
-            // guaProvince: formData.guarantor?.address?.province || '________________',
-            guaLivedYears: formData.guarantor?.residenceYears || '___',
-            guaLiveWith: formData.guarantor?.liveWith || '________________',
-            guaResStatus: mapResidenceStatus(formData.guarantor?.residenceStatus),
+            guaLivedYears: getVal(cleanDirtyString(guarantor?.residenceYears), '___'),
+            guaLiveWith: getVal(cleanDirtyString(guarantor?.liveWith), '___________'),
+            guaResStatus: mapResidenceStatus(cleanDirtyString(guarantor?.residenceStatus)),
 
-            guaWorkName: formData.guarantorWork?.companyName || '________________',
-            guaWorkPhone: formData.guarantorWork?.phone || '________________', // 🟢 ເພີ່ມເບີໂທບ່ອນເຮັດວຽກຂອງຜູ້ຄ້ຳ (ຖ້າມີ)
-            guaWorkType: formData.guarantorWork?.businessType || '________________',
+            guaWorkName: getVal(cleanDirtyString(guarantorWork?.companyName), '___________'),
+            guaWorkPhone: getVal(cleanDirtyString(guarantorWork?.phone), '___________'), 
+            guaWorkType: getVal(cleanDirtyString(guarantorWork?.businessType), '___________'),
 
-            guaWorkVillage: getVal(guaWorkAddr.village, '____________'),
-            guaWorkDistrict: getVal(guaWorkAddr.district, '____________'),
-            guaWorkProvince: getVal(guaWorkAddr.province, '____________'),
+            guaWorkVillage: getVal(guaWorkAddr.village, '___________'),
+            guaWorkDistrict: getVal(guaWorkAddr.district, '___________'),
+            guaWorkProvince: getVal(guaWorkAddr.province, '___________'),
 
-            // guaWorkVillage: formData.guarantorWork?.address?.village || '________________',
-            // guaWorkDistrict: formData.guarantorWork?.address?.district || '________________',
-            // guaWorkProvince: formData.guarantorWork?.address?.province || '________________',
-            guaWorkYears: formData.guarantorWork?.workYears || '___',
-            guaWorkPos: formData.guarantorWork?.position || '________________',
-            guaWorkSalary: formatCurrency(formData.guarantorWork?.salary),
-            guaWorkSalaryDay: formData.guarantorWork?.salaryDay || '___',
-            guaWorkTotalEmp: formData.guarantorWork?.totalEmployees || '___',
-            guaWorkOtherInc: formatCurrency(formData.guarantorWork?.otherIncome),
-            guaWorkOtherSource: formData.guarantorWork?.otherIncomeSource || '________________',
+            guaWorkYears: getVal(cleanDirtyString(guarantorWork?.workYears), '___'),
+            guaWorkPos: getVal(cleanDirtyString(guarantorWork?.position), '___________'),
+            guaWorkSalary: formatCurrency(cleanDirtyString(guarantorWork?.salary)),
+            guaWorkSalaryDay: getVal(cleanDirtyString(guarantorWork?.salaryDay), '___'),
+            guaWorkTotalEmp: getVal(cleanDirtyString(guarantorWork?.totalEmployees), '___'),
+            guaWorkOtherInc: formatCurrency(cleanDirtyString(guarantorWork?.otherIncome)),
+            guaWorkOtherSource: getVal(cleanDirtyString(guarantorWork?.otherIncomeSource), '___________'),
         };
 
         const html = templateCompiled(data);
