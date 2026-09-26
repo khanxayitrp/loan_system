@@ -5,6 +5,7 @@
 # Ignore logs system_development_document and temp files
 *.log
 *.txt
+!system_development_document.txt
 tmp/
 
 # Ignore IDE-specific files
